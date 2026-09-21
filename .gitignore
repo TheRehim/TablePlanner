@@ -1,0 +1,36 @@
+# dependencies
+node_modules/
+package-lock.json.bak
+
+# secrets — never commit these; use Sealed Secrets on the cluster
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# local data / backups
+*.sqlite
+*.sqlite3
+data/
+backups/
+*.dump
+
+# spreadsheets dropped in for testing (may contain real guest names)
+*.xlsx
+*.xls
+*.csv
+!sample/*.csv
+
+# build output
+dist/
+build/
+*.tgz
+
+# editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp

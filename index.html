@@ -1,0 +1,3151 @@
+<!DOCTYPE html>
+<html lang="az">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Toy Masa və Qonaq Planlayıcısı</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Select2 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
+
+    <style>
+        :root {
+            /* Capacity state colors: below = blue, exactly full = dark, over = red */
+            --cap-under-bg: #1d4ed8;
+            --cap-under-tint: #eef3ff;
+            --cap-under-line: #c3d3f8;
+
+            --cap-full-bg: #1f2937;
+            --cap-full-tint: #eceef1;
+            --cap-full-line: #c4c9d1;
+
+            --cap-over-bg: #b91c1c;
+            --cap-over-tint: #fdeeee;
+            --cap-over-line: #f3c4c4;
+        }
+
+        body {
+            background-color: #f4f5f7;
+            color: #2b2f33;
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+            /* Set at runtime from the real bar heights; these are fallbacks. */
+            padding-top: 58px;
+            padding-bottom: 54px;
+        }
+
+        .fixed-top-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1030;
+            background-color: #ffffff;
+            border-bottom: 1px solid #dee2e6;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+        }
+
+        .fixed-bottom-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 1030;
+            background-color: #ffffff;
+            border-top: 1px solid #dee2e6;
+            box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.04);
+        }
+
+        /* ---- Compact filter bar ---- */
+        .filter-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: .35rem;
+            align-items: center;
+        }
+
+        .filter-bar .f-item {
+            flex: 1 1 165px;
+            min-width: 140px;
+        }
+
+        .filter-bar .f-range {
+            flex: 0 0 auto;
+            display: flex;
+            align-items: center;
+            gap: .2rem;
+        }
+
+        .filter-bar .f-range input {
+            width: 52px;
+            text-align: center;
+            padding-left: .2rem;
+            padding-right: .2rem;
+        }
+
+        .filter-bar .f-metric {
+            flex: 0 0 auto;
+            width: 145px;
+        }
+
+        .filter-active {
+            box-shadow: 0 0 0 .12rem rgba(29, 78, 216, .35) !important;
+        }
+
+        /* ---- Table cards ---- */
+        #tablesContainer {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            align-items: flex-start;
+            justify-content: center;
+        }
+
+        .table-card {
+            width: 380px;
+            flex: 0 0 380px;
+            border: 1px solid #dcdfe4;
+            border-radius: .5rem;
+            overflow: hidden;
+            background: #fff;
+        }
+
+        .table-card .card-header {
+            padding: .6rem .75rem;
+            border-bottom: 1px solid #e3e6ea;
+        }
+
+        /* Table name: readable, wraps, never truncated */
+        .table-name {
+            font-size: 1.15rem;
+            font-weight: 700;
+            line-height: 1.25;
+            margin: 0;
+            word-break: break-word;
+            white-space: normal;
+        }
+
+        /* Capacity pill: the "table info", big and readable */
+        .cap-pill {
+            display: inline-block;
+            font-size: 1rem;
+            font-weight: 700;
+            line-height: 1.2;
+            padding: .3rem .6rem;
+            border-radius: .4rem;
+            color: #ffffff !important;
+        }
+
+        .cap-note {
+            font-size: .875rem;
+            font-weight: 600;
+        }
+
+        /* below capacity -> blue */
+        .cap-under .card-header,
+        .card-header.cap-under {
+            background: var(--cap-under-tint);
+            border-bottom-color: var(--cap-under-line);
+        }
+
+        .cap-under .cap-pill,
+        .cap-pill.cap-under {
+            background: var(--cap-under-bg);
+        }
+
+        .cap-under .cap-note,
+        .cap-note.cap-under {
+            color: var(--cap-under-bg);
+        }
+
+        /* exactly at capacity -> dark bg, white font */
+        .cap-full .card-header,
+        .card-header.cap-full {
+            background: var(--cap-full-tint);
+            border-bottom-color: var(--cap-full-line);
+        }
+
+        .cap-full .cap-pill,
+        .cap-pill.cap-full {
+            background: var(--cap-full-bg);
+        }
+
+        .cap-full .cap-note,
+        .cap-note.cap-full {
+            color: var(--cap-full-bg);
+        }
+
+        /* over capacity -> red */
+        .cap-over .card-header,
+        .card-header.cap-over {
+            background: var(--cap-over-tint);
+            border-bottom-color: var(--cap-over-line);
+        }
+
+        .cap-over .cap-pill,
+        .cap-pill.cap-over {
+            background: var(--cap-over-bg);
+        }
+
+        .cap-over .cap-note,
+        .cap-note.cap-over {
+            color: var(--cap-over-bg);
+        }
+
+        .table-card.cap-under {
+            border-top: 4px solid var(--cap-under-bg);
+        }
+
+        .table-card.cap-full {
+            border-top: 4px solid var(--cap-full-bg);
+        }
+
+        .table-card.cap-over {
+            border-top: 4px solid var(--cap-over-bg);
+        }
+
+        /* Guest rows */
+        .guest-table {
+            font-size: .9rem;
+        }
+
+        .guest-table td,
+        .guest-table th {
+            vertical-align: middle;
+        }
+
+        .guest-name {
+            font-weight: 600;
+            word-break: break-word;
+            white-space: normal;
+        }
+
+        .badge-type {
+            font-size: .72rem;
+            font-weight: 600;
+        }
+
+        .amount-badge {
+            font-size: .85rem;
+            font-weight: 700;
+            background: #eef0f3;
+            color: #2b2f33;
+            border: 1px solid #d5d9df;
+        }
+
+        /* A row that matched the search, shown in place inside its full masa. */
+        .row-hit {
+            background-color: #fff6d8 !important;
+            box-shadow: inset 3px 0 0 #e0a800;
+        }
+
+        .guest-name mark {
+            background-color: #ffe066;
+            padding: 0 .1em;
+            border-radius: .15em;
+        }
+
+        .btn-orange {
+            background-color: #e27d3b;
+            border-color: #e27d3b;
+            color: #fff;
+        }
+
+        .btn-orange:hover {
+            background-color: #cc6d31;
+            border-color: #c2672d;
+            color: #fff;
+        }
+
+        .btn-green-add {
+            background-color: #2e8b57;
+            border-color: #2e8b57;
+            color: #fff;
+        }
+
+        .btn-green-add:hover {
+            background-color: #257046;
+            border-color: #236a43;
+            color: #fff;
+        }
+
+        /* Select2 sizing so it matches form-select-sm */
+        .select2-container--bootstrap-5 .select2-selection {
+            min-height: 31px;
+            font-size: .875rem;
+        }
+
+        .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__rendered {
+            padding: .1rem .3rem;
+        }
+
+        /* Keep the filter bar compact when many tags are selected: the tag list
+           scrolls instead of growing the fixed bar over the content. */
+        .select2-container--bootstrap-5 .select2-selection--multiple {
+            max-height: 62px;
+            overflow-y: auto;
+        }
+
+        .select2-container {
+            z-index: 1056 !important;
+        }
+
+        .select2-dropdown {
+            z-index: 1057 !important;
+        }
+
+        /* The filter bar collapses on mobile only; on desktop it is always
+           open regardless of the collapse state left over from a narrow view. */
+        @media (min-width: 768px) {
+            #filterCollapse {
+                display: block !important;
+                height: auto !important;
+                overflow: visible !important;
+            }
+        }
+
+        #filterToggle .chev {
+            transition: transform .2s ease;
+        }
+
+        #filterToggle.collapsed .chev {
+            transform: rotate(180deg);
+        }
+
+        .list-sort {
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+        }
+
+        .list-sort:hover {
+            background-color: #e9ecef;
+        }
+
+        .sort-ind {
+            opacity: .45;
+            font-size: .8em;
+        }
+
+        .list-sort.active .sort-ind {
+            opacity: 1;
+        }
+
+        /* Print: only #printArea reaches the paper. */
+        #printArea {
+            display: none;
+        }
+
+        @media print {
+            body > *:not(#printArea) {
+                display: none !important;
+            }
+
+            body {
+                padding: 0 !important;
+                background: #fff !important;
+            }
+
+            #printArea {
+                display: block !important;
+            }
+
+            @page {
+                margin: 14mm;
+            }
+
+            #printArea h2 {
+                font-size: 16pt;
+                margin: 0 0 2mm;
+            }
+
+            #printArea .meta {
+                font-size: 9pt;
+                color: #444;
+                margin-bottom: 4mm;
+            }
+
+            #printArea table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+
+            #printArea th,
+            #printArea td {
+                border: 1px solid #999;
+                padding: 4px 7px;
+                font-size: 10pt;
+                text-align: left;
+            }
+
+            #printArea th {
+                background: #eee !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            /* Repeat the header on every page and never split a row. */
+            #printArea thead {
+                display: table-header-group;
+            }
+
+            #printArea tr {
+                page-break-inside: avoid;
+            }
+        }
+
+        /* Read-only (public) mode hides every mutating control. This is
+           presentation only - the server is what actually rejects writes. */
+        body.read-only .edit-only {
+            display: none !important;
+        }
+
+        .view-badge {
+            display: none;
+        }
+
+        body.read-only .view-badge {
+            display: inline-block;
+        }
+
+        #importPreview .tbl,
+        #impMasaPreview .tbl {
+            max-height: 190px;
+            overflow-y: auto;
+        }
+
+        /* Toasts */
+        #toastHost {
+            position: fixed;
+            top: 64px;
+            right: 12px;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            gap: .4rem;
+            max-width: 340px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- FIXED TOP BAR: filters -->
+    <div class="fixed-top-bar py-2 px-2">
+        <div class="container-fluid">
+            <button class="btn btn-sm btn-outline-secondary w-100 d-md-none mb-2" type="button" id="filterToggle"
+                data-bs-toggle="collapse" data-bs-target="#filterCollapse" aria-expanded="true"
+                aria-controls="filterCollapse">
+                <i class="fa-solid fa-filter me-1"></i> Filtrlər
+                <span class="badge bg-primary ms-1 d-none" id="activeFilterCount">0</span>
+                <i class="fa-solid fa-chevron-up ms-1 chev"></i>
+            </button>
+            <div class="collapse show" id="filterCollapse">
+            <div class="filter-bar">
+                <div class="f-item">
+                    <select id="filterMasa" class="form-select form-select-sm" multiple
+                        data-placeholder="Bütün masalar"></select>
+                </div>
+                <div class="f-item">
+                    <input type="text" id="filterName" class="form-control form-control-sm"
+                        placeholder="Qonaq / masa adı...">
+                </div>
+                <div class="f-item">
+                    <select id="filterGuestsByType" class="form-select form-select-sm" multiple
+                        data-placeholder="Bu növ qonağı olan masalar"></select>
+                </div>
+                <div class="f-item">
+                    <select id="filterTablesByType" class="form-select form-select-sm"></select>
+                </div>
+                <div class="f-item" style="flex:0 0 150px;min-width:150px;">
+                    <select id="filterCapacityState" class="form-select form-select-sm">
+                        <option value="">Bütün vəziyyətlər</option>
+                        <option value="under">Boş yeri olanlar</option>
+                        <option value="full">Tam dolanlar</option>
+                        <option value="over">Tutumdan artıq</option>
+                    </select>
+                </div>
+
+                <!-- One compact range filter; the metric select says WHAT the min-max applies to -->
+                <div class="f-metric">
+                    <select id="filterMetric" class="form-select form-select-sm" title="Say filtri hansı dəyərə tətbiq olunsun">
+                        <option value="">Say filtri: yox</option>
+                        <option value="guestAmount">Qonaq nəfəri</option>
+                        <option value="occupied">Masada oturan</option>
+                        <option value="capacity">Masa tutumu</option>
+                        <option value="free">Boş yer sayı</option>
+                    </select>
+                </div>
+                <div class="f-range">
+                    <input type="number" id="filterRangeMin" class="form-control form-control-sm" placeholder="min"
+                        min="0" title="Minimum" disabled>
+                    <span class="text-muted small">–</span>
+                    <input type="number" id="filterRangeMax" class="form-control form-control-sm" placeholder="max"
+                        min="0" title="Maksimum" disabled>
+                    <button class="btn btn-sm btn-outline-secondary py-0 px-2" id="resetFilters"
+                        title="Filtrləri sıfırla"><i class="fa-solid fa-rotate-left"></i></button>
+                </div>
+            </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toastHost"></div>
+
+    <!-- MAIN CONTENT -->
+    <div class="container-fluid py-3 px-3">
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <div>
+                <h1 class="h5 mb-0 fw-bold">Toy Masa İdarəetməsi
+                    <span class="badge bg-secondary view-badge align-middle ms-1"
+                        title="Yalnız baxış — dəyişiklik etmək mümkün deyil"><i
+                            class="fa-solid fa-eye me-1"></i>Baxış rejimi</span>
+                </h1>
+                <span class="text-muted small" id="masaHintInfo">—</span>
+            </div>
+            <div class="d-flex gap-2">
+                <span class="badge bg-light text-dark border align-self-center" id="filterResultInfo"></span>
+                <button class="btn btn-primary btn-sm edit-only" id="btnOpenAddTable">
+                    <i class="fa-solid fa-circle-plus me-1"></i> Yeni Masa
+                </button>
+            </div>
+        </div>
+
+        <div id="tablesContainer"></div>
+    </div>
+
+    <!-- FIXED BOTTOM BAR -->
+    <div class="fixed-bottom-bar py-2 px-3">
+        <div class="container-fluid d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <span class="small" id="globalStatsSummary">—</span>
+            <div class="d-flex gap-2">
+                <button class="btn btn-outline-primary btn-sm" id="btnOpenList">
+                    <i class="fa-solid fa-list-ul me-1"></i> Siyahı
+                </button>
+                <button class="btn btn-outline-dark btn-sm edit-only" data-bs-toggle="modal" data-bs-target="#typesModal">
+                    <i class="fa-solid fa-tags me-1"></i> Tiplər
+                </button>
+                <button class="btn btn-success btn-sm edit-only" id="btnOpenAddGuest">
+                    <i class="fa-solid fa-user-plus me-1"></i> Qonaq Əlavə Et
+                </button>
+                <div class="dropup">
+                    <button class="btn btn-outline-secondary btn-sm" type="button" id="btnMoreMenu"
+                        data-bs-toggle="dropdown" data-bs-auto-close="true" aria-expanded="false"
+                        title="Digər əməliyyatlar">
+                        <i class="fa-solid fa-ellipsis-vertical"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow">
+                        <li><button class="dropdown-item" type="button" id="miExport">
+                            <i class="fa-solid fa-file-export me-2 text-secondary"></i>Məlumatları ixrac et (JSON)
+                        </button></li>
+                        <li><button class="dropdown-item edit-only" type="button" id="miImport">
+                            <i class="fa-solid fa-file-import me-2 text-secondary"></i>Məlumatları idxal et (JSON)
+                        </button></li>
+                        <li><hr class="dropdown-divider edit-only"></li>
+                        <li><button class="dropdown-item edit-only" type="button" id="miImportMasa">
+                            <i class="fa-solid fa-table-list me-2 text-secondary"></i>Masa idxal et (Excel-dən)
+                        </button></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Add Table -->
+    <div class="modal fade" id="addTableModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fs-6 fw-bold">Yeni Masa Əlavə Et</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addTableForm" novalidate>
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Masa Adı / Nömrəsi</label>
+                            <input type="text" class="form-control" id="newTableName" required>
+                            <div class="form-text small">Sonuncu rəqəmli masaya əsasən avtomatik təklif olunur.</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Maksimum Tutum (Yer)</label>
+                            <input type="number" class="form-control" id="newTableCapacity" min="1" value="16" required>
+                        </div>
+                        <div class="alert alert-danger py-2 small d-none" id="addTableError"></div>
+                        <button type="submit" class="btn btn-primary w-100">Masa Yarat</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Edit Table -->
+    <div class="modal fade" id="editTableModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fs-6 fw-bold">Masaya Dəyişiklik Et</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editTableForm" novalidate>
+                        <input type="hidden" id="editTableId">
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Masa Adı / Nömrəsi</label>
+                            <input type="text" class="form-control" id="editTableName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Maksimum Tutum (Yer)</label>
+                            <input type="number" class="form-control" id="editTableCapacity" min="1" required>
+                            <div class="form-text small" id="editTableOccupiedHint"></div>
+                        </div>
+                        <div class="alert alert-danger py-2 small d-none" id="editTableError"></div>
+                        <button type="submit" class="btn btn-primary w-100">Yadda Saxla</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Add Guest -->
+    <div class="modal fade" id="addGuestModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fs-6 fw-bold">Masaya Qonaq Əlavə Et</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addGuestForm" novalidate>
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Masa Seçin</label>
+                            <select class="form-select" id="guestTableId" required></select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Ad Soyad (və ya Ailə)</label>
+                            <input type="text" class="form-control" id="guestName" required
+                                placeholder="Məs: Elçin Məmmədov">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Qonaq Növü</label>
+                            <select class="form-select" id="guestType" required></select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Nəfər Sayı (Ailə üzvləri daxil)</label>
+                            <input type="number" class="form-control" id="guestAmount" min="1" value="1" required>
+                        </div>
+                        <div class="alert alert-warning py-2 small d-none" id="addGuestCapWarn"></div>
+                        <div class="alert alert-danger py-2 small d-none" id="addGuestError"></div>
+                        <button type="submit" class="btn btn-primary w-100">Qonaq Əlavə Et</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Edit Guest -->
+    <div class="modal fade" id="editGuestModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fs-6 fw-bold">Qonaq Məlumatlarına Dəyişiklik Et</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editGuestForm" novalidate>
+                        <input type="hidden" id="editGuestTableId">
+                        <input type="hidden" id="editGuestId">
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Hansı Masada Olsun</label>
+                            <select class="form-select" id="editGuestTargetTableId" required></select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Ad Soyad</label>
+                            <input type="text" class="form-control" id="editGuestName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Qonaq Növü</label>
+                            <select class="form-select" id="editGuestType" required></select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Nəfər Sayı</label>
+                            <input type="number" class="form-control" id="editGuestAmount" min="1" required>
+                        </div>
+                        <div class="alert alert-warning py-2 small d-none" id="editGuestCapWarn"></div>
+                        <div class="alert alert-danger py-2 small d-none" id="editGuestError"></div>
+                        <button type="submit" class="btn btn-primary w-100">Yadda Saxla</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Guest Types Manager -->
+    <div class="modal fade" id="typesModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fs-6 fw-bold"><i class="fa-solid fa-tags me-1"></i> Qonaq Tiplərinin İdarə
+                        Edilməsi</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="input-group mb-2">
+                        <input type="text" id="newTypeName" class="form-control form-control-sm"
+                            placeholder="Yeni tip adı (məs: Qohum)">
+                        <button class="btn btn-outline-primary btn-sm" id="btnAddType" type="button"><i
+                                class="fa-solid fa-plus me-1"></i> Əlavə Et</button>
+                    </div>
+                    <div class="alert alert-danger py-2 small d-none" id="typeError"></div>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Tip Adı</th>
+                                    <th class="text-center" style="width: 90px;">İstifadə</th>
+                                    <th class="text-end" style="width: 100px;">Əməliyyat</th>
+                                </tr>
+                            </thead>
+                            <tbody id="typesTableBody"></tbody>
+                        </table>
+                    </div>
+                    <div class="form-text small">İstifadədə olan tipi silmək olmaz — əvvəlcə adını dəyişin və ya
+                        qonaqların tipini dəyişin.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Move / Switch Guest -->
+    <div class="modal fade" id="moveSwitchModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title fs-6 fw-bold text-dark"><i
+                            class="fa-solid fa-right-left text-warning me-1"></i> Qonağı Köçür və ya Dəyiş (Switch)</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="moveSwitchForm" novalidate>
+                        <input type="hidden" id="msSourceTableId">
+                        <input type="hidden" id="msSourceGuestId">
+
+                        <div class="alert alert-secondary py-2 small mb-3">
+                            Köçürülən qonaq: <strong id="msGuestSummary">—</strong><br>
+                            Cari masa: <span id="msCurrentTableSummary">—</span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Hədəf Masa Seçin</label>
+                            <select class="form-select" id="msTargetTableId" required></select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Əməliyyat Növü</label>
+                            <div class="d-flex gap-4 mt-1">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="moveMode" id="modeMove"
+                                        value="move" checked>
+                                    <label class="form-check-label small" for="modeMove">Sadəcə Köçür (boş yerə əlavə
+                                        et)</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="moveMode" id="modeSwitch"
+                                        value="switch">
+                                    <label class="form-check-label small" for="modeSwitch">Yer Dəyiş (başqa qonaqla yer
+                                        dəyiş)</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3 d-none" id="switchGuestContainer">
+                            <label class="form-label small fw-semibold">Hədəf masadan yerini dəyişəcəyiniz qonaq</label>
+                            <select class="form-select" id="msTargetGuestId"></select>
+                        </div>
+
+                        <div class="card bg-light border p-3 mb-3">
+                            <h6 class="small fw-bold text-secondary mb-2"><i class="fa-solid fa-chart-pie me-1"></i>
+                                Tutum dəyişikliyi proqnozu:</h6>
+                            <div class="row g-2 small" id="capacityPreviewContainer"></div>
+                        </div>
+
+                        <div class="mb-3">
+                            <h6 class="small fw-bold text-secondary mb-1">Hədəf masadakı qonaqlar:</h6>
+                            <div class="table-responsive" style="max-height: 170px; overflow-y: auto;">
+                                <table class="table table-sm table-bordered bg-white mb-0 small align-middle">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Ad</th>
+                                            <th>Tip</th>
+                                            <th class="text-center" style="width:60px;">Say</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="msTargetGuestsTableBody">
+                                        <tr>
+                                            <td colspan="3" class="text-center text-muted">Masa seçilməyib</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-danger py-2 small d-none" id="msError"></div>
+
+                        <button type="submit" class="btn btn-orange w-100" id="msSubmitBtn"><i
+                                class="fa-solid fa-right-left me-1"></i> Təsdiq Et və Köçür/Dəyiş</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Import ALL data (replaces everything) -->
+    <div class="modal fade" id="importDataModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fs-6 fw-bold"><i class="fa-solid fa-file-import me-1"></i> Məlumatları İdxal Et</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning py-2 small">
+                        <i class="fa-solid fa-triangle-exclamation me-1"></i>
+                        Bu əməliyyat <strong>bütün mövcud məlumatları əvəz edir</strong>.
+                        Əvvəlcə ixrac edib ehtiyat nüsxə saxlamaq tövsiyə olunur.
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">JSON faylı seçin</label>
+                        <input type="file" class="form-control form-control-sm" id="importFile" accept="application/json,.json">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">və ya JSON mətnini yapışdırın</label>
+                        <textarea class="form-control form-control-sm" id="importText" rows="7"
+                            spellcheck="false" placeholder='{ "guestTypes": [...], "tables": [...] }'></textarea>
+                    </div>
+                    <div id="importPreview"></div>
+                    <div class="alert alert-danger py-2 small d-none" id="importError"></div>
+                </div>
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">İmtina</button>
+                    <button type="button" class="btn btn-danger btn-sm" id="btnDoImport" disabled>
+                        <i class="fa-solid fa-check me-1"></i> Əvəz Et və İdxal Et
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Import ONE masa, pasted from Excel -->
+    <div class="modal fade" id="importMasaModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fs-6 fw-bold"><i class="fa-solid fa-table-list me-1"></i> Masa İdxal Et</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Excel faylı (.xlsx / .xls / .csv)</label>
+                        <input type="file" class="form-control form-control-sm" id="impMasaFile"
+                            accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+                        <div class="form-text small">Bütün vərəqlər oxunur, ən çox qonaq tapılan seçilir.
+                            Fayl yalnız bu brauzerdə açılır, heç yerə göndərilmir.</div>
+                        <div class="d-none mt-2" id="impMasaFileBusy">
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                            <span class="small">Fayl oxunur…</span>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 mb-3 text-muted small">
+                        <hr class="flex-grow-1 my-0"><span>və ya yapışdırın</span><hr class="flex-grow-1 my-0">
+                    </div>
+                    <div class="row g-2 mb-3" id="impMasaSingleFields">
+                        <div class="col-md-7">
+                            <label class="form-label small fw-semibold">Masa adı</label>
+                            <input type="text" class="form-control form-control-sm" id="impMasaName">
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label small fw-semibold">Tutum</label>
+                            <input type="number" class="form-control form-control-sm" id="impMasaCapacity" min="1" value="16">
+                        </div>
+                    </div>
+                    <div class="alert alert-primary py-2 small d-none" id="impMasaMultiNote">
+                        <i class="fa-solid fa-layer-group me-1"></i>
+                        <span id="impMasaModeText"></span>
+                    </div>
+                    <div class="d-none mb-3" id="impMasaStrategyBox">
+                        <label class="form-label small fw-semibold">Mövcud masalar nə olsun?</label>
+                        <div class="btn-group btn-group-sm w-100" role="group">
+                            <input type="radio" class="btn-check" name="impStrategy" id="impStrategyMerge" value="merge" checked>
+                            <label class="btn btn-outline-secondary" for="impStrategyMerge">Saxla və əlavə et</label>
+                            <input type="radio" class="btn-check" name="impStrategy" id="impStrategyReplace" value="replace">
+                            <label class="btn btn-outline-danger" for="impStrategyReplace">Hamısını əvəz et</label>
+                        </div>
+                        <div class="form-text small" id="impStrategyHint"></div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small fw-semibold">Excel-dən sətrləri buraya yapışdırın</label>
+                        <textarea class="form-control form-control-sm" id="impMasaText" rows="7" spellcheck="false"
+                            placeholder="Elçin Məmmədov&#9;Dostlar&#9;2&#10;Nigar Əliyeva&#9;Ailə&#9;1"></textarea>
+                        <div class="form-text small">
+                            Hər sətr bir qonaq. İki formatdan biri:
+                            <strong>Ad · Tip · Say</strong> (tək masa) və ya
+                            <strong>Ad · Haradan · Say · Masa</strong> (çoxlu masa — "Siyahı" vərəqi).
+                            Başlıq sətri varsa, sütunlar adına görə tanınır; yoxdursa sıraya görə.
+                            Masa adı "Masa 7 (16)" şəklindədirsə, mötərizədəki rəqəm tutum kimi götürülür.
+                            Tip və say yazılmayıbsa, ilk tip və 1 nəfər götürülür.
+                        </div>
+                    </div>
+                    <div id="impMasaPreview"></div>
+                    <div class="alert alert-danger py-2 small d-none" id="impMasaError"></div>
+                </div>
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">İmtina</button>
+                    <button type="button" class="btn btn-primary btn-sm" id="btnDoImportMasa" disabled>
+                        <i class="fa-solid fa-plus me-1"></i> <span id="impMasaBtnLabel">Masanı Əlavə Et</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Printable guest list. Static: closes only via its buttons. -->
+    <div class="modal fade" id="guestListModal" tabindex="-1" data-bs-backdrop="static"
+        data-bs-keyboard="false">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fs-6 fw-bold"><i class="fa-solid fa-list-ul me-1"></i> Qonaq Siyahısı</h5>
+                </div>
+                <div class="modal-body">
+                    <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+                        <div class="btn-group btn-group-sm" role="group">
+                            <input type="radio" class="btn-check" name="listScope" id="listScopeAll" value="all" checked>
+                            <label class="btn btn-outline-secondary" for="listScopeAll">Bütün qonaqlar</label>
+                            <input type="radio" class="btn-check" name="listScope" id="listScopeFiltered" value="filtered">
+                            <label class="btn btn-outline-secondary" for="listScopeFiltered">Yalnız filtrlənmiş</label>
+                        </div>
+                        <span class="small text-muted ms-auto" id="listCount"></span>
+                    </div>
+                    <div class="form-text small mb-2">Sütun başlığına klikləyərək sıralayın (A&rarr;Z / Z&rarr;A).</div>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered align-middle mb-0" id="guestListTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th role="button" class="list-sort" data-key="name">Qonaq <span class="sort-ind"></span></th>
+                                    <th role="button" class="list-sort" data-key="type" style="width:140px;">Tip <span class="sort-ind"></span></th>
+                                    <th role="button" class="list-sort" data-key="table" style="width:150px;">Masa <span class="sort-ind"></span></th>
+                                </tr>
+                            </thead>
+                            <tbody id="guestListBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="btnCloseList">Bağla</button>
+                    <button type="button" class="btn btn-primary btn-sm" id="btnPrintList">
+                        <i class="fa-solid fa-print me-1"></i> Çap Et
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Print target: filled from the list modal, hidden on screen. -->
+    <div id="printArea"></div>
+
+    <!-- Modal: Confirmation -->
+    <div class="modal fade" id="confirmModal" tabindex="-1">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-header py-2">
+                    <h5 class="modal-title fs-6 fw-bold text-danger"><i
+                            class="fa-solid fa-triangle-exclamation me-1"></i> Təsdiq Et</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body py-3 small" id="confirmModalBody"></div>
+                <div class="modal-footer py-1">
+                    <button type="button" class="btn btn-outline-secondary btn-sm"
+                        data-bs-dismiss="modal">İmtina</button>
+                    <button type="button" class="btn btn-danger btn-sm" id="confirmModalActionBtn">Bəli, Sil</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+    <script>
+        'use strict';
+
+        /* =====================================================================
+           DATA
+           ===================================================================== */
+        const weddingData = {
+            guestTypes: ["Ailə", "Dostlar", "İş yoldaşları", "VIP", "Musiqiçilər", "Akrabalar"],
+            tables: [
+                {
+                    id: 1, name: "Masa 1", capacity: 16, guests: [
+                        { id: 101, name: "Professor Kamil Məmmədov və ailəsi", type: "Ailə", amount: 4 },
+                        { id: 102, name: "Nigar Əliyeva", type: "Ailə", amount: 2 },
+                        { id: 103, name: "Rauf Həsənov", type: "VIP", amount: 2 },
+                        { id: 104, name: "Leyla Qasımova", type: "VIP", amount: 2 }
+                    ]
+                },
+                {
+                    id: 2, name: "Masa 2", capacity: 16, guests: [
+                        { id: 105, name: "Orxan Qasımov və yoldaşı", type: "Dostlar", amount: 2 },
+                        { id: 106, name: "Elvin Məmmədzadə", type: "Dostlar", amount: 1 },
+                        { id: 107, name: "Tural İbrahimli", type: "Dostlar", amount: 1 },
+                        { id: 108, name: "Samir Kərimov", type: "Dostlar", amount: 1 },
+                        { id: 109, name: "Fərid Əliyev", type: "Dostlar", amount: 2 }
+                    ]
+                },
+                {
+                    id: 3, name: "Masa 3", capacity: 12, guests: [
+                        { id: 110, name: "Bank Filialı Kollektivi (Aytən x.)", type: "İş yoldaşları", amount: 6 },
+                        { id: 111, name: "Anar Şirinov", type: "İş yoldaşları", amount: 2 },
+                        { id: 112, name: "Gülnarə Nağıyeva", type: "İş yoldaşları", amount: 4 }
+                    ]
+                },
+                {
+                    id: 4, name: "Masa 4", capacity: 16, guests: [
+                        { id: 113, name: "Musiqi qrupu (Vokal və Saz)", type: "Musiqiçilər", amount: 4 },
+                        { id: 114, name: "DJ Murad", type: "Musiqiçilər", amount: 1 }
+                    ]
+                },
+                {
+                    id: 5, name: "Masa 5", capacity: 14, guests: [
+                        { id: 115, name: "Akraba - Gəncə qolları (Məmməd)", type: "Akrabalar", amount: 6 },
+                        { id: 116, name: "Akraba - Sumqayıt qolları", type: "Akrabalar", amount: 4 }
+                    ]
+                },
+                {
+                    id: 6, name: "Masa 6", capacity: 16, guests: [
+                        { id: 117, name: "Zaur Baxşəliyev ailəsi", type: "Ailə", amount: 5 },
+                        { id: 118, name: "Mehriban xanım və yoldaşı", type: "Ailə", amount: 2 }
+                    ]
+                },
+                {
+                    id: 7, name: "Masa 7", capacity: 12, guests: [
+                        { id: 119, name: "Universitet yoldaşları (Rəşad)", type: "Dostlar", amount: 4 },
+                        { id: 120, name: "Elçin Quliyev", type: "Dostlar", amount: 2 }
+                    ]
+                },
+                {
+                    id: 8, name: "Masa 8", capacity: 10, guests: [
+                        { id: 121, name: "İT Şöbəsi mütəxəssisləri", type: "İş yoldaşları", amount: 5 },
+                        { id: 122, name: "Fuad Məmmədov", type: "İş yoldaşları", amount: 2 }
+                    ]
+                },
+                {
+                    id: 9, name: "Masa 9", capacity: 16, guests: [
+                        { id: 123, name: "Hörmətli Ağsaqqallar", type: "VIP", amount: 6 },
+                        { id: 124, name: "Hacı Nadir", type: "VIP", amount: 2 }
+                    ]
+                },
+                {
+                    id: 10, name: "Masa 10", capacity: 16, guests: [
+                        { id: 125, name: "Qonşular (Mahmud kişi)", type: "Akrabalar", amount: 8 }
+                    ]
+                },
+                {
+                    id: 11, name: "Masa 11", capacity: 12, guests: [
+                        { id: 126, name: "Xaricdən gələn qonaqlar", type: "VIP", amount: 12 }
+                    ]
+                },
+                {
+                    id: 12, name: "Masa 12", capacity: 10, guests: [
+                        { id: 127, name: "Uşaqlar masası", type: "Ailə", amount: 11 }
+                    ]
+                },
+                {
+                    id: 13, name: "Masa 13", capacity: 16, guests: [
+                        { id: 128, name: "Sürücülər və texniki heyət", type: "İş yoldaşları", amount: 3 }
+                    ]
+                },
+                {
+                    id: 14, name: "Masa 14", capacity: 14, guests: [
+                        { id: 129, name: "Məktəb yoldaşları", type: "Dostlar", amount: 7 }
+                    ]
+                },
+                {
+                    id: 15, name: "Masa 15", capacity: 16, guests: [
+                        { id: 130, name: "Bəy tərəfi qohumları", type: "Akrabalar", amount: 9 }
+                    ]
+                },
+                {
+                    id: 16, name: "Masa 16", capacity: 16, guests: [
+                        { id: 131, name: "Gəlin tərəfi qohumları", type: "Akrabalar", amount: 16 }
+                    ]
+                },
+                {
+                    id: 17, name: "Ehtiyat Masa A", capacity: 16, guests: [
+                        { id: 132, name: "Ehtiyat yerlər / Rezerv", type: "VIP", amount: 2 }
+                    ]
+                },
+                { id: 18, name: "Ehtiyat Masa B", capacity: 16, guests: [] }
+            ]
+        };
+
+        /* =====================================================================
+           ID GENERATION
+           Date.now() collides when two records are created in the same
+           millisecond. A monotonic counter seeded above every existing id
+           cannot collide.
+           ===================================================================== */
+        let idCounter = 0;
+        (function seedIdCounter() {
+            weddingData.tables.forEach(t => {
+                idCounter = Math.max(idCounter, Number(t.id) || 0);
+                t.guests.forEach(g => { idCounter = Math.max(idCounter, Number(g.id) || 0); });
+            });
+        })();
+        function newId() { return ++idCounter; }
+
+        /* =====================================================================
+           HELPERS
+           ===================================================================== */
+        const ESCAPE_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+
+        // Escapes quotes too, so it is safe inside attributes such as title="...".
+        function escapeHtml(value) {
+            return String(value === null || value === undefined ? '' : value)
+                .replace(/[&<>"']/g, ch => ESCAPE_MAP[ch]);
+        }
+
+        function findTable(tableId) {
+            return weddingData.tables.find(t => t.id === tableId) || null;
+        }
+
+        function findGuest(table, guestId) {
+            if (!table) return null;
+            return table.guests.find(g => g.id === guestId) || null;
+        }
+
+        function occupancyOf(table) {
+            if (!table) return 0;
+            return table.guests.reduce((sum, g) => sum + (Number(g.amount) || 0), 0);
+        }
+
+        // 'under' | 'full' | 'over'
+        function capacityStateOf(table) {
+            const occupied = occupancyOf(table);
+            if (occupied > table.capacity) return 'over';
+            if (occupied === table.capacity) return 'full';
+            return 'under';
+        }
+
+        function capacityLabel(table) {
+            const occupied = occupancyOf(table);
+            const state = capacityStateOf(table);
+            if (state === 'over') return `Tutum aşılıb: +${occupied - table.capacity} nəfər`;
+            if (state === 'full') return 'Tam doludur';
+            return `${table.capacity - occupied} boş yer qalır`;
+        }
+
+        function countGuestsOfType(typeName) {
+            let count = 0;
+            weddingData.tables.forEach(t => {
+                t.guests.forEach(g => { if (g.type === typeName) count++; });
+            });
+            return count;
+        }
+
+        // Stable per-type colour so newly created types are not all grey.
+        const TYPE_PALETTE = [
+            { bg: '#2e7d32', fg: '#fff' }, { bg: '#1565c0', fg: '#fff' },
+            { bg: '#00838f', fg: '#fff' }, { bg: '#c62828', fg: '#fff' },
+            { bg: '#ef6c00', fg: '#fff' }, { bg: '#4527a0', fg: '#fff' },
+            { bg: '#ad1457', fg: '#fff' }, { bg: '#37474f', fg: '#fff' },
+            { bg: '#6d4c41', fg: '#fff' }, { bg: '#827717', fg: '#fff' }
+        ];
+        function typeColor(typeName) {
+            const key = String(typeName || '');
+            let hash = 0;
+            for (let i = 0; i < key.length; i++) {
+                hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
+            }
+            return TYPE_PALETTE[hash % TYPE_PALETTE.length];
+        }
+
+        function showError($box, message) {
+            $box.text(message).removeClass('d-none');
+        }
+        function clearError($box) {
+            $box.text('').addClass('d-none');
+        }
+
+        let toastSeq = 0;
+        function toast(message, variant) {
+            const id = 'toast_' + (++toastSeq);
+            const cls = variant === 'danger' ? 'text-bg-danger'
+                : variant === 'warning' ? 'text-bg-warning'
+                    : 'text-bg-dark';
+            $('#toastHost').append(`
+                <div id="${id}" class="toast align-items-center ${cls} border-0 show">
+                    <div class="d-flex">
+                        <div class="toast-body small">${escapeHtml(message)}</div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                    </div>
+                </div>
+            `);
+            const el = document.getElementById(id);
+            setTimeout(() => { $(el).fadeOut(200, () => el.remove()); }, 3200);
+        }
+
+        /* =====================================================================
+           READ-ONLY (PUBLIC) MODE
+           Anonymous visitors may filter, read and print, but change nothing.
+           This flag only HIDES controls - it is not the security boundary.
+           The server must reject writes from an unauthenticated caller;
+           anyone can flip this from the browser console.
+           When the API lands, set it from the session instead of the URL.
+           ===================================================================== */
+        let readOnly = new URLSearchParams(location.search).has('view');
+        function canEdit() { return !readOnly; }
+        function applyReadOnlyMode() { $('body').toggleClass('read-only', readOnly); }
+
+        /* =====================================================================
+           CONFIRMATION MODAL
+           ===================================================================== */
+        let pendingConfirmAction = null;
+
+        // getInstance() returns null for a modal that was never opened, so always
+        // go through getOrCreateInstance - hide() on null throws and kills the
+        // rest of the submit handler.
+        function showModal(id) {
+            bootstrap.Modal.getOrCreateInstance(document.getElementById(id)).show();
+        }
+        function hideModal(id) {
+            bootstrap.Modal.getOrCreateInstance(document.getElementById(id)).hide();
+        }
+
+        function askConfirm(message, action, buttonLabel) {
+            pendingConfirmAction = action;
+            $('#confirmModalBody').text(message);
+            $('#confirmModalActionBtn').text(buttonLabel || 'Bəli, Sil');
+            showModal('confirmModal');
+        }
+
+        /* =====================================================================
+           FILTER STATE
+           ===================================================================== */
+        function readFilters() {
+            const metric = $('#filterMetric').val() || '';
+            const rawMin = $('#filterRangeMin').val();
+            const rawMax = $('#filterRangeMax').val();
+
+            // Blank means unbounded on that side.
+            const min = rawMin === '' ? null : Number(rawMin);
+            const max = rawMax === '' ? null : Number(rawMax);
+
+            return {
+                tableIds: ($('#filterMasa').val() || []).map(String),
+                name: ($('#filterName').val() || '').trim().toLowerCase(),
+                // Masa is shown if ANY of its guests carries a selected type.
+                anyGuestTypes: $('#filterGuestsByType').val() || [],
+                // Masa is shown only if EVERY one of its guests is this one type.
+                allGuestType: $('#filterTablesByType').val() || '',
+                capacityState: $('#filterCapacityState').val() || '',
+                metric: metric,
+                min: Number.isFinite(min) ? min : null,
+                max: Number.isFinite(max) ? max : null
+            };
+        }
+
+        function inRange(value, min, max) {
+            if (min !== null && value < min) return false;
+            if (max !== null && value > max) return false;
+            return true;
+        }
+
+        function activeFilterCount(f) {
+            let n = 0;
+            if (f.tableIds.length > 0) n++;
+            if (f.name !== '') n++;
+            if (f.anyGuestTypes.length > 0) n++;
+            if (f.allGuestType !== '') n++;
+            if (f.capacityState !== '') n++;
+            if (f.metric !== '' && (f.min !== null || f.max !== null)) n++;
+            return n;
+        }
+
+        function anyFilterActive(f) {
+            return activeFilterCount(f) > 0;
+        }
+
+        // Every filter now selects whole masas; none of them hides a guest row.
+        // A matching guest is highlighted inside its full masa instead, so you
+        // always see who else is seated with the person you searched for.
+        function hasRowHighlight(f) {
+            return f.name !== '' ||
+                (f.metric === 'guestAmount' && (f.min !== null || f.max !== null));
+        }
+
+        // Wraps each occurrence of `term` in <mark>. Both sides are escaped
+        // first so the offsets line up and the term cannot inject markup.
+        function highlightName(name, term) {
+            const safe = escapeHtml(name);
+            if (!term) return safe;
+            const safeTerm = escapeHtml(term);
+            if (!safeTerm) return safe;
+
+            const hay = safe.toLowerCase();
+            const needle = safeTerm.toLowerCase();
+            let out = '', from = 0, idx;
+            while ((idx = hay.indexOf(needle, from)) !== -1) {
+                out += safe.slice(from, idx) + '<mark>' + safe.slice(idx, idx + needle.length) + '</mark>';
+                from = idx + needle.length;
+            }
+            return out + safe.slice(from);
+        }
+
+        function guestMatches(guest, f) {
+            if (f.name !== '' && !guest.name.toLowerCase().includes(f.name)) return false;
+            if (f.metric === 'guestAmount' && !inRange(Number(guest.amount) || 0, f.min, f.max)) return false;
+            return true;
+        }
+
+        /* =====================================================================
+           RENDER
+           ===================================================================== */
+        /* =====================================================================
+           BACKEND SEAM  -  read this before wiring the API.
+
+           Every change to weddingData follows exactly one shape:
+
+               <mutate weddingData>;  commit('<what changed>');
+
+           commit() is the ONLY place the app reacts to a write, and nothing
+           else in the file writes. When the backend lands, send or queue the
+           change inside commit(); no call site changes.
+
+           renderApp() is pure re-render (read-only). Call it directly only
+           when nothing was mutated - it must never be used as a write hook,
+           or persistence will silently skip that change.
+
+           The 11 write sites, all routed through commit():
+             addTable, editTable, deleteTable,
+             addGuest,  editGuest,  deleteGuest,
+             moveGuest, switchGuests,
+             addType,   renameType, deleteType
+
+           Note for a multi-user backend: moveGuest and switchGuests each
+           touch TWO masas at once, so they must persist as one atomic unit,
+           not two independent writes.
+           ===================================================================== */
+        function commit(action) {
+            // TODO(backend): persist the change here, e.g.
+            //   api.save(action, weddingData).catch(err => toast(err.message, 'danger'));
+            // Keep renderApp() last so the UI reflects committed state.
+            void action;
+            renderApp();
+        }
+
+        function renderApp() {
+            updateDropdowns();
+            renderTypesList();
+            renderTables();
+            updateGlobalStats();
+            updateTableHint();
+        }
+
+        function updateTableHint() {
+            if (weddingData.tables.length === 0) {
+                $('#masaHintInfo').text('Hələ masa yoxdur. Tövsiyə olunan ad: Masa 1');
+                return;
+            }
+            const last = weddingData.tables[weddingData.tables.length - 1];
+            $('#masaHintInfo').text(`Sonuncu masa: "${last.name}" | Tövsiyə olunan ad: ${suggestNextTableName()}`);
+        }
+
+        // Pure: computes a name only, no DOM side effects.
+        function suggestNextTableName() {
+            let maxNumber = 0;
+            weddingData.tables.forEach(t => {
+                const lower = t.name.toLowerCase();
+                if (lower.includes('ehtiyat') || lower.includes('rezerv')) return;
+                const match = t.name.match(/\d+/);
+                if (match) maxNumber = Math.max(maxNumber, parseInt(match[0], 10));
+            });
+            const next = maxNumber > 0 ? maxNumber + 1 : weddingData.tables.length + 1;
+            return `Masa ${next}`;
+        }
+
+        function updateGlobalStats() {
+            let totalSeated = 0, totalCapacity = 0, overTables = 0, fullTables = 0, guestRecords = 0;
+            weddingData.tables.forEach(t => {
+                const occ = occupancyOf(t);
+                totalSeated += occ;
+                totalCapacity += t.capacity;
+                guestRecords += t.guests.length;
+                const state = capacityStateOf(t);
+                if (state === 'over') overTables++;
+                else if (state === 'full') fullTables++;
+            });
+            const free = totalCapacity - totalSeated;
+            $('#globalStatsSummary').html(
+                `<strong>${weddingData.tables.length}</strong> masa &middot; ` +
+                `<strong>${guestRecords}</strong> qeyd &middot; ` +
+                `<strong>${totalSeated}</strong> / ${totalCapacity} nəfər &middot; ` +
+                (free >= 0
+                    ? `<span style="color:var(--cap-under-bg)"><strong>${free}</strong> boş yer</span>`
+                    : `<span style="color:var(--cap-over-bg)"><strong>${-free}</strong> nəfər artıq</span>`) +
+                ` &middot; tam dolu: <strong>${fullTables}</strong>` +
+                ` &middot; <span style="color:var(--cap-over-bg)">aşan masa: <strong>${overTables}</strong></span>`
+            );
+        }
+
+        function updateDropdowns() {
+            // Multi-select filters: keep only values that still exist.
+            const tableIdSet = new Set(weddingData.tables.map(t => String(t.id)));
+            const typeSet = new Set(weddingData.guestTypes);
+
+            syncSelect($('#filterMasa'),
+                weddingData.tables.map(t => ({ value: String(t.id), label: t.name })),
+                v => tableIdSet.has(String(v)));
+
+            syncSelect($('#filterGuestsByType'),
+                weddingData.guestTypes.map(t => ({ value: t, label: t })),
+                v => typeSet.has(v));
+
+            // Single select needs a blank first option for the placeholder.
+            const $allType = $('#filterTablesByType');
+            const prevAllType = $allType.val();
+            $allType.empty().append(new Option('', ''));
+            weddingData.guestTypes.forEach(t => $allType.append(new Option(t, t)));
+            $allType.val(typeSet.has(prevAllType) ? prevAllType : '').trigger('change.select2');
+
+            // Single selects inside modals.
+            [['#guestTableId', 'tables'], ['#editGuestTargetTableId', 'tables'], ['#msTargetTableId', 'tables'],
+            ['#guestType', 'types'], ['#editGuestType', 'types']].forEach(([selector, kind]) => {
+                const options = kind === 'tables'
+                    ? weddingData.tables.map(t => ({ value: String(t.id), label: t.name }))
+                    : weddingData.guestTypes.map(t => ({ value: t, label: t }));
+                const keep = kind === 'tables'
+                    ? (v => tableIdSet.has(String(v)))
+                    : (v => typeSet.has(v));
+                syncSelect($(selector), options, keep);
+            });
+        }
+
+        // Rebuilds a select's options while preserving the current selection,
+        // updating select2's UI without firing app-level change handlers.
+        function syncSelect($el, options, stillValid) {
+            const previous = $el.val();
+            $el.empty();
+            options.forEach(o => $el.append(new Option(o.label, o.value)));
+
+            let next;
+            if (Array.isArray(previous)) {
+                next = previous.filter(stillValid);
+            } else {
+                next = (previous !== null && stillValid(previous)) ? previous : (options[0] ? options[0].value : null);
+            }
+            $el.val(next).trigger('change.select2');
+        }
+
+        function renderTypesList() {
+            const tbody = $('#typesTableBody');
+            tbody.empty();
+            weddingData.guestTypes.forEach((type, index) => {
+                const usage = countGuestsOfType(type);
+                const color = typeColor(type);
+                tbody.append(`
+                    <tr>
+                        <td><span class="badge badge-type" style="background:${color.bg};color:${color.fg}">${escapeHtml(type)}</span></td>
+                        <td class="text-center small ${usage > 0 ? 'fw-bold' : 'text-muted'}">${usage}</td>
+                        <td class="text-end text-nowrap">
+                            <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1 rename-type-btn" data-index="${index}" title="Adını dəyiş"><i class="fa-solid fa-pen"></i></button>
+                            <button type="button" class="btn btn-sm btn-outline-danger py-0 px-1 ms-1 delete-type-btn" data-index="${index}" title="Sil" ${usage > 0 ? 'disabled' : ''}><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `);
+            });
+        }
+
+        function renderTables() {
+            const container = $('#tablesContainer');
+            const f = readFilters();
+            const markHits = hasRowHighlight(f);
+            const editable = canEdit();
+            const colCount = editable ? 4 : 3;
+
+            container.empty();
+
+            let visibleTables = 0;
+            let visibleGuestRecords = 0;
+            let visibleSeated = 0;
+            const visibleIds = [];
+
+            weddingData.tables.forEach(table => {
+                // ---- table-level filters ----
+                if (f.tableIds.length > 0 && !f.tableIds.includes(String(table.id))) return;
+
+                const occupied = occupancyOf(table);
+                const state = capacityStateOf(table);
+
+                if (f.capacityState && state !== f.capacityState) return;
+
+                // Guest type: keep the masa if ANY row carries a selected type.
+                if (f.anyGuestTypes.length > 0 &&
+                    !table.guests.some(g => f.anyGuestTypes.includes(g.type))) return;
+
+                // Masa type: keep the masa only if EVERY guest is this exact type.
+                // every() is vacuously true for an empty masa, which has no type at
+                // all, so an empty masa must be excluded explicitly.
+                if (f.allGuestType !== '' &&
+                    (table.guests.length === 0 ||
+                        !table.guests.every(g => g.type === f.allGuestType))) return;
+
+                if (f.metric === 'occupied' && !inRange(occupied, f.min, f.max)) return;
+                if (f.metric === 'capacity' && !inRange(table.capacity, f.min, f.max)) return;
+                if (f.metric === 'free' && !inRange(table.capacity - occupied, f.min, f.max)) return;
+
+                // ---- name / party-size: select the masa, never hide its rows ----
+                const matchingGuests = table.guests.filter(g => guestMatches(g, f));
+                const tableNameMatches = f.name !== '' && table.name.toLowerCase().includes(f.name);
+
+                // Name matches the masa's own name, or one of its guests.
+                if (f.name !== '' && matchingGuests.length === 0 && !tableNameMatches) return;
+
+                // Party size: keep the masa if any guest falls in the range.
+                if (f.metric === 'guestAmount' &&
+                    (f.min !== null || f.max !== null) &&
+                    !table.guests.some(g => inRange(Number(g.amount) || 0, f.min, f.max))) return;
+
+                // The whole masa is always shown, so the counts are the masa's own.
+                const hitIds = new Set(matchingGuests.map(g => g.id));
+                const rows = table.guests;
+
+                visibleTables++;
+                visibleIds.push(table.id);
+                visibleGuestRecords += rows.length;
+                visibleSeated += occupied;
+
+                let guestRowsHtml;
+                if (table.guests.length === 0) {
+                    guestRowsHtml = `<tr><td colspan="${colCount}" class="text-center text-muted py-3 small">Hələ qonaq yoxdur.</td></tr>`;
+                } else {
+                    guestRowsHtml = rows.map(guest => {
+                        const color = typeColor(guest.type);
+                        return `
+                        <tr class="${markHits && hitIds.has(guest.id) ? 'row-hit' : ''}">
+                            <td class="guest-name">${highlightName(guest.name, f.name)}</td>
+                            <td><span class="badge badge-type" style="background:${color.bg};color:${color.fg}">${escapeHtml(guest.type)}</span></td>
+                            <td class="text-center"><span class="badge amount-badge">${Number(guest.amount) || 0}</span></td>
+                            ${editable ? `<td class="text-end text-nowrap">
+                                <button type="button" class="btn btn-sm btn-orange open-move-modal px-1 py-0" data-table-id="${table.id}" data-guest-id="${guest.id}" title="Köçür / Dəyiş"><i class="fa-solid fa-right-left"></i></button>
+                                <button type="button" class="btn btn-sm btn-outline-primary edit-guest-btn px-1 py-0 ms-1" data-table-id="${table.id}" data-guest-id="${guest.id}" title="Redaktə et"><i class="fa-solid fa-pen"></i></button>
+                                <button type="button" class="btn btn-sm btn-outline-danger delete-guest-btn px-1 py-0 ms-1" data-table-id="${table.id}" data-guest-id="${guest.id}" title="Sil"><i class="fa-solid fa-xmark"></i></button>
+                            </td>` : ''}
+                        </tr>`;
+                    }).join('');
+                }
+
+                const stateClass = 'cap-' + state;
+
+                container.append(`
+                    <div class="card table-card shadow-sm ${stateClass}">
+                        <div class="card-header ${stateClass}">
+                            <div class="d-flex justify-content-between align-items-start gap-2">
+                                <h5 class="table-name">${escapeHtml(table.name)}</h5>
+                                ${editable ? `<div class="d-flex gap-1 flex-shrink-0">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary border edit-table-btn py-0 px-1" data-table-id="${table.id}" title="Masanı redaktə et"><i class="fa-solid fa-pen"></i></button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger border delete-table-btn py-0 px-1" data-table-id="${table.id}" title="Masanı sil"><i class="fa-solid fa-trash"></i></button>
+                                </div>` : ''}
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mt-2 gap-2">
+                                <div>
+                                    <span class="cap-pill ${stateClass}">${occupied} / ${table.capacity}</span>
+                                    <span class="cap-note ${stateClass} ms-2">${escapeHtml(capacityLabel(table))}</span>
+                                </div>
+                                ${editable ? `<button type="button" class="btn btn-sm btn-green-add py-1 px-2 quick-add-row flex-shrink-0" data-table-id="${table.id}" title="Bu masaya qonaq əlavə et"><i class="fa-solid fa-plus"></i></button>` : ''}
+                            </div>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0 align-middle guest-table">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Ad</th>
+                                            <th style="width:110px;">Tip</th>
+                                            <th class="text-center" style="width:52px;">Say</th>
+                                            ${editable ? '<th class="text-end" style="width:96px;">Əməliyyat</th>' : ''}
+                                        </tr>
+                                    </thead>
+                                    <tbody>${guestRowsHtml}</tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                `);
+            });
+
+            if (visibleTables === 0) {
+                container.html(`<div class="w-100 text-center py-5 text-muted">Axtarış kriteriyalarına uyğun masa tapılmadı.</div>`);
+            }
+
+            lastVisibleTableIds = visibleIds;
+
+            const active = activeFilterCount(f);
+            $('#filterResultInfo').text(
+                active > 0
+                    ? `Filtr: ${visibleTables} masa / ${visibleGuestRecords} qeyd / ${visibleSeated} nəfər`
+                    : ''
+            );
+            // Keeps active filters visible even when the bar is collapsed on mobile.
+            $('#activeFilterCount').text(active).toggleClass('d-none', active === 0);
+        }
+
+        /* =====================================================================
+           IMPORT / EXPORT
+           Imported JSON becomes the entire app state, so it is validated and
+           normalised rather than trusted: ids are reassigned, numbers coerced,
+           and a guest type that is not declared is adopted instead of leaving
+           a guest pointing at a type that does not exist.
+           ===================================================================== */
+        const EXPORT_FORMAT = 'toy-masa';
+        const EXPORT_VERSION = 1;
+
+        function buildExportPayload() {
+            return {
+                format: EXPORT_FORMAT,
+                version: EXPORT_VERSION,
+                exportedAt: new Date().toISOString(),
+                guestTypes: weddingData.guestTypes.slice(),
+                tables: weddingData.tables.map(t => ({
+                    name: t.name,
+                    capacity: t.capacity,
+                    guests: t.guests.map(g => ({ name: g.name, type: g.type, amount: g.amount }))
+                }))
+            };
+        }
+
+        function exportData() {
+            const json = JSON.stringify(buildExportPayload(), null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'toy-masa-' + new Date().toISOString().slice(0, 10) + '.json';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            // Revoking immediately can cancel the download in some browsers.
+            setTimeout(() => URL.revokeObjectURL(url), 2000);
+
+            const guests = weddingData.tables.reduce((n, t) => n + t.guests.length, 0);
+            toast(weddingData.tables.length + ' masa, ' + guests + ' qeyd ixrac edildi.');
+        }
+
+        // Throws Error with a readable message, or returns a fully normalised
+        // { guestTypes, tables, warnings }.
+        function parseImportPayload(text) {
+            const raw = (text || '').trim();
+            if (!raw) throw new Error('Məlumat boşdur.');
+
+            let obj;
+            try {
+                obj = JSON.parse(raw);
+            } catch (e) {
+                throw new Error('JSON oxunmadı: ' + e.message);
+            }
+            if (!obj || typeof obj !== 'object' || Array.isArray(obj)) {
+                throw new Error('Kök element JSON obyekti olmalıdır.');
+            }
+            if (!Array.isArray(obj.tables)) throw new Error('"tables" massivi tapılmadı.');
+            if (obj.tables.length === 0) throw new Error('"tables" boşdur — idxal ediləcək masa yoxdur.');
+
+            const warnings = [];
+
+            const types = [];
+            const seenType = new Set();
+            function addType(name) {
+                const clean = String(name === null || name === undefined ? '' : name).trim();
+                if (!clean) return null;
+                const key = clean.toLowerCase();
+                if (!seenType.has(key)) { seenType.add(key); types.push(clean); }
+                return types.find(t => t.toLowerCase() === key);
+            }
+            if (Array.isArray(obj.guestTypes)) obj.guestTypes.forEach(addType);
+
+            let idSeq = 0;
+            const tables = obj.tables.map((t, ti) => {
+                const where = 'Masa #' + (ti + 1);
+                if (!t || typeof t !== 'object' || Array.isArray(t)) throw new Error(where + ': obyekt deyil.');
+
+                const name = String(t.name === null || t.name === undefined ? '' : t.name).trim();
+                if (!name) throw new Error(where + ': "name" boşdur.');
+
+                let capacity = parseInt(t.capacity, 10);
+                if (!Number.isFinite(capacity) || capacity < 1) {
+                    warnings.push(where + ' ("' + name + '"): tutum oxunmadı, 16 götürüldü.');
+                    capacity = 16;
+                }
+
+                const rawGuests = Array.isArray(t.guests) ? t.guests : [];
+                if (!Array.isArray(t.guests)) {
+                    warnings.push(where + ' ("' + name + '"): "guests" massiv deyil, boş sayıldı.');
+                }
+
+                const guests = [];
+                rawGuests.forEach((g, gi) => {
+                    if (!g || typeof g !== 'object') {
+                        warnings.push(where + ' sətr ' + (gi + 1) + ': obyekt deyil, atlandı.');
+                        return;
+                    }
+                    const gName = String(g.name === null || g.name === undefined ? '' : g.name).trim();
+                    if (!gName) {
+                        warnings.push(where + ' sətr ' + (gi + 1) + ': ad boşdur, atlandı.');
+                        return;
+                    }
+                    let amount = parseInt(g.amount, 10);
+                    if (!Number.isFinite(amount) || amount < 1) {
+                        warnings.push('"' + gName + '": say oxunmadı, 1 götürüldü.');
+                        amount = 1;
+                    }
+                    let gType = addType(g.type);
+                    if (!gType) {
+                        gType = types[0] || addType('Ailə');
+                        warnings.push('"' + gName + '": tip boşdur, "' + gType + '" götürüldü.');
+                    }
+                    guests.push({ id: ++idSeq, name: gName, type: gType, amount: amount });
+                });
+
+                return { id: ++idSeq, name: name, capacity: capacity, guests: guests };
+            });
+
+            // Duplicate masa names make the UI ambiguous; make them unique.
+            const usedNames = new Set();
+            tables.forEach(t => {
+                let candidate = t.name, n = 2;
+                while (usedNames.has(candidate.toLowerCase())) candidate = t.name + ' (' + (n++) + ')';
+                if (candidate !== t.name) warnings.push('Təkrarlanan ad: "' + t.name + '" -> "' + candidate + '".');
+                t.name = candidate;
+                usedNames.add(candidate.toLowerCase());
+            });
+
+            if (types.length === 0) types.push('Ailə');
+
+            return { guestTypes: types, tables: tables, warnings: warnings };
+        }
+
+        function applyImport(parsed) {
+            weddingData.guestTypes = parsed.guestTypes;
+            weddingData.tables = parsed.tables;
+            // Ids were reassigned from 1, so the counter must clear the new max.
+            idCounter = 0;
+            weddingData.tables.forEach(t => {
+                idCounter = Math.max(idCounter, t.id);
+                t.guests.forEach(g => { idCounter = Math.max(idCounter, g.id); });
+            });
+            commit('importData');
+        }
+
+        /* ---------- Excel / paste import ----------
+           Three shapes are recognised, tried in this order:
+
+           1. BOARD  - the "Masalar" sheet: a 2D plan where each masa is a
+                       header cell like "Masa 7 (18)" with its guests listed
+                       underneath in three columns (Ad, Haradan, Say). Masas
+                       repeat across the sheet on a fixed column pitch and
+                       down it in row blocks. Geometry is DETECTED, not
+                       hardcoded, so a board of any size or pitch works.
+           2. FLAT   - the "Siyahı" sheet: Ad | Haradan | Say | Masa, one
+                       guest per row, masa named per row.
+           3. SINGLE - Ad | Tip | Say with no masa column: one masa, named
+                       in the form.
+
+           "Haradan" (which side the guest is from) maps to our Tip.
+           ----------------------------------------------------------------- */
+        const COLUMN_ROLES = {
+            name:   ['ad', 'adi', 'adsoyad', 'name', 'qonaq', 'guest'],
+            type:   ['haradan', 'tip', 'tipi', 'nov', 'novu', 'type', 'kateqoriya', 'teref'],
+            amount: ['say', 'sayi', 'nefer', 'amount', 'count', 'qty'],
+            table:  ['masa', 'masaadi', 'masaad', 'table', 'stol']
+        };
+
+        // "Masa 7 (18)" -> name + capacity. This is what marks a board header.
+        const MASA_HEADER_RE = /^(.*\S)\s*\((\d+)\)$/;
+        const PURE_NUMBER_RE = /^-?\d+([.,]\d+)?$/;
+
+        function splitPastedLine(line) {
+            if (line.indexOf('\t') !== -1) return line.split('\t');
+            if (line.indexOf(';') !== -1) return line.split(';');
+            if (line.indexOf(',') !== -1) return line.split(',');
+            return [line];
+        }
+
+        function normaliseHint(v) {
+            return String(v).toLowerCase()
+                .replace(/\u0259/g, 'e').replace(/\u0131/g, 'i').replace(/\u00f6/g, 'o')
+                .replace(/\u00fc/g, 'u').replace(/\u015f/g, 's').replace(/\u00e7/g, 'c')
+                .replace(/\u011f/g, 'g').replace(/\s+/g, '');
+        }
+
+        function cellAt(grid, r, c) {
+            const row = grid[r];
+            if (!row) return '';
+            const v = row[c];
+            return String(v === null || v === undefined ? '' : v).trim();
+        }
+
+        // Paste -> 2D grid. Tabs are preserved as empty cells, which is what
+        // keeps a board's column positions intact.
+        function gridFromPaste(text) {
+            const lines = String(text || '').split(/\r?\n/);
+            while (lines.length && lines[lines.length - 1].trim() === '') lines.pop();
+            if (lines.length === 0) return [];
+            return lines.map(l => splitPastedLine(l).map(x => x.trim()));
+        }
+
+        function makeTypeResolver(newTypes) {
+            return function (rawType) {
+                const clean = String(rawType === null || rawType === undefined ? '' : rawType).trim();
+                if (!clean) return weddingData.guestTypes[0];
+                const existing = weddingData.guestTypes.find(t => t.toLowerCase() === clean.toLowerCase());
+                if (existing) return existing;
+                const pending = newTypes.find(t => t.toLowerCase() === clean.toLowerCase());
+                if (pending) return pending;
+                newTypes.push(clean);
+                return clean;
+            };
+        }
+
+        function markExisting(masas) {
+            masas.forEach(m => {
+                const existing = weddingData.tables.find(t => t.name.toLowerCase() === m.name.toLowerCase());
+                m.existing = !!existing;
+                if (existing && m.capacity === null) m.capacity = existing.capacity;
+            });
+            return masas;
+        }
+
+        /* ---- 1. BOARD ---- */
+        function findBoardHeaders(grid) {
+            const headers = [];
+            for (let r = 0; r < grid.length; r++) {
+                const row = grid[r] || [];
+                for (let c = 0; c < row.length; c++) {
+                    const m = cellAt(grid, r, c).match(MASA_HEADER_RE);
+                    if (m) headers.push({ r: r, c: c, name: m[1].trim(), capacity: parseInt(m[2], 10) });
+                }
+            }
+            return headers;
+        }
+
+        function parseBoard(grid, resolveType, warnings) {
+            const headers = findBoardHeaders(grid);
+            if (headers.length < 2) return null;
+
+            // A block runs from its header down to the next header in the SAME
+            // column, so row pitch never has to be assumed.
+            const byCol = new Map();
+            headers.forEach(h => {
+                if (!byCol.has(h.c)) byCol.set(h.c, []);
+                byCol.get(h.c).push(h);
+            });
+            byCol.forEach(list => list.sort((a, b) => a.r - b.r));
+
+            const ordered = headers.slice().sort((a, b) => (a.r - b.r) || (a.c - b.c));
+            const masas = [];
+
+            ordered.forEach(h => {
+                const colList = byCol.get(h.c);
+                const idx = colList.indexOf(h);
+                const endRow = (idx + 1 < colList.length) ? colList[idx + 1].r : grid.length;
+
+                const guests = [];
+                for (let r = h.r + 1; r < endRow; r++) {
+                    const name = cellAt(grid, r, h.c);
+                    if (!name) continue;
+                    // The block's totals cell is a bare number, not a guest.
+                    if (PURE_NUMBER_RE.test(name)) continue;
+
+                    let amount = parseInt(cellAt(grid, r, h.c + 2).replace(',', '.'), 10);
+                    if (!Number.isFinite(amount) || amount < 1) amount = 1;
+
+                    guests.push({ name: name, type: resolveType(cellAt(grid, r, h.c + 1)), amount: amount });
+                }
+                masas.push({ name: h.name, capacity: h.capacity, guests: guests });
+            });
+
+            // Same masa name twice on one board: merge rather than duplicate.
+            const merged = [];
+            const seen = new Map();
+            masas.forEach(m => {
+                const key = m.name.toLowerCase();
+                if (seen.has(key)) {
+                    seen.get(key).guests = seen.get(key).guests.concat(m.guests);
+                    warnings.push('"' + m.name + '": lövhədə iki dəfə var, birləşdirildi.');
+                } else {
+                    seen.set(key, m);
+                    merged.push(m);
+                }
+            });
+            return merged;
+        }
+
+        /* ---- 2 & 3. FLAT / SINGLE ---- */
+        function detectHeader(parts) {
+            const map = { name: -1, type: -1, amount: -1, table: -1 };
+            parts.forEach((cell, idx) => {
+                const key = normaliseHint(cell);
+                if (!key) return;
+                Object.keys(COLUMN_ROLES).forEach(role => {
+                    if (map[role] === -1 && COLUMN_ROLES[role].indexOf(key) !== -1) map[role] = idx;
+                });
+            });
+            const known = Object.keys(map).filter(k => map[k] !== -1).length;
+            return (map.name !== -1 && known >= 2) ? map : null;
+        }
+
+        function parseMasaCell(value) {
+            const raw = String(value === null || value === undefined ? '' : value).trim();
+            const m = raw.match(MASA_HEADER_RE);
+            if (m) return { name: m[1].trim(), capacity: parseInt(m[2], 10) };
+            return { name: raw, capacity: null };
+        }
+
+        function parseFlat(grid, resolveType, warnings) {
+            const header = grid.length ? detectHeader(grid[0]) : null;
+            const hadHeader = !!header;
+            const start = header ? 1 : 0;
+            const rows = [];
+
+            for (let i = start; i < grid.length; i++) {
+                const parts = grid[i] || [];
+                const lineNo = i + 1;
+                let name, rawType = null, amount = null, rawTable = null;
+
+                if (header) {
+                    name = (parts[header.name] || '').trim();
+                    if (header.type !== -1) rawType = parts[header.type] || null;
+                    if (header.table !== -1) rawTable = parts[header.table] || null;
+                    if (header.amount !== -1) {
+                        const a = parseInt(parts[header.amount], 10);
+                        if (Number.isFinite(a)) amount = a;
+                    }
+                } else {
+                    name = (parts[0] || '').trim();
+                    parts.slice(1).map(x => String(x).trim()).filter(x => x !== '').forEach(v => {
+                        const isInt = /^\d+$/.test(v);
+                        if (isInt && amount === null) amount = parseInt(v, 10);
+                        else if (!isInt && rawType === null) rawType = v;
+                    });
+                }
+
+                if (!name) {
+                    if (parts.some(x => String(x).trim() !== '')) {
+                        warnings.push('Sətr ' + lineNo + ': ad boşdur, atlandı.');
+                    }
+                    continue;
+                }
+                if (amount === null) amount = 1;
+                if (amount < 1) { warnings.push('"' + name + '": say 1 götürüldü.'); amount = 1; }
+
+                rows.push({ name: name, type: resolveType(rawType), amount: amount, table: rawTable });
+            }
+
+            if (rows.length === 0) return null;
+
+            if (!rows.some(r => r.table)) {
+                return { mode: 'single', hadHeader: hadHeader,
+                         guests: rows.map(r => ({ name: r.name, type: r.type, amount: r.amount })) };
+            }
+
+            const order = [];
+            const byName = new Map();
+            rows.forEach(r => {
+                const cell = parseMasaCell(r.table || '');
+                if (!cell.name) { warnings.push('"' + r.name + '": masa adı boşdur, atlandı.'); return; }
+                const key = cell.name.toLowerCase();
+                if (!byName.has(key)) {
+                    byName.set(key, { name: cell.name, capacity: cell.capacity, guests: [] });
+                    order.push(key);
+                } else if (cell.capacity !== null && byName.get(key).capacity === null) {
+                    byName.get(key).capacity = cell.capacity;
+                }
+                byName.get(key).guests.push({ name: r.name, type: r.type, amount: r.amount });
+            });
+
+            const masas = order.map(k => byName.get(k));
+            if (masas.length === 0) return null;
+            return { mode: 'multi', hadHeader: hadHeader, masas: masas };
+        }
+
+        /* ---- entry point used by both paste and .xlsx ---- */
+        function parseGrid(grid, label, strict) {
+            const warnings = [];
+            const newTypes = [];
+            const resolveType = makeTypeResolver(newTypes);
+
+            if (!grid || grid.length === 0) throw new Error('Məlumat boşdur.');
+
+            const board = parseBoard(grid, resolveType, warnings);
+            if (board && board.length > 0) {
+                return { mode: 'multi', source: 'board', sheet: label || '',
+                         masas: markExisting(board), newTypes: newTypes, warnings: warnings };
+            }
+
+            const flat = parseFlat(grid, resolveType, warnings);
+            if (flat && flat.mode === 'multi') {
+                return { mode: 'multi', source: 'flat', sheet: label || '',
+                         masas: markExisting(flat.masas), newTypes: newTypes, warnings: warnings };
+            }
+            if (flat && flat.mode === 'single') {
+                // A pasted selection is trusted because the user chose the cells.
+                // A sheet scanned blind must prove itself with a real header row,
+                // otherwise any stray column of text imports as guests.
+                if (strict && !flat.hadHeader) {
+                    throw new Error('başlıq sətri yoxdur');
+                }
+                return { mode: 'single', source: 'single', sheet: label || '',
+                         guests: flat.guests, newTypes: newTypes, warnings: warnings };
+            }
+
+            throw new Error('Heç bir qonaq sətri tanınmadı.');
+        }
+
+        function parsePastedMasa(text) {
+            const grid = gridFromPaste(text);
+            if (grid.length === 0) throw new Error('Yapışdırılmış sətr yoxdur.');
+            return parseGrid(grid, '');
+        }
+
+        /* ---- SheetJS, loaded only when an .xlsx is actually chosen ---- */
+        const SHEETJS_URL = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+        let sheetJsPromise = null;
+
+        function loadSheetJS() {
+            if (window.XLSX) return Promise.resolve(window.XLSX);
+            if (sheetJsPromise) return sheetJsPromise;
+            sheetJsPromise = new Promise((resolve, reject) => {
+                const el = document.createElement('script');
+                el.src = SHEETJS_URL;
+                el.onload = () => window.XLSX ? resolve(window.XLSX)
+                    : reject(new Error('Excel kitabxanası yüklənmədi.'));
+                el.onerror = () => reject(new Error('Excel kitabxanası yüklənmədi — internet bağlantısını yoxlayın.'));
+                document.head.appendChild(el);
+            });
+            return sheetJsPromise;
+        }
+
+        // Reads every sheet and keeps whichever yields the most guests, so the
+        // user never has to know which tab the data lives on.
+        function parseWorkbook(arrayBuffer) {
+            const wb = window.XLSX.read(arrayBuffer, { type: 'array' });
+            let best = null;
+            const tried = [];
+
+            wb.SheetNames.forEach(name => {
+                const grid = window.XLSX.utils.sheet_to_json(wb.Sheets[name], {
+                    header: 1, raw: false, defval: '', blankrows: true
+                });
+                let parsed = null;
+                try {
+                    parsed = parseGrid(grid, name, true);
+                } catch (e) {
+                    tried.push(name + ': ' + e.message);
+                    return;
+                }
+                const guestCount = parsed.mode === 'multi'
+                    ? parsed.masas.reduce((n, m) => n + m.guests.length, 0)
+                    : parsed.guests.length;
+                const masaCount = parsed.mode === 'multi' ? parsed.masas.length : 1;
+                tried.push(name + ': ' + masaCount + ' masa / ' + guestCount + ' qonaq');
+
+                const score = guestCount * 1000 + masaCount;
+                if (!best || score > best.score) best = { parsed: parsed, score: score };
+            });
+
+            if (!best) throw new Error('Faylda tanınan cədvəl tapılmadı. ' + tried.join(' | '));
+            best.parsed.sheetsTried = tried;
+            return best.parsed;
+        }
+
+        /* =====================================================================
+           PRINTABLE GUEST LIST
+           Three columns only - Qonaq, Tip, Masa - sortable in both directions.
+           ===================================================================== */
+        let lastVisibleTableIds = [];
+        let listSort = { key: 'name', dir: 'asc' };
+
+        function collectGuestList(scope) {
+            const limit = scope === 'filtered' ? new Set(lastVisibleTableIds) : null;
+            const rows = [];
+            weddingData.tables.forEach(table => {
+                if (limit && !limit.has(table.id)) return;
+                table.guests.forEach(g => rows.push({
+                    name: g.name, type: g.type, table: table.name
+                }));
+            });
+            return rows;
+        }
+
+        // Azerbaijani collation, so ə/ı/ş/ç/ğ/ö/ü sort where they belong
+        // rather than by code point.
+        const collator = new Intl.Collator('az', { sensitivity: 'base', numeric: true });
+
+        function sortGuestList(rows) {
+            const dir = listSort.dir === 'desc' ? -1 : 1;
+            const key = listSort.key;
+            return rows.slice().sort((a, b) => {
+                const primary = collator.compare(a[key], b[key]);
+                if (primary !== 0) return primary * dir;
+                // Stable tie-break so equal keys never shuffle between renders.
+                return collator.compare(a.name, b.name) * dir;
+            });
+        }
+
+        function currentListScope() {
+            return $('input[name="listScope"]:checked').val() || 'all';
+        }
+
+        function renderGuestList() {
+            const rows = sortGuestList(collectGuestList(currentListScope()));
+            const $body = $('#guestListBody');
+
+            $body.html(rows.length === 0
+                ? `<tr><td colspan="3" class="text-center text-muted py-3">Qonaq yoxdur.</td></tr>`
+                : rows.map(r => `
+                    <tr>
+                        <td>${escapeHtml(r.name)}</td>
+                        <td><span class="badge badge-type" style="background:${typeColor(r.type).bg};color:#fff">${escapeHtml(r.type)}</span></td>
+                        <td>${escapeHtml(r.table)}</td>
+                    </tr>`).join(''));
+
+            $('#listCount').text(`${rows.length} qeyd`);
+
+            $('#guestListTable .list-sort').each(function () {
+                const isActive = $(this).data('key') === listSort.key;
+                $(this).toggleClass('active', isActive);
+                $(this).find('.sort-ind').text(isActive ? (listSort.dir === 'asc' ? '▲' : '▼') : '⇅');
+            });
+
+            return rows;
+        }
+
+        function buildPrintArea() {
+            const rows = sortGuestList(collectGuestList(currentListScope()));
+            const scopeLabel = currentListScope() === 'filtered' ? 'Filtrlənmiş siyahı' : 'Tam siyahı';
+            const sortLabel = ({ name: 'Qonaq', type: 'Tip', table: 'Masa' })[listSort.key] +
+                (listSort.dir === 'asc' ? ' (A→Z)' : ' (Z→A)');
+            const printed = new Date().toLocaleString('az-AZ');
+
+            $('#printArea').html(`
+                <h2>Qonaq Siyahısı</h2>
+                <div class="meta">${escapeHtml(scopeLabel)} &middot; Sıralama: ${escapeHtml(sortLabel)}
+                    &middot; ${rows.length} qeyd &middot; ${escapeHtml(printed)}</div>
+                <table>
+                    <thead><tr><th>Qonaq</th><th>Tip</th><th>Masa</th></tr></thead>
+                    <tbody>
+                        ${rows.map(r => `<tr><td>${escapeHtml(r.name)}</td><td>${escapeHtml(r.type)}</td><td>${escapeHtml(r.table)}</td></tr>`).join('')}
+                    </tbody>
+                </table>
+            `);
+        }
+
+        /* =====================================================================
+           MOVE / SWITCH MODAL
+           These three functions deliberately never fire a plain 'change' on the
+           selects they populate - the original code did, and since the same
+           selects' change handler called back into this function, it recursed
+           until the stack blew and the whole modal died.
+           ===================================================================== */
+        function populateTargetGuestSelect() {
+            const targetTable = findTable(parseInt($('#msTargetTableId').val(), 10));
+            const sourceGuestId = parseInt($('#msSourceGuestId').val(), 10);
+            const $select = $('#msTargetGuestId');
+            const $body = $('#msTargetGuestsTableBody');
+
+            const previous = $select.val();
+            $select.empty().append(new Option('Qonaq seçin...', ''));
+            $body.empty();
+
+            if (!targetTable) {
+                $body.append(`<tr><td colspan="3" class="text-center text-muted">Masa seçilməyib</td></tr>`);
+                $select.val('').trigger('change.select2');
+                return;
+            }
+
+            // The guest being moved can never be its own switch partner.
+            const candidates = targetTable.guests.filter(g => g.id !== sourceGuestId);
+
+            if (targetTable.guests.length === 0) {
+                $body.append(`<tr><td colspan="3" class="text-center text-muted">Bu masada qonaq yoxdur</td></tr>`);
+            } else {
+                targetTable.guests.forEach(g => {
+                    $body.append(`
+                        <tr>
+                            <td class="guest-name">${escapeHtml(g.name)}</td>
+                            <td><span class="badge badge-type" style="background:${typeColor(g.type).bg};color:#fff">${escapeHtml(g.type)}</span></td>
+                            <td class="text-center">${Number(g.amount) || 0}</td>
+                        </tr>
+                    `);
+                });
+            }
+
+            candidates.forEach(g => $select.append(new Option(`${g.name} (${g.amount} nəfər)`, String(g.id))));
+
+            const keep = candidates.some(g => String(g.id) === String(previous)) ? previous : '';
+            $select.val(keep).trigger('change.select2');
+        }
+
+        function updateCapacityPreview() {
+            const sourceTable = findTable(parseInt($('#msSourceTableId').val(), 10));
+            const guestToMove = findGuest(sourceTable, parseInt($('#msSourceGuestId').val(), 10));
+            const targetTable = findTable(parseInt($('#msTargetTableId').val(), 10));
+            const mode = $('input[name="moveMode"]:checked').val();
+
+            const $container = $('#capacityPreviewContainer');
+            const $error = $('#msError');
+            const $submit = $('#msSubmitBtn');
+            $container.empty();
+            clearError($error);
+            $submit.prop('disabled', false);
+
+            if (!sourceTable || !guestToMove || !targetTable) {
+                $container.html(`<div class="col-12 text-muted">Məlumat natamamdır.</div>`);
+                $submit.prop('disabled', true);
+                return;
+            }
+
+            if (sourceTable.id === targetTable.id) {
+                $container.html(`<div class="col-12 text-muted">Eyni masa seçilib — dəyişiklik olmayacaq.</div>`);
+                showError($error, 'Hədəf masa cari masadan fərqli olmalıdır.');
+                $submit.prop('disabled', true);
+                return;
+            }
+
+            const sourceOcc = occupancyOf(sourceTable);
+            const targetOcc = occupancyOf(targetTable);
+            let newSourceOcc, newTargetOcc;
+
+            if (mode === 'switch') {
+                const targetGuest = findGuest(targetTable, parseInt($('#msTargetGuestId').val(), 10));
+                if (!targetGuest) {
+                    $container.html(`<div class="col-12 text-muted">Yer dəyişmək üçün hədəf masadan qonaq seçin.</div>`);
+                    showError($error, 'Yer dəyişmək üçün hədəf qonaq seçilməlidir.');
+                    $submit.prop('disabled', true);
+                    return;
+                }
+                newSourceOcc = sourceOcc - guestToMove.amount + targetGuest.amount;
+                newTargetOcc = targetOcc - targetGuest.amount + guestToMove.amount;
+            } else {
+                newSourceOcc = sourceOcc - guestToMove.amount;
+                newTargetOcc = targetOcc + guestToMove.amount;
+            }
+
+            $container.html(
+                previewColumn(sourceTable, sourceOcc, newSourceOcc) +
+                previewColumn(targetTable, targetOcc, newTargetOcc)
+            );
+        }
+
+        function previewColumn(table, before, after) {
+            const overAfter = after > table.capacity;
+            const color = overAfter ? 'var(--cap-over-bg)'
+                : after === table.capacity ? 'var(--cap-full-bg)'
+                    : 'var(--cap-under-bg)';
+            return `
+                <div class="col-md-6">
+                    <strong>${escapeHtml(table.name)}:</strong>
+                    ${before}/${table.capacity} &rarr;
+                    <span class="fw-bold" style="color:${color}">${after}/${table.capacity}</span>
+                    ${overAfter ? '<span class="badge ms-1" style="background:var(--cap-over-bg)">Tutum aşılır!</span>' : ''}
+                </div>`;
+        }
+
+        function openMoveSwitchModal(tableId, guestId) {
+            const table = findTable(tableId);
+            const guest = findGuest(table, guestId);
+            if (!table || !guest) { toast('Qonaq tapılmadı.', 'danger'); return; }
+
+            $('#msSourceTableId').val(table.id);
+            $('#msSourceGuestId').val(guest.id);
+            $('#msGuestSummary').text(`${guest.name} (${guest.amount} nəfər)`);
+            $('#msCurrentTableSummary').text(`${table.name} — ${occupancyOf(table)}/${table.capacity}`);
+
+            // Default to some other table, preferring the one with the most free seats.
+            const others = weddingData.tables.filter(t => t.id !== table.id);
+            const best = others.slice().sort((a, b) =>
+                (b.capacity - occupancyOf(b)) - (a.capacity - occupancyOf(a)))[0];
+            $('#msTargetTableId').val(String((best || table).id)).trigger('change.select2');
+
+            $('#modeMove').prop('checked', true);
+            $('#switchGuestContainer').addClass('d-none');
+
+            populateTargetGuestSelect();
+            updateCapacityPreview();
+
+            showModal('moveSwitchModal');
+        }
+
+        /* =====================================================================
+           WIRING
+           ===================================================================== */
+        $(function () {
+            $('#filterMasa, #filterGuestsByType').select2({
+                theme: 'bootstrap-5', width: '100%', closeOnSelect: false
+            });
+            // Single select: one type, so "every guest is this type" has one meaning.
+            $('#filterTablesByType').select2({
+                theme: 'bootstrap-5', width: '100%',
+                placeholder: 'Tamamı bu növ olan masalar', allowClear: true
+            });
+            $('#filterCapacityState, #filterMetric').select2({
+                theme: 'bootstrap-5', width: '100%', minimumResultsForSearch: Infinity
+            });
+
+            // dropdownParent keeps select2 clickable and correctly stacked inside modals.
+            $('#guestTableId, #guestType').select2({ theme: 'bootstrap-5', width: '100%', dropdownParent: $('#addGuestModal') });
+            $('#editGuestTargetTableId, #editGuestType').select2({ theme: 'bootstrap-5', width: '100%', dropdownParent: $('#editGuestModal') });
+            $('#msTargetTableId, #msTargetGuestId').select2({ theme: 'bootstrap-5', width: '100%', dropdownParent: $('#moveSwitchModal') });
+
+            applyReadOnlyMode();
+            renderApp();
+
+            /* ---------- Keep content clear of the fixed bars ----------
+               The bars change height when filter tags stack or controls wrap,
+               so measure them rather than assuming a fixed offset. */
+            const topBar = document.querySelector('.fixed-top-bar');
+            const bottomBar = document.querySelector('.fixed-bottom-bar');
+
+            function syncBarOffsets() {
+                document.body.style.paddingTop = (topBar.offsetHeight + 10) + 'px';
+                document.body.style.paddingBottom = (bottomBar.offsetHeight + 10) + 'px';
+                document.getElementById('toastHost').style.top = (topBar.offsetHeight + 10) + 'px';
+            }
+
+            syncBarOffsets();
+            if (window.ResizeObserver) {
+                const barObserver = new ResizeObserver(syncBarOffsets);
+                barObserver.observe(topBar);
+                barObserver.observe(bottomBar);
+            }
+            $(window).on('resize', syncBarOffsets);
+
+            /* ---------- Filters ---------- */
+            // 'input' covers typing in #filterName, which the old code never listened to at all.
+            $('#filterMasa, #filterGuestsByType, #filterTablesByType, #filterCapacityState')
+                .on('change', renderTables);
+            $('#filterName, #filterRangeMin, #filterRangeMax').on('input', renderTables);
+
+            $('#filterMetric').on('change', function () {
+                const enabled = $(this).val() !== '';
+                $('#filterRangeMin, #filterRangeMax').prop('disabled', !enabled);
+                if (!enabled) $('#filterRangeMin, #filterRangeMax').val('');
+                renderTables();
+            });
+
+            $('#resetFilters').on('click', function () {
+                $('#filterMasa').val(null).trigger('change.select2');
+                $('#filterGuestsByType').val(null).trigger('change.select2');
+                $('#filterTablesByType').val('').trigger('change.select2');
+                $('#filterCapacityState').val('').trigger('change.select2');
+                $('#filterMetric').val('').trigger('change.select2');
+                $('#filterName').val('');
+                $('#filterRangeMin, #filterRangeMax').val('').prop('disabled', true);
+                renderTables();
+            });
+
+            /* ---------- Add table ---------- */
+            $('#btnOpenAddTable').on('click', function () {
+                clearError($('#addTableError'));
+                $('#newTableName').val(suggestNextTableName());
+                $('#newTableCapacity').val(16);
+                showModal('addTableModal');
+            });
+
+            $('#addTableForm').on('submit', function (e) {
+                e.preventDefault();
+                const $err = $('#addTableError');
+                const name = $('#newTableName').val().trim();
+                const capacity = parseInt($('#newTableCapacity').val(), 10);
+
+                if (!name) return showError($err, 'Masa adı boş ola bilməz.');
+                if (weddingData.tables.some(t => t.name.toLowerCase() === name.toLowerCase())) {
+                    return showError($err, `"${name}" adlı masa artıq mövcuddur.`);
+                }
+                if (!Number.isFinite(capacity) || capacity < 1) {
+                    return showError($err, 'Tutum ən azı 1 olmalıdır.');
+                }
+
+                weddingData.tables.push({ id: newId(), name, capacity, guests: [] });
+                clearError($err);
+                hideModal('addTableModal');
+                commit('addTable');
+                toast(`"${name}" masası yaradıldı.`);
+            });
+
+            /* ---------- Edit table ---------- */
+            $('#editTableForm').on('submit', function (e) {
+                e.preventDefault();
+                const $err = $('#editTableError');
+                const tableId = parseInt($('#editTableId').val(), 10);
+                const table = findTable(tableId);
+                if (!table) return showError($err, 'Masa tapılmadı.');
+
+                const name = $('#editTableName').val().trim();
+                const capacity = parseInt($('#editTableCapacity').val(), 10);
+
+                if (!name) return showError($err, 'Masa adı boş ola bilməz.');
+                if (weddingData.tables.some(t => t.id !== tableId && t.name.toLowerCase() === name.toLowerCase())) {
+                    return showError($err, `"${name}" adlı başqa masa artıq mövcuddur.`);
+                }
+                if (!Number.isFinite(capacity) || capacity < 1) {
+                    return showError($err, 'Tutum ən azı 1 olmalıdır.');
+                }
+
+                table.name = name;
+                table.capacity = capacity;
+                clearError($err);
+                hideModal('editTableModal');
+                commit('editTable');
+                toast('Masa yeniləndi.');
+            });
+
+            $('#editTableCapacity').on('input', function () {
+                const table = findTable(parseInt($('#editTableId').val(), 10));
+                if (!table) return;
+                const occupied = occupancyOf(table);
+                const capacity = parseInt($(this).val(), 10);
+                $('#editTableOccupiedHint')
+                    .text(Number.isFinite(capacity) && capacity < occupied
+                        ? `Diqqət: hazırda ${occupied} nəfər oturur — masa tutumdan artıq olacaq.`
+                        : `Hazırda ${occupied} nəfər oturur.`)
+                    .css('color', Number.isFinite(capacity) && capacity < occupied ? 'var(--cap-over-bg)' : '');
+            });
+
+            /* ---------- Add guest ---------- */
+            let pendingAddGuestTableId = null;
+
+            function openAddGuestModal(tableId) {
+                clearError($('#addGuestError'));
+                clearError($('#addGuestCapWarn'));
+                if (weddingData.tables.length === 0) {
+                    toast('Əvvəlcə ən azı bir masa yaradın.', 'warning');
+                    return;
+                }
+                $('#guestName').val('');
+                $('#guestAmount').val(1);
+                pendingAddGuestTableId = tableId;
+                const target = tableId !== null && findTable(tableId)
+                    ? String(tableId)
+                    : String(weddingData.tables[0].id);
+                $('#guestTableId').val(target).trigger('change.select2');
+                $('#guestType').val(weddingData.guestTypes[0]).trigger('change.select2');
+                updateAddGuestCapWarn();
+                showModal('addGuestModal');
+            }
+
+            function updateAddGuestCapWarn() {
+                const table = findTable(parseInt($('#guestTableId').val(), 10));
+                const amount = parseInt($('#guestAmount').val(), 10) || 0;
+                const $warn = $('#addGuestCapWarn');
+                if (!table) return clearError($warn);
+                const after = occupancyOf(table) + amount;
+                if (after > table.capacity) {
+                    showError($warn, `Bu masa tutumdan artıq olacaq: ${after}/${table.capacity} (+${after - table.capacity}). Yenə də əlavə edə bilərsiniz.`);
+                } else {
+                    clearError($warn);
+                }
+            }
+
+            $('#btnOpenAddGuest').on('click', () => openAddGuestModal(null));
+            $('#guestTableId, #guestAmount').on('change input', updateAddGuestCapWarn);
+
+            $('#addGuestForm').on('submit', function (e) {
+                e.preventDefault();
+                const $err = $('#addGuestError');
+                const table = findTable(parseInt($('#guestTableId').val(), 10));
+                const name = $('#guestName').val().trim();
+                const type = $('#guestType').val();
+                const amount = parseInt($('#guestAmount').val(), 10);
+
+                if (!table) return showError($err, 'Masa seçilməyib.');
+                if (!name) return showError($err, 'Qonaq adı boş ola bilməz.');
+                if (!type || !weddingData.guestTypes.includes(type)) return showError($err, 'Qonaq növü seçin.');
+                if (!Number.isFinite(amount) || amount < 1) return showError($err, 'Nəfər sayı ən azı 1 olmalıdır.');
+
+                table.guests.push({ id: newId(), name, type, amount });
+                clearError($err);
+                hideModal('addGuestModal');
+                commit('addGuest');
+                toast(`"${name}" → ${table.name}`);
+            });
+
+            /* ---------- Edit guest ---------- */
+            function updateEditGuestCapWarn() {
+                const sourceTableId = parseInt($('#editGuestTableId').val(), 10);
+                const guestId = parseInt($('#editGuestId').val(), 10);
+                const targetTable = findTable(parseInt($('#editGuestTargetTableId').val(), 10));
+                const amount = parseInt($('#editGuestAmount').val(), 10) || 0;
+                const $warn = $('#editGuestCapWarn');
+                if (!targetTable) return clearError($warn);
+
+                // Exclude this guest's own current contribution when it stays put.
+                let base = occupancyOf(targetTable);
+                if (targetTable.id === sourceTableId) {
+                    const current = findGuest(targetTable, guestId);
+                    if (current) base -= (Number(current.amount) || 0);
+                }
+                const after = base + amount;
+                if (after > targetTable.capacity) {
+                    showError($warn, `"${targetTable.name}" tutumdan artıq olacaq: ${after}/${targetTable.capacity} (+${after - targetTable.capacity}).`);
+                } else {
+                    clearError($warn);
+                }
+            }
+
+            $('#editGuestTargetTableId, #editGuestAmount').on('change input', updateEditGuestCapWarn);
+
+            $('#editGuestForm').on('submit', function (e) {
+                e.preventDefault();
+                const $err = $('#editGuestError');
+                const oldTable = findTable(parseInt($('#editGuestTableId').val(), 10));
+                const guestId = parseInt($('#editGuestId').val(), 10);
+                const newTable = findTable(parseInt($('#editGuestTargetTableId').val(), 10));
+
+                if (!oldTable || !newTable) return showError($err, 'Masa tapılmadı.');
+
+                const index = oldTable.guests.findIndex(g => g.id === guestId);
+                if (index === -1) return showError($err, 'Qonaq tapılmadı.');
+
+                const name = $('#editGuestName').val().trim();
+                const type = $('#editGuestType').val();
+                const amount = parseInt($('#editGuestAmount').val(), 10);
+
+                if (!name) return showError($err, 'Qonaq adı boş ola bilməz.');
+                if (!type || !weddingData.guestTypes.includes(type)) return showError($err, 'Qonaq növü seçin.');
+                if (!Number.isFinite(amount) || amount < 1) return showError($err, 'Nəfər sayı ən azı 1 olmalıdır.');
+
+                const guest = oldTable.guests[index];
+                guest.name = name;
+                guest.type = type;
+                guest.amount = amount;
+
+                if (oldTable.id !== newTable.id) {
+                    oldTable.guests.splice(index, 1);
+                    newTable.guests.push(guest);
+                }
+
+                clearError($err);
+                hideModal('editGuestModal');
+                commit('editGuest');
+                toast('Qonaq yeniləndi.');
+            });
+
+            /* ---------- Guest types ---------- */
+            $('#btnAddType').on('click', function () {
+                const $err = $('#typeError');
+                const name = $('#newTypeName').val().trim();
+                if (!name) return showError($err, 'Tip adı boş ola bilməz.');
+                if (weddingData.guestTypes.some(t => t.toLowerCase() === name.toLowerCase())) {
+                    return showError($err, `"${name}" tipi artıq mövcuddur.`);
+                }
+                weddingData.guestTypes.push(name);
+                $('#newTypeName').val('');
+                clearError($err);
+                commit('addType');
+                toast(`"${name}" tipi əlavə edildi.`);
+            });
+
+            $('#newTypeName').on('keydown', function (e) {
+                if (e.key === 'Enter') { e.preventDefault(); $('#btnAddType').click(); }
+            });
+
+            $('#typesTableBody').on('click', '.delete-type-btn', function () {
+                const index = $(this).data('index');
+                const type = weddingData.guestTypes[index];
+                if (type === undefined) return;
+                if (weddingData.guestTypes.length <= 1) {
+                    return showError($('#typeError'), 'Ən azı bir qonaq növü qalmalıdır.');
+                }
+                const usage = countGuestsOfType(type);
+                if (usage > 0) {
+                    return showError($('#typeError'), `"${type}" tipi ${usage} qonaqda istifadə olunur — silmək olmaz.`);
+                }
+                clearError($('#typeError'));
+                askConfirm(`"${type}" qonaq növünü silmək istədiyinizdən əminsinizmi?`, function () {
+                    weddingData.guestTypes.splice(index, 1);
+                    commit('deleteType');
+                    toast(`"${type}" tipi silindi.`);
+                });
+            });
+
+            // Renaming rewrites every guest that carries the old type, so no orphans.
+            $('#typesTableBody').on('click', '.rename-type-btn', function () {
+                const index = $(this).data('index');
+                const oldName = weddingData.guestTypes[index];
+                if (oldName === undefined) return;
+
+                const input = window.prompt('Yeni tip adı:', oldName);
+                if (input === null) return;
+                const newName = input.trim();
+                if (!newName) return showError($('#typeError'), 'Tip adı boş ola bilməz.');
+                if (newName === oldName) return;
+                if (weddingData.guestTypes.some((t, i) => i !== index && t.toLowerCase() === newName.toLowerCase())) {
+                    return showError($('#typeError'), `"${newName}" tipi artıq mövcuddur.`);
+                }
+
+                weddingData.guestTypes[index] = newName;
+                weddingData.tables.forEach(t => t.guests.forEach(g => {
+                    if (g.type === oldName) g.type = newName;
+                }));
+                clearError($('#typeError'));
+                commit('renameType');
+                toast(`"${oldName}" → "${newName}"`);
+            });
+
+            /* ---------- Move / switch ---------- */
+            $('input[name="moveMode"]').on('change', function () {
+                $('#switchGuestContainer').toggleClass('d-none', $(this).val() !== 'switch');
+                updateCapacityPreview();
+            });
+
+            // Target TABLE changed -> rebuild the guest list, then refresh the preview.
+            $('#msTargetTableId').on('change', function () {
+                populateTargetGuestSelect();
+                updateCapacityPreview();
+            });
+
+            // Target GUEST changed -> preview only. Rebuilding the list here is what
+            // caused the original infinite recursion.
+            $('#msTargetGuestId').on('change', updateCapacityPreview);
+
+            $('#moveSwitchForm').on('submit', function (e) {
+                e.preventDefault();
+                const $err = $('#msError');
+                const sourceTable = findTable(parseInt($('#msSourceTableId').val(), 10));
+                const targetTable = findTable(parseInt($('#msTargetTableId').val(), 10));
+                const sourceGuestId = parseInt($('#msSourceGuestId').val(), 10);
+                const mode = $('input[name="moveMode"]:checked').val();
+
+                if (!sourceTable || !targetTable) return showError($err, 'Masa tapılmadı.');
+                if (sourceTable.id === targetTable.id) return showError($err, 'Hədəf masa cari masadan fərqli olmalıdır.');
+
+                const sourceIndex = sourceTable.guests.findIndex(g => g.id === sourceGuestId);
+                if (sourceIndex === -1) return showError($err, 'Köçürülən qonaq tapılmadı.');
+                const guestToMove = sourceTable.guests[sourceIndex];
+
+                if (mode === 'switch') {
+                    const targetGuestId = parseInt($('#msTargetGuestId').val(), 10);
+                    if (!Number.isFinite(targetGuestId)) {
+                        return showError($err, 'Yer dəyişmək üçün hədəf masadan qonaq seçin.');
+                    }
+                    const targetIndex = targetTable.guests.findIndex(g => g.id === targetGuestId);
+                    if (targetIndex === -1) return showError($err, 'Hədəf qonaq tapılmadı.');
+
+                    // Swap in place so each guest lands in the other's row position.
+                    const targetGuest = targetTable.guests[targetIndex];
+                    sourceTable.guests[sourceIndex] = targetGuest;
+                    targetTable.guests[targetIndex] = guestToMove;
+
+                    clearError($err);
+                    hideModal('moveSwitchModal');
+                    commit('switchGuests');
+                    toast(`Yer dəyişdi: "${guestToMove.name}" ⇄ "${targetGuest.name}"`);
+                } else {
+                    sourceTable.guests.splice(sourceIndex, 1);
+                    targetTable.guests.push(guestToMove);
+
+                    clearError($err);
+                    hideModal('moveSwitchModal');
+                    commit('moveGuest');
+
+                    const after = occupancyOf(targetTable);
+                    if (after > targetTable.capacity) {
+                        toast(`"${guestToMove.name}" → ${targetTable.name}. Diqqət: tutum aşıldı (${after}/${targetTable.capacity}).`, 'warning');
+                    } else {
+                        toast(`"${guestToMove.name}" → ${targetTable.name}`);
+                    }
+                }
+            });
+
+            /* ---------- Card actions (delegated: survives every re-render) ---------- */
+            const $cards = $('#tablesContainer');
+
+            $cards.on('click', '.edit-table-btn', function () {
+                const table = findTable(parseInt($(this).data('table-id'), 10));
+                if (!table) return toast('Masa tapılmadı.', 'danger');
+                clearError($('#editTableError'));
+                $('#editTableId').val(table.id);
+                $('#editTableName').val(table.name);
+                $('#editTableCapacity').val(table.capacity).trigger('input');
+                showModal('editTableModal');
+            });
+
+            $cards.on('click', '.delete-table-btn', function () {
+                const table = findTable(parseInt($(this).data('table-id'), 10));
+                if (!table) return toast('Masa tapılmadı.', 'danger');
+                const seated = occupancyOf(table);
+                askConfirm(
+                    `"${table.name}" masasını silmək istədiyinizdən əminsinizmi? ${table.guests.length} qeyd (${seated} nəfər) da silinəcək.`,
+                    function () {
+                        weddingData.tables = weddingData.tables.filter(t => t.id !== table.id);
+                        commit('deleteTable');
+                        toast(`"${table.name}" silindi.`);
+                    }
+                );
+            });
+
+            $cards.on('click', '.quick-add-row', function () {
+                openAddGuestModal(parseInt($(this).data('table-id'), 10));
+            });
+
+            $cards.on('click', '.delete-guest-btn', function () {
+                const table = findTable(parseInt($(this).data('table-id'), 10));
+                const guest = findGuest(table, parseInt($(this).data('guest-id'), 10));
+                if (!table || !guest) return toast('Qonaq tapılmadı.', 'danger');
+                askConfirm(`"${guest.name}" (${guest.amount} nəfər) qonağını silmək istədiyinizdən əminsinizmi?`, function () {
+                    table.guests = table.guests.filter(g => g.id !== guest.id);
+                    commit('deleteGuest');
+                    toast(`"${guest.name}" silindi.`);
+                });
+            });
+
+            $cards.on('click', '.edit-guest-btn', function () {
+                const tableId = parseInt($(this).data('table-id'), 10);
+                const table = findTable(tableId);
+                const guest = findGuest(table, parseInt($(this).data('guest-id'), 10));
+                if (!table || !guest) return toast('Qonaq tapılmadı.', 'danger');
+
+                clearError($('#editGuestError'));
+                $('#editGuestTableId').val(table.id);
+                $('#editGuestId').val(guest.id);
+                $('#editGuestTargetTableId').val(String(table.id)).trigger('change.select2');
+                $('#editGuestName').val(guest.name);
+                $('#editGuestType').val(guest.type).trigger('change.select2');
+                $('#editGuestAmount').val(guest.amount);
+                updateEditGuestCapWarn();
+                showModal('editGuestModal');
+            });
+
+            $cards.on('click', '.open-move-modal', function () {
+                openMoveSwitchModal(
+                    parseInt($(this).data('table-id'), 10),
+                    parseInt($(this).data('guest-id'), 10)
+                );
+            });
+
+            /* ---------- Guest list ---------- */
+            $('#btnOpenList').on('click', function () {
+                renderGuestList();
+                showModal('guestListModal');
+            });
+
+            $('#btnCloseList').on('click', function () { hideModal('guestListModal'); });
+
+            $('#guestListTable').on('click', '.list-sort', function () {
+                const key = $(this).data('key');
+                // Same column toggles direction; a new column starts ascending.
+                if (listSort.key === key) {
+                    listSort.dir = listSort.dir === 'asc' ? 'desc' : 'asc';
+                } else {
+                    listSort = { key: key, dir: 'asc' };
+                }
+                renderGuestList();
+            });
+
+            $('input[name="listScope"]').on('change', renderGuestList);
+
+            $('#btnPrintList').on('click', function () {
+                buildPrintArea();
+                window.print();
+            });
+
+            /* ---------- Export ---------- */
+            $('#miExport').on('click', exportData);
+
+            /* ---------- Import all data ---------- */
+            let pendingImport = null;
+
+            function refreshImportPreview() {
+                const $err = $('#importError');
+                const $prev = $('#importPreview');
+                const text = $('#importText').val();
+
+                pendingImport = null;
+                $('#btnDoImport').prop('disabled', true);
+
+                if (!String(text || '').trim()) {
+                    clearError($err);
+                    $prev.empty();
+                    return;
+                }
+
+                try {
+                    const parsed = parseImportPayload(text);
+                    pendingImport = parsed;
+                    clearError($err);
+
+                    const guests = parsed.tables.reduce((n, t) => n + t.guests.length, 0);
+                    const people = parsed.tables.reduce((n, t) => n + t.guests.reduce((m, g) => m + g.amount, 0), 0);
+                    const over = parsed.tables.filter(t =>
+                        t.guests.reduce((m, g) => m + g.amount, 0) > t.capacity).length;
+
+                    $prev.html(`
+                        <div class="alert alert-success py-2 small mb-2">
+                            <strong>${parsed.tables.length}</strong> masa &middot;
+                            <strong>${guests}</strong> qeyd &middot;
+                            <strong>${people}</strong> nəfər &middot;
+                            <strong>${parsed.guestTypes.length}</strong> tip
+                            ${over > 0 ? ` &middot; <span class="text-danger">tutumu aşan: ${over}</span>` : ''}
+                        </div>
+                        ${parsed.warnings.length === 0 ? '' : `
+                            <div class="alert alert-warning py-2 small mb-2">
+                                <div class="fw-semibold mb-1">${parsed.warnings.length} xəbərdarlıq (idxal davam edə bilər):</div>
+                                <div class="tbl"><ul class="mb-0 ps-3">
+                                    ${parsed.warnings.slice(0, 40).map(w => `<li>${escapeHtml(w)}</li>`).join('')}
+                                    ${parsed.warnings.length > 40 ? `<li>… və daha ${parsed.warnings.length - 40}</li>` : ''}
+                                </ul></div>
+                            </div>`}
+                    `);
+                    $('#btnDoImport').prop('disabled', false);
+                } catch (e) {
+                    $prev.empty();
+                    showError($err, e.message);
+                }
+            }
+
+            $('#miImport').on('click', function () {
+                $('#importText').val('');
+                $('#importFile').val('');
+                $('#importPreview').empty();
+                clearError($('#importError'));
+                $('#btnDoImport').prop('disabled', true);
+                pendingImport = null;
+                showModal('importDataModal');
+            });
+
+            $('#importText').on('input', refreshImportPreview);
+
+            $('#importFile').on('change', function () {
+                const file = this.files && this.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = function () {
+                    $('#importText').val(String(reader.result || ''));
+                    refreshImportPreview();
+                };
+                reader.onerror = function () {
+                    showError($('#importError'), 'Fayl oxunmadı.');
+                };
+                reader.readAsText(file);
+            });
+
+            $('#btnDoImport').on('click', function () {
+                if (!pendingImport) return;
+                const parsed = pendingImport;
+                const guests = parsed.tables.reduce((n, t) => n + t.guests.length, 0);
+                hideModal('importDataModal');
+                askConfirm(
+                    `Bütün mövcud məlumatlar silinib ${parsed.tables.length} masa / ${guests} qeyd ilə əvəz olunacaq. Davam edilsin?`,
+                    function () {
+                        applyImport(parsed);
+                        pendingImport = null;
+                        toast(`İdxal tamamlandı: ${parsed.tables.length} masa, ${guests} qeyd.`);
+                    },
+                    'Bəli, əvəz et'
+                );
+            });
+
+            /* ---------- Import one masa (Excel paste) ---------- */
+            let pendingMasa = null;
+
+            function renderMasaPreview(parsed) {
+                const $prev = $('#impMasaPreview');
+                const multi = parsed.mode === 'multi';
+
+                $('#impMasaSingleFields').toggleClass('d-none', multi);
+                $('#impMasaMultiNote').toggleClass('d-none', !multi);
+                $('#impMasaStrategyBox').toggleClass('d-none', !multi);
+
+                if (multi) {
+                    $('#impMasaModeText').html(
+                        parsed.source === 'board'
+                            ? '<strong>Excel lövhəsi</strong> tanındı' +
+                              (parsed.sheet ? ' ("' + escapeHtml(parsed.sheet) + '" vərəqi)' : '') +
+                              ' — masa adları və tutumlar başlıq xanalarından götürülür.'
+                            : '<strong>Masa</strong> sütunu tapıldı' +
+                              (parsed.sheet ? ' ("' + escapeHtml(parsed.sheet) + '" vərəqi)' : '') +
+                              ' — sətrlər masalara görə qruplaşdırılır.'
+                    );
+                }
+
+                const typeNote = parsed.newTypes.length === 0 ? '' : `
+                    <div class="alert alert-info py-2 small mb-2">
+                        Yeni tip yaradılacaq:
+                        ${parsed.newTypes.slice(0, 25).map(t => `<span class="badge bg-secondary">${escapeHtml(t)}</span>`).join(' ')}
+                        ${parsed.newTypes.length > 25 ? ` <span class="text-muted">… +${parsed.newTypes.length - 25}</span>` : ''}
+                    </div>`;
+
+                const warnNote = parsed.warnings.length === 0 ? '' : `
+                    <div class="alert alert-warning py-2 small mb-2"><div class="tbl"><ul class="mb-0 ps-3">
+                        ${parsed.warnings.slice(0, 30).map(w => `<li>${escapeHtml(w)}</li>`).join('')}
+                        ${parsed.warnings.length > 30 ? `<li>… və daha ${parsed.warnings.length - 30}</li>` : ''}
+                    </ul></div></div>`;
+
+                const sheetNote = !parsed.sheetsTried ? '' : `
+                    <div class="form-text small mb-2">Vərəqlər: ${parsed.sheetsTried.map(escapeHtml).join(' · ')}</div>`;
+
+                if (!multi) {
+                    const capacity = parseInt($('#impMasaCapacity').val(), 10);
+                    const total = parsed.guests.reduce((n, g) => n + g.amount, 0);
+                    const over = Number.isFinite(capacity) && total > capacity;
+                    $('#impMasaBtnLabel').text('Masanı Əlavə Et');
+                    $prev.html(`
+                        <div class="alert ${over ? 'alert-warning' : 'alert-success'} py-2 small mb-2">
+                            <strong>${parsed.guests.length}</strong> qonaq &middot; <strong>${total}</strong> nəfər
+                            ${Number.isFinite(capacity) ? ` / tutum ${capacity}` : ''}
+                            ${over ? ` &middot; <strong>tutum ${total - capacity} nəfər aşılır</strong>` : ''}
+                        </div>
+                        ${sheetNote}${typeNote}${warnNote}
+                        <div class="table-responsive tbl">
+                            <table class="table table-sm table-bordered mb-0 small align-middle">
+                                <thead class="table-light"><tr><th>Ad</th><th style="width:130px;">Tip</th><th class="text-center" style="width:60px;">Say</th></tr></thead>
+                                <tbody>${parsed.guests.map(g => `<tr>
+                                    <td>${escapeHtml(g.name)}</td>
+                                    <td><span class="badge badge-type" style="background:${typeColor(g.type).bg};color:#fff">${escapeHtml(g.type)}</span></td>
+                                    <td class="text-center">${g.amount}</td></tr>`).join('')}
+                                </tbody>
+                            </table>
+                        </div>`);
+                    return;
+                }
+
+                const fallback = parseInt($('#impMasaCapacity').val(), 10);
+                const guests = parsed.masas.reduce((n, m) => n + m.guests.length, 0);
+                const people = parsed.masas.reduce((n, m) => n + m.guests.reduce((k, g) => k + g.amount, 0), 0);
+                const empty = parsed.masas.filter(m => m.guests.length === 0).length;
+                const strategy = $('input[name="impStrategy"]:checked').val() || 'merge';
+                const created = parsed.masas.filter(m => !m.existing).length;
+                const appended = parsed.masas.length - created;
+
+                $('#impMasaBtnLabel').text(parsed.masas.length + ' masanı idxal et');
+                $('#impStrategyHint').text(strategy === 'replace'
+                    ? `Mövcud ${weddingData.tables.length} masa silinib yerinə bu ${parsed.masas.length} masa qoyulacaq.`
+                    : `${created} yeni masa yaradılacaq, ${appended} mövcud masaya qonaq əlavə olunacaq.`);
+
+                $prev.html(`
+                    <div class="alert alert-success py-2 small mb-2">
+                        <strong>${parsed.masas.length}</strong> masa &middot;
+                        <strong>${guests}</strong> qeyd &middot;
+                        <strong>${people}</strong> nəfər
+                        ${empty > 0 ? ` &middot; <span class="text-muted">boş masa: ${empty}</span>` : ''}
+                    </div>
+                    ${sheetNote}${typeNote}${warnNote}
+                    <div class="table-responsive tbl">
+                        <table class="table table-sm table-bordered mb-0 small align-middle">
+                            <thead class="table-light"><tr>
+                                <th>Masa</th><th class="text-center" style="width:62px;">Qonaq</th>
+                                <th class="text-center" style="width:62px;">Nəfər</th>
+                                <th class="text-center" style="width:66px;">Tutum</th>
+                                <th style="width:120px;">Vəziyyət</th>
+                            </tr></thead>
+                            <tbody>
+                                ${parsed.masas.map(m => {
+                                    const total = m.guests.reduce((k, g) => k + g.amount, 0);
+                                    const cap = m.capacity !== null ? m.capacity : (Number.isFinite(fallback) ? fallback : 16);
+                                    const over = total > cap;
+                                    const state = strategy === 'replace' ? 'idxal'
+                                        : (m.existing ? 'mövcuda əlavə' : 'yeni masa');
+                                    return `<tr>
+                                        <td>${escapeHtml(m.name)}</td>
+                                        <td class="text-center">${m.guests.length}</td>
+                                        <td class="text-center">${total}</td>
+                                        <td class="text-center">${cap}${m.capacity === null ? '<span class="text-muted">*</span>' : ''}</td>
+                                        <td class="small ${over ? 'text-danger fw-semibold' : ''}">${state}${over ? ` · +${total - cap}` : ''}</td>
+                                    </tr>`;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                    ${parsed.masas.some(m => m.capacity === null)
+                        ? '<div class="form-text small">* tutum cədvəldə yoxdur — yuxarıdakı "Tutum" dəyəri götürülür.</div>' : ''}
+                `);
+            }
+
+            function resetMasaPreview() {
+                $('#impMasaPreview').empty();
+                $('#impMasaSingleFields').removeClass('d-none');
+                $('#impMasaMultiNote').addClass('d-none');
+                $('#impMasaStrategyBox').addClass('d-none');
+                $('#impMasaBtnLabel').text('Masanı Əlavə Et');
+                $('#btnDoImportMasa').prop('disabled', true);
+                pendingMasa = null;
+            }
+
+            function refreshMasaPreview() {
+                const $err = $('#impMasaError');
+                const text = $('#impMasaText').val();
+
+                if (!String(text || '').trim()) {
+                    clearError($err);
+                    resetMasaPreview();
+                    return;
+                }
+                try {
+                    pendingMasa = parsePastedMasa(text);
+                    clearError($err);
+                    renderMasaPreview(pendingMasa);
+                    $('#btnDoImportMasa').prop('disabled', false);
+                } catch (e) {
+                    resetMasaPreview();
+                    showError($err, e.message);
+                }
+            }
+
+            $('#miImportMasa').on('click', function () {
+                $('#impMasaName').val(suggestNextTableName());
+                $('#impMasaCapacity').val(16);
+                $('#impMasaText').val('');
+                $('#impMasaFile').val('');
+                $('#impStrategyMerge').prop('checked', true);
+                clearError($('#impMasaError'));
+                resetMasaPreview();
+                showModal('importMasaModal');
+            });
+
+            $('#impMasaText, #impMasaCapacity').on('input', refreshMasaPreview);
+
+            $('input[name="impStrategy"]').on('change', function () {
+                if (pendingMasa) renderMasaPreview(pendingMasa);
+            });
+
+            $('#impMasaFile').on('change', function () {
+                const file = this.files && this.files[0];
+                if (!file) return;
+                const $err = $('#impMasaError');
+                clearError($err);
+                resetMasaPreview();
+                $('#impMasaFileBusy').removeClass('d-none');
+
+                loadSheetJS()
+                    .then(() => file.arrayBuffer())
+                    .then(buf => {
+                        const parsed = parseWorkbook(new Uint8Array(buf));
+                        pendingMasa = parsed;
+                        renderMasaPreview(parsed);
+                        $('#btnDoImportMasa').prop('disabled', false);
+                        $('#impMasaText').val('');
+                    })
+                    .catch(e => {
+                        resetMasaPreview();
+                        showError($err, e.message || 'Fayl oxunmadı.');
+                    })
+                    .then(() => $('#impMasaFileBusy').addClass('d-none'));
+            });
+
+            function adoptNewTypes(list) {
+                list.forEach(t => {
+                    if (!weddingData.guestTypes.some(x => x.toLowerCase() === t.toLowerCase())) {
+                        weddingData.guestTypes.push(t);
+                    }
+                });
+            }
+
+            function applyMultiImport(parsed, strategy) {
+                const fallback = parseInt($('#impMasaCapacity').val(), 10);
+                const capDefault = Number.isFinite(fallback) && fallback > 0 ? fallback : 16;
+
+                adoptNewTypes(parsed.newTypes);
+
+                if (strategy === 'replace') weddingData.tables = [];
+
+                let created = 0, appended = 0, guestCount = 0;
+                parsed.masas.forEach(m => {
+                    let target = weddingData.tables.find(t => t.name.toLowerCase() === m.name.toLowerCase());
+                    if (!target) {
+                        target = { id: newId(), name: m.name,
+                                   capacity: m.capacity !== null ? m.capacity : capDefault, guests: [] };
+                        weddingData.tables.push(target);
+                        created++;
+                    } else {
+                        if (m.capacity !== null) target.capacity = m.capacity;
+                        appended++;
+                    }
+                    m.guests.forEach(g => {
+                        target.guests.push({ id: newId(), name: g.name, type: g.type, amount: g.amount });
+                        guestCount++;
+                    });
+                });
+                return { created: created, appended: appended, guestCount: guestCount };
+            }
+
+            $('#btnDoImportMasa').on('click', function () {
+                const $err = $('#impMasaError');
+                if (!pendingMasa) return;
+
+                if (pendingMasa.mode === 'multi') {
+                    const parsed = pendingMasa;
+                    const strategy = $('input[name="impStrategy"]:checked').val() || 'merge';
+
+                    const finish = function () {
+                        const res = applyMultiImport(parsed, strategy);
+                        pendingMasa = null;
+                        clearError($err);
+                        hideModal('importMasaModal');
+                        commit('importTable');
+                        toast(`İdxal: ${res.created} yeni masa, ${res.appended} mövcuda əlavə, ${res.guestCount} qonaq.`);
+                    };
+
+                    if (strategy === 'replace') {
+                        hideModal('importMasaModal');
+                        askConfirm(
+                            `Mövcud ${weddingData.tables.length} masa silinib yerinə ${parsed.masas.length} masa qoyulacaq. Davam edilsin?`,
+                            finish, 'Bəli, əvəz et');
+                    } else {
+                        finish();
+                    }
+                    return;
+                }
+
+                const name = $('#impMasaName').val().trim();
+                if (!name) return showError($err, 'Masa adı boş ola bilməz.');
+                if (weddingData.tables.some(t => t.name.toLowerCase() === name.toLowerCase())) {
+                    return showError($err, `"${name}" adlı masa artıq mövcuddur.`);
+                }
+                const capacity = parseInt($('#impMasaCapacity').val(), 10);
+                if (!Number.isFinite(capacity) || capacity < 1) return showError($err, 'Tutum ən azı 1 olmalıdır.');
+
+                adoptNewTypes(pendingMasa.newTypes);
+                weddingData.tables.push({
+                    id: newId(), name: name, capacity: capacity,
+                    guests: pendingMasa.guests.map(g => ({
+                        id: newId(), name: g.name, type: g.type, amount: g.amount }))
+                });
+                const count = pendingMasa.guests.length;
+                pendingMasa = null;
+                clearError($err);
+                hideModal('importMasaModal');
+                commit('importTable');
+                toast(`"${name}" masası ${count} qonaqla əlavə edildi.`);
+            });
+
+            /* ---------- Confirmation ---------- */
+            $('#confirmModalActionBtn').on('click', function () {
+                const action = pendingConfirmAction;
+                pendingConfirmAction = null;
+                hideModal('confirmModal');
+                if (typeof action === 'function') action();
+            });
+
+            // Never leave a stale callback armed if the dialog is dismissed.
+            $('#confirmModal').on('hidden.bs.modal', function () { pendingConfirmAction = null; });
+
+            $('#typesModal').on('hidden.bs.modal', function () { clearError($('#typeError')); });
+        });
+    </script>
+</body>
+
+</html>
