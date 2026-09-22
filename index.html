@@ -909,7 +909,7 @@
                     <div class="mb-2">
                         <label class="form-label small fw-semibold">Excel-dən sətrləri buraya yapışdırın</label>
                         <textarea class="form-control form-control-sm" id="impMasaText" rows="7" spellcheck="false"
-                            placeholder="Elçin Məmmədov&#9;Dostlar&#9;2&#10;Nigar Əliyeva&#9;Ailə&#9;1"></textarea>
+                            placeholder="Elçin Məmmədov&#9;Dost&#9;2&#10;Nigar Əliyeva&#9;Dost&#9;1"></textarea>
                         <div class="form-text small">
                             Hər sətr bir qonaq. İki formatdan biri:
                             <strong>Ad · Tip · Say</strong> (tək masa) və ya
@@ -1068,10 +1068,10 @@
            DATA
            ===================================================================== */
         const weddingData = {
-            // Guest types are seed configuration, not data: at least one must
-            // exist before a guest can be added by hand. Excel import adds more
-            // from the sheet's "Haradan" column.
-            guestTypes: ["Ailə", "Qohumlar", "Dostlar", "İş yoldaşları", "VIP"],
+            // One seed type only. At least one must exist before a guest can be
+            // added by hand; everything else comes from the sheet's "Haradan"
+            // column on import, or from the Tiplər manager.
+            guestTypes: ["Dost"],
             tables: [],
             // Notes are free text for the organisers. They are deliberately
             // NOT part of any seating count.
@@ -1706,7 +1706,7 @@
                     }
                     let gType = addType(g.type);
                     if (!gType) {
-                        gType = types[0] || addType('Ailə');
+                        gType = types[0] || addType('Dost');
                         warnings.push('"' + gName + '": tip boşdur, "' + gType + '" götürüldü.');
                     }
                     guests.push({ id: ++idSeq, name: gName, type: gType, amount: amount });
@@ -1725,7 +1725,7 @@
                 usedNames.add(candidate.toLowerCase());
             });
 
-            if (types.length === 0) types.push('Ailə');
+            if (types.length === 0) types.push('Dost');
 
             // Notes are optional and never block an import.
             const notes = [];

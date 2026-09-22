@@ -228,10 +228,39 @@ Every item here needs explicit approval.
 
 ---
 
+## Known defect — Excel import still wrong on real files
+
+**Status: open.** Importing a real workbook still puts values in the wrong fields
+(guest names appearing as the type). Two rounds of fixes have not closed it:
+
+1. Caption rows (`FullName | kind | count`) were being imported as a guest — fixed.
+2. Columns were read from fixed offsets `+0/+1/+2` relative to the masa title, which
+   breaks on merged titles, spacer columns and reordered columns. Each masa now derives
+   its own mapping from the caption strip, falling back to inference — fixed, and
+   verified across nine synthetic layouts.
+
+Neither round fixed the real file, so **the remaining cause is something not present in
+the synthetic tests or in the empty `Masa_numune` template.** Every test so far has been
+built from an assumed structure rather than from real data.
+
+### What will actually settle it
+
+- [ ] A **filled** copy of the workbook, or even 3–4 real rows pasted as text. Without
+      it, fixes are guesses against an imagined layout.
+- [ ] Failing that: open the import preview and read the **"Sütunlar:"** line. It states
+      which offsets were chosen and whether they came from the caption row or a guess.
+      That single line identifies the misread immediately.
+
+### Workaround until then
+
+Adding an explicit header row to the sheet — `Ad | Haradan | Say` — makes the mapping
+exact rather than inferred, in both the board and flat layouts.
+
+---
+
 ## Open questions
 
-- A **filled** copy of the `Masa_numune` workbook. The Excel importer was built against
-  an empty template: the structure is proven, but no real `Haradan` value or real name
-  has ever been through it.
 - Single editor, or several at once? The plan assumes one. Several would mean the `409`
   path gets exercised constantly and is worth designing around rather than bolting on.
+- Guest types now seed as a single type, `Dost`. Everything else is expected to arrive
+  from the sheet's `Haradan` column or be added in the Tiplər manager.
