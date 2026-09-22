@@ -323,8 +323,24 @@
             white-space: nowrap;
         }
 
-        .list-sort:hover {
+        .list-sort:hover,
+        .note-sort:hover {
             background-color: #e9ecef;
+        }
+
+        .note-sort {
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+        }
+
+        .note-sort.active .sort-ind {
+            opacity: 1;
+        }
+
+        .note-text {
+            word-break: break-word;
+            white-space: pre-wrap;
         }
 
         .sort-ind {
@@ -526,6 +542,10 @@
             <div class="d-flex gap-2">
                 <button class="btn btn-outline-primary btn-sm" id="btnOpenList">
                     <i class="fa-solid fa-list-ul me-1"></i> Siyahı
+                </button>
+                <button class="btn btn-outline-warning btn-sm edit-only" id="btnOpenNotes">
+                    <i class="fa-solid fa-note-sticky me-1"></i> Qeyd Masası
+                    <span class="badge bg-secondary ms-1 d-none" id="notesCountBadge">0</span>
                 </button>
                 <button class="btn btn-outline-dark btn-sm edit-only" data-bs-toggle="modal" data-bs-target="#typesModal">
                     <i class="fa-solid fa-tags me-1"></i> Tiplər
@@ -912,6 +932,67 @@
         </div>
     </div>
 
+    <!-- Modal: Qeyd Masası — same row shape as a masa (Ad / Tip / Say),
+         but deliberately excluded from every seating count. -->
+    <div class="modal fade" id="notesModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fs-6 fw-bold"><i class="fa-solid fa-note-sticky me-1"></i> Qeyd Masası</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-secondary py-2 small mb-3">
+                        Masa ilə eyni quruluşdadır (Ad / Tip / Say), lakin
+                        <strong>heç bir hesablamaya daxil deyil</strong> — nə masa sayına,
+                        nə nəfər sayına, nə də qonaq siyahısına.
+                    </div>
+                    <div class="row g-2 mb-2">
+                        <div class="col-md-5">
+                            <label class="form-label small fw-semibold">Ad</label>
+                            <input type="text" id="newNoteName" class="form-control form-control-sm"
+                                placeholder="Məs: Ehtiyat qonaq" maxlength="200">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">Tip</label>
+                            <select id="newNoteType" class="form-select form-select-sm"></select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small fw-semibold">Say</label>
+                            <input type="number" id="newNoteAmount" class="form-control form-control-sm" min="1" value="1">
+                        </div>
+                        <div class="col-md-1 d-flex align-items-end">
+                            <button class="btn btn-outline-primary btn-sm w-100" type="button" id="btnAddNote"
+                                title="Əlavə et"><i class="fa-solid fa-plus"></i></button>
+                        </div>
+                    </div>
+                    <div class="alert alert-danger py-2 small d-none" id="noteError"></div>
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="form-text small mb-0">Sütun başlığına klikləyərək sıralayın (A→Z / Z→A).</span>
+                        <span class="small text-muted" id="notesCount"></span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered align-middle mb-0" id="notesTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th role="button" class="note-sort" data-key="name">Ad <span class="sort-ind"></span></th>
+                                    <th role="button" class="note-sort" data-key="type" style="width:150px;">Tip <span class="sort-ind"></span></th>
+                                    <th role="button" class="note-sort text-center" data-key="amount" style="width:80px;">Say <span class="sort-ind"></span></th>
+                                    <th class="text-end" style="width:120px;">Əməliyyat</th>
+                                </tr>
+                            </thead>
+                            <tbody id="notesTableBody"></tbody>
+                        </table>
+                    </div>
+                    <div class="form-text small mt-2" id="notesTotals"></div>
+                </div>
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Bağla</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal: Printable guest list. Static: closes only via its buttons. -->
     <div class="modal fade" id="guestListModal" tabindex="-1" data-bs-backdrop="static"
         data-bs-keyboard="false">
@@ -987,110 +1068,14 @@
            DATA
            ===================================================================== */
         const weddingData = {
-            guestTypes: ["Ailə", "Dostlar", "İş yoldaşları", "VIP", "Musiqiçilər", "Akrabalar"],
-            tables: [
-                {
-                    id: 1, name: "Masa 1", capacity: 16, guests: [
-                        { id: 101, name: "Professor Kamil Məmmədov və ailəsi", type: "Ailə", amount: 4 },
-                        { id: 102, name: "Nigar Əliyeva", type: "Ailə", amount: 2 },
-                        { id: 103, name: "Rauf Həsənov", type: "VIP", amount: 2 },
-                        { id: 104, name: "Leyla Qasımova", type: "VIP", amount: 2 }
-                    ]
-                },
-                {
-                    id: 2, name: "Masa 2", capacity: 16, guests: [
-                        { id: 105, name: "Orxan Qasımov və yoldaşı", type: "Dostlar", amount: 2 },
-                        { id: 106, name: "Elvin Məmmədzadə", type: "Dostlar", amount: 1 },
-                        { id: 107, name: "Tural İbrahimli", type: "Dostlar", amount: 1 },
-                        { id: 108, name: "Samir Kərimov", type: "Dostlar", amount: 1 },
-                        { id: 109, name: "Fərid Əliyev", type: "Dostlar", amount: 2 }
-                    ]
-                },
-                {
-                    id: 3, name: "Masa 3", capacity: 12, guests: [
-                        { id: 110, name: "Bank Filialı Kollektivi (Aytən x.)", type: "İş yoldaşları", amount: 6 },
-                        { id: 111, name: "Anar Şirinov", type: "İş yoldaşları", amount: 2 },
-                        { id: 112, name: "Gülnarə Nağıyeva", type: "İş yoldaşları", amount: 4 }
-                    ]
-                },
-                {
-                    id: 4, name: "Masa 4", capacity: 16, guests: [
-                        { id: 113, name: "Musiqi qrupu (Vokal və Saz)", type: "Musiqiçilər", amount: 4 },
-                        { id: 114, name: "DJ Murad", type: "Musiqiçilər", amount: 1 }
-                    ]
-                },
-                {
-                    id: 5, name: "Masa 5", capacity: 14, guests: [
-                        { id: 115, name: "Akraba - Gəncə qolları (Məmməd)", type: "Akrabalar", amount: 6 },
-                        { id: 116, name: "Akraba - Sumqayıt qolları", type: "Akrabalar", amount: 4 }
-                    ]
-                },
-                {
-                    id: 6, name: "Masa 6", capacity: 16, guests: [
-                        { id: 117, name: "Zaur Baxşəliyev ailəsi", type: "Ailə", amount: 5 },
-                        { id: 118, name: "Mehriban xanım və yoldaşı", type: "Ailə", amount: 2 }
-                    ]
-                },
-                {
-                    id: 7, name: "Masa 7", capacity: 12, guests: [
-                        { id: 119, name: "Universitet yoldaşları (Rəşad)", type: "Dostlar", amount: 4 },
-                        { id: 120, name: "Elçin Quliyev", type: "Dostlar", amount: 2 }
-                    ]
-                },
-                {
-                    id: 8, name: "Masa 8", capacity: 10, guests: [
-                        { id: 121, name: "İT Şöbəsi mütəxəssisləri", type: "İş yoldaşları", amount: 5 },
-                        { id: 122, name: "Fuad Məmmədov", type: "İş yoldaşları", amount: 2 }
-                    ]
-                },
-                {
-                    id: 9, name: "Masa 9", capacity: 16, guests: [
-                        { id: 123, name: "Hörmətli Ağsaqqallar", type: "VIP", amount: 6 },
-                        { id: 124, name: "Hacı Nadir", type: "VIP", amount: 2 }
-                    ]
-                },
-                {
-                    id: 10, name: "Masa 10", capacity: 16, guests: [
-                        { id: 125, name: "Qonşular (Mahmud kişi)", type: "Akrabalar", amount: 8 }
-                    ]
-                },
-                {
-                    id: 11, name: "Masa 11", capacity: 12, guests: [
-                        { id: 126, name: "Xaricdən gələn qonaqlar", type: "VIP", amount: 12 }
-                    ]
-                },
-                {
-                    id: 12, name: "Masa 12", capacity: 10, guests: [
-                        { id: 127, name: "Uşaqlar masası", type: "Ailə", amount: 11 }
-                    ]
-                },
-                {
-                    id: 13, name: "Masa 13", capacity: 16, guests: [
-                        { id: 128, name: "Sürücülər və texniki heyət", type: "İş yoldaşları", amount: 3 }
-                    ]
-                },
-                {
-                    id: 14, name: "Masa 14", capacity: 14, guests: [
-                        { id: 129, name: "Məktəb yoldaşları", type: "Dostlar", amount: 7 }
-                    ]
-                },
-                {
-                    id: 15, name: "Masa 15", capacity: 16, guests: [
-                        { id: 130, name: "Bəy tərəfi qohumları", type: "Akrabalar", amount: 9 }
-                    ]
-                },
-                {
-                    id: 16, name: "Masa 16", capacity: 16, guests: [
-                        { id: 131, name: "Gəlin tərəfi qohumları", type: "Akrabalar", amount: 16 }
-                    ]
-                },
-                {
-                    id: 17, name: "Ehtiyat Masa A", capacity: 16, guests: [
-                        { id: 132, name: "Ehtiyat yerlər / Rezerv", type: "VIP", amount: 2 }
-                    ]
-                },
-                { id: 18, name: "Ehtiyat Masa B", capacity: 16, guests: [] }
-            ]
+            // Guest types are seed configuration, not data: at least one must
+            // exist before a guest can be added by hand. Excel import adds more
+            // from the sheet's "Haradan" column.
+            guestTypes: ["Ailə", "Qohumlar", "Dostlar", "İş yoldaşları", "VIP"],
+            tables: [],
+            // Notes are free text for the organisers. They are deliberately
+            // NOT part of any seating count.
+            notes: []
         };
 
         /* =====================================================================
@@ -1352,6 +1337,7 @@
             updateDropdowns();
             renderTypesList();
             renderTables();
+            renderNotes();
             updateGlobalStats();
             updateTableHint();
         }
@@ -1589,7 +1575,13 @@
             });
 
             if (visibleTables === 0) {
-                container.html(`<div class="w-100 text-center py-5 text-muted">Axtarış kriteriyalarına uyğun masa tapılmadı.</div>`);
+                container.html(weddingData.tables.length === 0
+                    ? `<div class="w-100 text-center py-5 text-muted">
+                           <div class="fs-5 mb-2">Hələ masa yoxdur</div>
+                           <div class="small">"Yeni Masa" ilə əlavə edin, və ya aşağıdakı
+                           <i class="fa-solid fa-ellipsis-vertical"></i> menyusundan Excel-dən idxal edin.</div>
+                       </div>`
+                    : `<div class="w-100 text-center py-5 text-muted">Axtarış kriteriyalarına uyğun masa tapılmadı.</div>`);
             }
 
             lastVisibleTableIds = visibleIds;
@@ -1620,6 +1612,7 @@
                 version: EXPORT_VERSION,
                 exportedAt: new Date().toISOString(),
                 guestTypes: weddingData.guestTypes.slice(),
+                notes: ensureNotes().map(n => ({ name: n.name, type: n.type, amount: n.amount })),
                 tables: weddingData.tables.map(t => ({
                     name: t.name,
                     capacity: t.capacity,
@@ -1734,18 +1727,34 @@
 
             if (types.length === 0) types.push('Ailə');
 
-            return { guestTypes: types, tables: tables, warnings: warnings };
+            // Notes are optional and never block an import.
+            const notes = [];
+            if (Array.isArray(obj.notes)) {
+                obj.notes.forEach(n => {
+                    if (!n || typeof n !== 'object') return;
+                    // Tolerate the older { text } shape from an earlier export.
+                    const name = String(n.name || n.text || '').trim();
+                    if (!name) return;
+                    let amount = parseInt(n.amount, 10);
+                    if (!Number.isFinite(amount) || amount < 1) amount = 1;
+                    notes.push({ id: ++idSeq, name: name, type: addType(n.type) || types[0], amount: amount });
+                });
+            }
+
+            return { guestTypes: types, tables: tables, notes: notes, warnings: warnings };
         }
 
         function applyImport(parsed) {
             weddingData.guestTypes = parsed.guestTypes;
             weddingData.tables = parsed.tables;
+            weddingData.notes = Array.isArray(parsed.notes) ? parsed.notes : [];
             // Ids were reassigned from 1, so the counter must clear the new max.
             idCounter = 0;
             weddingData.tables.forEach(t => {
                 idCounter = Math.max(idCounter, t.id);
                 t.guests.forEach(g => { idCounter = Math.max(idCounter, g.id); });
             });
+            ensureNotes().forEach(n => { idCounter = Math.max(idCounter, Number(n.id) || 0); });
             commit('importData');
         }
 
@@ -1766,11 +1775,32 @@
            "Haradan" (which side the guest is from) maps to our Tip.
            ----------------------------------------------------------------- */
         const COLUMN_ROLES = {
-            name:   ['ad', 'adi', 'adsoyad', 'name', 'qonaq', 'guest'],
-            type:   ['haradan', 'tip', 'tipi', 'nov', 'novu', 'type', 'kateqoriya', 'teref'],
-            amount: ['say', 'sayi', 'nefer', 'amount', 'count', 'qty'],
-            table:  ['masa', 'masaadi', 'masaad', 'table', 'stol']
+            name:   ['ad', 'adi', 'adsoyad', 'adsoyadi', 'name', 'fullname', 'full name',
+                     'qonaq', 'qonaqadi', 'guest', 'guestname'],
+            type:   ['haradan', 'tip', 'tipi', 'nov', 'novu', 'type', 'kind', 'kateqoriya',
+                     'category', 'teref', 'terefi'],
+            amount: ['say', 'sayi', 'nefer', 'neferi', 'amount', 'count', 'qty', 'quantity'],
+            table:  ['masa', 'masaadi', 'masaad', 'table', 'tablename', 'stol']
         };
+
+        // True for a cell that reads as a column caption rather than data.
+        function isColumnCaption(value) {
+            const key = normaliseHint(value);
+            if (!key) return false;
+            return Object.keys(COLUMN_ROLES).some(role => COLUMN_ROLES[role].indexOf(key) !== -1);
+        }
+
+        // A caption STRIP is the "FullName | kind | count" line under a masa
+        // title. Requiring two of the three cells to look like captions means a
+        // guest who happens to be called "Count" is still imported - their type
+        // and party-size cells will not also be caption words.
+        function isCaptionRow(grid, r, c) {
+            let hits = 0;
+            for (let i = 0; i < 3; i++) {
+                if (isColumnCaption(cellAt(grid, r, c + i))) hits++;
+            }
+            return hits >= 2;
+        }
 
         // "Masa 7 (18)" -> name + capacity. This is what marks a board header.
         const MASA_HEADER_RE = /^(.*\S)\s*\((\d+)\)$/;
@@ -1868,6 +1898,10 @@
                     if (!name) continue;
                     // The block's totals cell is a bare number, not a guest.
                     if (PURE_NUMBER_RE.test(name)) continue;
+                    // Real sheets put a caption strip ("FullName | kind | count")
+                    // right under the masa title. Without this it imports as a
+                    // guest called "FullName" of type "kind".
+                    if (isCaptionRow(grid, r, h.c)) continue;
 
                     let amount = parseInt(cellAt(grid, r, h.c + 2).replace(',', '.'), 10);
                     if (!Number.isFinite(amount) || amount < 1) amount = 1;
@@ -2072,6 +2106,92 @@
         }
 
         /* =====================================================================
+           QEYD MASASI (notes)
+           Rows have the same shape as a masa's guests - { name, type, amount } -
+           but they live outside weddingData.tables and are never summed into
+           occupancy, capacity, the guest list or the printout.
+           ===================================================================== */
+        let notesSort = { key: 'name', dir: 'asc' };
+        let noteEditId = null;      // row currently being edited inline
+        let noteConfirmId = null;   // row currently asking "delete?"
+
+        function ensureNotes() {
+            if (!Array.isArray(weddingData.notes)) weddingData.notes = [];
+            return weddingData.notes;
+        }
+
+        function sortedNotes() {
+            const dir = notesSort.dir === 'desc' ? -1 : 1;
+            const key = notesSort.key;
+            return ensureNotes().slice().sort((a, b) => {
+                if (key === 'amount') {
+                    const d = (Number(a.amount) || 0) - (Number(b.amount) || 0);
+                    return (d !== 0 ? d : collator.compare(a.name, b.name)) * dir;
+                }
+                const d = collator.compare(String(a[key] || ''), String(b[key] || ''));
+                return (d !== 0 ? d : collator.compare(a.name, b.name)) * dir;
+            });
+        }
+
+        function noteTypeOptions(selected) {
+            return weddingData.guestTypes.map(t =>
+                `<option value="${escapeHtml(t)}"${t === selected ? ' selected' : ''}>${escapeHtml(t)}</option>`
+            ).join('');
+        }
+
+        function renderNotes() {
+            const rows = sortedNotes();
+            const $body = $('#notesTableBody');
+
+            $body.html(rows.length === 0
+                ? `<tr><td colspan="4" class="text-center text-muted py-3 small">Hələ qeyd yoxdur.</td></tr>`
+                : rows.map(n => {
+                    if (n.id === noteEditId) {
+                        return `<tr class="note-editing">
+                            <td><input type="text" class="form-control form-control-sm note-edit-name" value="${escapeHtml(n.name)}" maxlength="200"></td>
+                            <td><select class="form-select form-select-sm note-edit-type">${noteTypeOptions(n.type)}</select></td>
+                            <td><input type="number" class="form-control form-control-sm note-edit-amount text-center" min="1" value="${Number(n.amount) || 1}"></td>
+                            <td class="text-end text-nowrap">
+                                <button type="button" class="btn btn-sm btn-success py-0 px-1 note-save-btn" data-note-id="${n.id}" title="Yadda saxla"><i class="fa-solid fa-check"></i></button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1 ms-1 note-cancel-btn" title="İmtina"><i class="fa-solid fa-xmark"></i></button>
+                            </td>
+                        </tr>`;
+                    }
+                    if (n.id === noteConfirmId) {
+                        return `<tr class="table-danger">
+                            <td colspan="3" class="small fw-semibold">"${escapeHtml(n.name)}" silinsin?</td>
+                            <td class="text-end text-nowrap">
+                                <button type="button" class="btn btn-sm btn-danger py-0 px-1 note-confirm-btn" data-note-id="${n.id}">Bəli</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1 ms-1 note-cancel-btn">Xeyr</button>
+                            </td>
+                        </tr>`;
+                    }
+                    return `<tr>
+                        <td class="note-text">${escapeHtml(n.name)}</td>
+                        <td>${escapeHtml(n.type)}</td>
+                        <td class="text-center">${Number(n.amount) || 1}</td>
+                        <td class="text-end text-nowrap">
+                            <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1 edit-note-btn" data-note-id="${n.id}" title="Dəyiş"><i class="fa-solid fa-pen"></i></button>
+                            <button type="button" class="btn btn-sm btn-outline-danger py-0 px-1 ms-1 delete-note-btn" data-note-id="${n.id}" title="Sil"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    </tr>`;
+                }).join(''));
+
+            const people = rows.reduce((n, x) => n + (Number(x.amount) || 0), 0);
+            $('#notesCount').text(`${rows.length} qeyd`);
+            $('#notesTotals').html(rows.length === 0 ? ''
+                : `Cəmi <strong>${rows.length}</strong> sətr, <strong>${people}</strong> nəfər —
+                   <em>bu rəqəmlər ümumi hesablamaya daxil deyil.</em>`);
+            $('#notesCountBadge').text(rows.length).toggleClass('d-none', rows.length === 0);
+
+            $('#notesTable .note-sort').each(function () {
+                const active = $(this).data('key') === notesSort.key;
+                $(this).toggleClass('active', active);
+                $(this).find('.sort-ind').text(active ? (notesSort.dir === 'asc' ? '▲' : '▼') : '⇅');
+            });
+        }
+
+        /* =====================================================================
            PRINTABLE GUEST LIST
            Three columns only - Qonaq, Tip, Masa - sortable in both directions.
            ===================================================================== */
@@ -2118,7 +2238,7 @@
                 : rows.map(r => `
                     <tr>
                         <td>${escapeHtml(r.name)}</td>
-                        <td><span class="badge badge-type" style="background:${typeColor(r.type).bg};color:#fff">${escapeHtml(r.type)}</span></td>
+                        <td>${escapeHtml(r.type)}</td>
                         <td>${escapeHtml(r.table)}</td>
                     </tr>`).join(''));
 
@@ -2737,7 +2857,106 @@
                 );
             });
 
-            /* ---------- Guest list ---------- */
+            /* ---------- Qeyd Masası ---------- */
+            $('#btnOpenNotes').on('click', function () {
+                noteEditId = null; noteConfirmId = null;
+                $('#newNoteName').val('');
+                $('#newNoteAmount').val(1);
+                $('#newNoteType').html(noteTypeOptions(weddingData.guestTypes[0]));
+                clearError($('#noteError'));
+                renderNotes();
+                showModal('notesModal');
+            });
+
+            function addNote() {
+                const $err = $('#noteError');
+                const name = $('#newNoteName').val().trim();
+                const type = $('#newNoteType').val();
+                const amount = parseInt($('#newNoteAmount').val(), 10);
+
+                if (!name) return showError($err, 'Ad boş ola bilməz.');
+                if (!type || !weddingData.guestTypes.includes(type)) return showError($err, 'Tip seçin.');
+                if (!Number.isFinite(amount) || amount < 1) return showError($err, 'Say ən azı 1 olmalıdır.');
+
+                ensureNotes().push({ id: newId(), name: name, type: type, amount: amount });
+                $('#newNoteName').val('');
+                $('#newNoteAmount').val(1);
+                clearError($err);
+                commit('addNote');
+                $('#newNoteName').trigger('focus');
+            }
+
+            $('#btnAddNote').on('click', addNote);
+            $('#newNoteName, #newNoteAmount').on('keydown', function (e) {
+                if (e.key === 'Enter') { e.preventDefault(); addNote(); }
+            });
+
+            $('#notesTable').on('click', '.note-sort', function () {
+                const key = $(this).data('key');
+                if (notesSort.key === key) {
+                    notesSort.dir = notesSort.dir === 'asc' ? 'desc' : 'asc';
+                } else {
+                    notesSort = { key: key, dir: 'asc' };
+                }
+                renderNotes();
+            });
+
+            // Inline edit and delete: no second modal, so nothing can race with
+            // Bootstrap's transition state.
+            $('#notesTableBody').on('click', '.edit-note-btn', function () {
+                noteConfirmId = null;
+                noteEditId = parseInt($(this).data('note-id'), 10);
+                clearError($('#noteError'));
+                renderNotes();
+                $('#notesTableBody .note-edit-name').trigger('focus');
+            });
+
+            $('#notesTableBody').on('click', '.note-cancel-btn', function () {
+                noteEditId = null; noteConfirmId = null;
+                clearError($('#noteError'));
+                renderNotes();
+            });
+
+            $('#notesTableBody').on('click', '.note-save-btn', function () {
+                const $err = $('#noteError');
+                const id = parseInt($(this).data('note-id'), 10);
+                const note = ensureNotes().find(n => n.id === id);
+                if (!note) { noteEditId = null; return renderNotes(); }
+
+                const $row = $(this).closest('tr');
+                const name = $row.find('.note-edit-name').val().trim();
+                const type = $row.find('.note-edit-type').val();
+                const amount = parseInt($row.find('.note-edit-amount').val(), 10);
+
+                if (!name) return showError($err, 'Ad boş ola bilməz.');
+                if (!type || !weddingData.guestTypes.includes(type)) return showError($err, 'Tip seçin.');
+                if (!Number.isFinite(amount) || amount < 1) return showError($err, 'Say ən azı 1 olmalıdır.');
+
+                note.name = name; note.type = type; note.amount = amount;
+                noteEditId = null;
+                clearError($err);
+                commit('editNote');
+            });
+
+            $('#notesTableBody').on('keydown', '.note-edit-name, .note-edit-amount', function (e) {
+                if (e.key === 'Enter') { e.preventDefault(); $(this).closest('tr').find('.note-save-btn').click(); }
+                if (e.key === 'Escape') { e.preventDefault(); noteEditId = null; renderNotes(); }
+            });
+
+            $('#notesTableBody').on('click', '.delete-note-btn', function () {
+                noteEditId = null;
+                noteConfirmId = parseInt($(this).data('note-id'), 10);
+                renderNotes();
+            });
+
+            $('#notesTableBody').on('click', '.note-confirm-btn', function () {
+                const id = parseInt($(this).data('note-id'), 10);
+                weddingData.notes = ensureNotes().filter(n => n.id !== id);
+                noteConfirmId = null;
+                commit('deleteNote');
+            });
+
+            /* ---------- Guest list ---------- */            /* ---------- Guest list ---------- */
             $('#btnOpenList').on('click', function () {
                 renderGuestList();
                 showModal('guestListModal');
@@ -3130,6 +3349,22 @@
                 hideModal('importMasaModal');
                 commit('importTable');
                 toast(`"${name}" masası ${count} qonaqla əlavə edildi.`);
+            });
+
+            /* ---------- Modal cleanup ----------
+               Bootstrap strips body.modal-open on ANY modal hide, and a modal
+               closed while another is open can leave an orphan backdrop. This
+               makes the end state deterministic: no modal shown => no backdrop,
+               page fully released. */
+            $(document).on('hidden.bs.modal', '.modal', function () {
+                if (document.querySelector('.modal.show')) {
+                    document.body.classList.add('modal-open');
+                } else {
+                    $('.modal-backdrop').remove();
+                    document.body.classList.remove('modal-open');
+                    document.body.style.overflow = '';
+                    document.body.style.paddingRight = '';
+                }
             });
 
             /* ---------- Confirmation ---------- */
