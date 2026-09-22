@@ -1794,9 +1794,10 @@
         // title. Requiring two of the three cells to look like captions means a
         // guest who happens to be called "Count" is still imported - their type
         // and party-size cells will not also be caption words.
-        function isCaptionRow(grid, r, c) {
+        function isCaptionRow(grid, r, c, width) {
+            const span = Math.max(3, Math.min(width || 3, 12));
             let hits = 0;
-            for (let i = 0; i < 3; i++) {
+            for (let i = 0; i < span; i++) {
                 if (isColumnCaption(cellAt(grid, r, c + i))) hits++;
             }
             return hits >= 2;
@@ -1871,9 +1872,129 @@
             return headers;
         }
 
+        // Horizontal distance between neighbouring masas, taken as the most
+        // common gap between header columns on the same row. This is how wide
+        // one masa's column window is, however many columns its title merges
+        // across.
+        function boardPitch(headers) {
+            const byRow = new Map();
+            headers.forEach(h => {
+                if (!byRow.has(h.r)) byRow.set(h.r, []);
+                byRow.get(h.r).push(h.c);
+            });
+            const gaps = new Map();
+            byRow.forEach(cols => {
+                cols.sort((a, b) => a - b);
+                for (let i = 1; i < cols.length; i++) {
+                    const d = cols[i] - cols[i - 1];
+                    if (d > 0) gaps.set(d, (gaps.get(d) || 0) + 1);
+                }
+            });
+            let best = 3, bestCount = 0;
+            gaps.forEach((count, d) => { if (count > bestCount) { bestCount = count; best = d; } });
+            return Math.max(1, Math.min(best, 12));
+        }
+
+        // The caption strip under a masa title ("FullName | kind | count")
+        // states exactly which column is which. Using it means the layout no
+        // longer has to match a fixed +0/+1/+2 assumption - columns may be in
+        // any order, and the title may merge across any number of them.
+        function findBlockCaption(grid, hc, width, startRow, endRow) {
+            const limit = Math.min(startRow + 4, endRow);
+            for (let r = startRow; r < limit; r++) {
+                const offsets = { name: -1, type: -1, amount: -1 };
+                let hits = 0;
+                for (let i = 0; i < width; i++) {
+                    const key = normaliseHint(cellAt(grid, r, hc + i));
+                    if (!key) continue;
+                    ['name', 'type', 'amount'].forEach(role => {
+                        if (offsets[role] === -1 && COLUMN_ROLES[role].indexOf(key) !== -1) {
+                            offsets[role] = i; hits++;
+                        }
+                    });
+                }
+                if (hits >= 2 && offsets.name !== -1) return { row: r, offsets: offsets };
+            }
+            return null;
+        }
+
+        // A row whose non-empty cells are all bare numbers is a totals strip,
+        // not a guest. Excluding it matters for inference: a totals cell sitting
+        // alone in an otherwise empty column reads as "100% numeric" and would
+        // be mistaken for the party-size column.
+        function isNumericOnlyRow(grid, r, hc, width) {
+            let filled = 0, numeric = 0;
+            for (let i = 0; i < width; i++) {
+                const v = cellAt(grid, r, hc + i);
+                if (!v) continue;
+                filled++;
+                if (PURE_NUMBER_RE.test(v)) numeric++;
+            }
+            return filled > 0 && filled === numeric;
+        }
+
+        // No caption strip: work the columns out from the data itself. The
+        // party-size column is the one that is mostly numbers; of the text
+        // columns, names vary the most and are longest, types repeat.
+        function inferBlockColumns(grid, hc, width, startRow, endRow) {
+            const stats = [];
+            for (let i = 0; i < width; i++) {
+                let filled = 0, numeric = 0, textChars = 0;
+                const distinct = new Set();
+                for (let r = startRow; r < endRow; r++) {
+                    if (isNumericOnlyRow(grid, r, hc, width)) continue;
+                    const v = cellAt(grid, r, hc + i);
+                    if (!v) continue;
+                    filled++;
+                    if (PURE_NUMBER_RE.test(v)) numeric++;
+                    else { textChars += v.length; distinct.add(v.toLowerCase()); }
+                }
+                stats.push({ i: i, filled: filled, numeric: numeric, textChars: textChars, distinct: distinct.size });
+            }
+
+            const withData = stats.filter(x => x.filled > 0);
+            if (withData.length === 0) return null;
+
+            // amount: mostly numeric, and not the only column we have
+            let amount = -1;
+            const numericCols = withData.filter(x => x.numeric / x.filled >= 0.6 && x.numeric > 0);
+            if (numericCols.length > 0 && withData.length > 1) {
+                amount = numericCols.sort((a, b) => (b.numeric / b.filled) - (a.numeric / a.filled))[0].i;
+            }
+
+            const textCols = withData.filter(x => x.i !== amount && x.textChars > 0);
+            if (textCols.length === 0) return null;
+
+            // name: the most varied / longest text column
+            const name = textCols.slice().sort((a, b) =>
+                (b.distinct - a.distinct) || (b.textChars - a.textChars))[0].i;
+
+            // type: of what remains, the most repetitive column
+            const rest = textCols.filter(x => x.i !== name);
+            const type = rest.length
+                ? rest.slice().sort((a, b) => (a.distinct - b.distinct) || (a.i - b.i))[0].i
+                : -1;
+
+            return { name: name, type: type, amount: amount };
+        }
+
         function parseBoard(grid, resolveType, warnings) {
             const headers = findBoardHeaders(grid);
             if (headers.length < 2) return null;
+
+            // Guard against a FLAT list being read as a board. In a real board
+            // masas sit in different columns, or leave guest rows between them
+            // down one column. A Masa column repeating "Masa 9 (12)" on
+            // consecutive rows is a list, not a plan.
+            const distinctCols = new Set(headers.map(h => h.c));
+            if (distinctCols.size < 2) {
+                const rows = headers.map(h => h.r).sort((a, b) => a - b);
+                let maxGap = 0;
+                for (let i = 1; i < rows.length; i++) maxGap = Math.max(maxGap, rows[i] - rows[i - 1]);
+                if (maxGap < 3) return null;
+            }
+
+            const pitch = boardPitch(headers);
 
             // A block runs from its header down to the next header in the SAME
             // column, so row pitch never has to be assumed.
@@ -1885,31 +2006,96 @@
             byCol.forEach(list => list.sort((a, b) => a.r - b.r));
 
             const ordered = headers.slice().sort((a, b) => (a.r - b.r) || (a.c - b.c));
-            const masas = [];
 
-            ordered.forEach(h => {
+            // Work out each block's extent once, then find the caption strips.
+            const blocks = ordered.map(h => {
                 const colList = byCol.get(h.c);
                 const idx = colList.indexOf(h);
-                const endRow = (idx + 1 < colList.length) ? colList[idx + 1].r : grid.length;
+                return {
+                    h: h,
+                    startRow: h.r + 1,
+                    endRow: (idx + 1 < colList.length) ? colList[idx + 1].r : grid.length
+                };
+            });
+            blocks.forEach(b => {
+                b.caption = findBlockCaption(grid, b.h.c, pitch, b.startRow, b.endRow);
+            });
+
+            // A board uses one layout throughout, so a caption found in ANY
+            // block gives the offsets for every block. This matters for masas
+            // holding a single guest, where guessing from the data alone can
+            // pick the wrong column (a short name beside a longer type).
+            const captionTally = new Map();
+            blocks.forEach(b => {
+                if (!b.caption) return;
+                const key = b.caption.offsets.name + '/' + b.caption.offsets.type + '/' + b.caption.offsets.amount;
+                captionTally.set(key, (captionTally.get(key) || 0) + 1);
+            });
+            let boardOffsets = null;
+            if (captionTally.size > 0) {
+                let bestKey = null, bestCount = 0;
+                captionTally.forEach((count, key) => { if (count > bestCount) { bestCount = count; bestKey = key; } });
+                const [n, t, a] = bestKey.split('/').map(Number);
+                boardOffsets = { name: n, type: t, amount: a };
+            }
+
+            const masas = [];
+            const mappings = [];
+
+            blocks.forEach(b => {
+                const h = b.h;
+                const endRow = b.endRow;
+                const startRow = b.startRow;
+                const caption = b.caption;
+
+                let offsets, source;
+                if (caption) {
+                    offsets = caption.offsets;
+                    source = 'caption';
+                } else if (boardOffsets) {
+                    offsets = boardOffsets;
+                    source = 'caption';
+                } else {
+                    const inferred = inferBlockColumns(grid, h.c, pitch, startRow, endRow);
+                    if (inferred) { offsets = inferred; source = 'inferred'; }
+                    else { offsets = { name: 0, type: 1, amount: 2 }; source = 'default'; }
+                }
+                mappings.push(source + ':' + offsets.name + '/' + offsets.type + '/' + offsets.amount);
 
                 const guests = [];
-                for (let r = h.r + 1; r < endRow; r++) {
-                    const name = cellAt(grid, r, h.c);
+                for (let r = startRow; r < endRow; r++) {
+                    if (caption && r === caption.row) continue;
+                    // Totals strip, wherever the mapped name column happens to point.
+                    if (isNumericOnlyRow(grid, r, h.c, pitch)) continue;
+
+                    const name = cellAt(grid, r, h.c + offsets.name);
                     if (!name) continue;
                     // The block's totals cell is a bare number, not a guest.
                     if (PURE_NUMBER_RE.test(name)) continue;
-                    // Real sheets put a caption strip ("FullName | kind | count")
-                    // right under the masa title. Without this it imports as a
-                    // guest called "FullName" of type "kind".
-                    if (isCaptionRow(grid, r, h.c)) continue;
+                    // A caption strip anywhere in the block is not data either.
+                    if (isCaptionRow(grid, r, h.c, pitch)) continue;
 
-                    let amount = parseInt(cellAt(grid, r, h.c + 2).replace(',', '.'), 10);
-                    if (!Number.isFinite(amount) || amount < 1) amount = 1;
+                    let amount = 1;
+                    if (offsets.amount !== -1) {
+                        const raw = cellAt(grid, r, h.c + offsets.amount).replace(',', '.');
+                        const n = parseInt(raw, 10);
+                        if (Number.isFinite(n) && n >= 1) amount = n;
+                    }
 
-                    guests.push({ name: name, type: resolveType(cellAt(grid, r, h.c + 1)), amount: amount });
+                    const rawType = offsets.type !== -1 ? cellAt(grid, r, h.c + offsets.type) : '';
+                    guests.push({ name: name, type: resolveType(rawType), amount: amount });
                 }
                 masas.push({ name: h.name, capacity: h.capacity, guests: guests });
             });
+
+            // Surface the mapping so a wrong guess is visible in the preview
+            // rather than silently producing scrambled fields.
+            const distinctMappings = Array.from(new Set(mappings));
+            if (distinctMappings.length > 0) {
+                const withData = mappings.filter((m, i) => masas[i].guests.length > 0);
+                const shown = Array.from(new Set(withData.length ? withData : distinctMappings));
+                warnings.columnMapping = shown.join(', ');
+            }
 
             // Same masa name twice on one board: merge rather than duplicate.
             const merged = [];
@@ -2023,9 +2209,22 @@
 
             if (!grid || grid.length === 0) throw new Error('Məlumat boşdur.');
 
+            // A first row that names both a guest column and a Masa column is
+            // a flat list by declaration - do not let repeated "Masa 9 (12)"
+            // values in that column masquerade as board headers.
+            const topHeader = grid.length ? detectHeader(grid[0]) : null;
+            if (topHeader && topHeader.table !== -1) {
+                const flatFirst = parseFlat(grid, resolveType, warnings);
+                if (flatFirst && flatFirst.mode === 'multi') {
+                    return { mode: 'multi', source: 'flat', sheet: label || '',
+                             masas: markExisting(flatFirst.masas), newTypes: newTypes, warnings: warnings };
+                }
+            }
+
             const board = parseBoard(grid, resolveType, warnings);
             if (board && board.length > 0) {
                 return { mode: 'multi', source: 'board', sheet: label || '',
+                         columnMapping: warnings.columnMapping || '',
                          masas: markExisting(board), newTypes: newTypes, warnings: warnings };
             }
 
@@ -3081,6 +3280,23 @@
             /* ---------- Import one masa (Excel paste) ---------- */
             let pendingMasa = null;
 
+            // Turns "caption:0/1/2" into a sentence, so a wrong column guess is
+            // visible in the preview instead of silently scrambling the fields.
+            function describeColumnMapping(mapping) {
+                if (!mapping) return '';
+                const parts = String(mapping).split(', ').map(entry => {
+                    const [source, offsets] = entry.split(':');
+                    const [n, t, a] = String(offsets || '').split('/').map(Number);
+                    const col = i => (i === -1 || !Number.isFinite(i)) ? 'yox' : ('+' + i);
+                    const how = source === 'caption' ? 'başlıq sətrindən'
+                              : source === 'inferred' ? 'məlumatdan təyin edildi'
+                              : 'standart sıra';
+                    return `Ad=${col(n)}, Tip=${col(t)}, Say=${col(a)} (${how})`;
+                });
+                return '<br><span class="small">Sütunlar: ' + escapeHtml(parts.join(' · ')) +
+                       '. Səhvdirsə, Excel-də sütun başlıqlarını (Ad / Haradan / Say) yazın.</span>';
+            }
+
             function renderMasaPreview(parsed) {
                 const $prev = $('#impMasaPreview');
                 const multi = parsed.mode === 'multi';
@@ -3094,7 +3310,8 @@
                         parsed.source === 'board'
                             ? '<strong>Excel lövhəsi</strong> tanındı' +
                               (parsed.sheet ? ' ("' + escapeHtml(parsed.sheet) + '" vərəqi)' : '') +
-                              ' — masa adları və tutumlar başlıq xanalarından götürülür.'
+                              ' — masa adları və tutumlar başlıq xanalarından götürülür.' +
+                              describeColumnMapping(parsed.columnMapping)
                             : '<strong>Masa</strong> sütunu tapıldı' +
                               (parsed.sheet ? ' ("' + escapeHtml(parsed.sheet) + '" vərəqi)' : '') +
                               ' — sətrlər masalara görə qruplaşdırılır.'
