@@ -78,19 +78,34 @@ if (PASSWORD) {
 
 /* ------------------------------------------------------------ db-backed */
 if (DB) {
-    r = await call('GET', '/api/state', undefined, false);
-    ok('GET /api/state is 200', r.status === 200 && r.json && typeof r.json.version === 'number',
-       'status ' + r.status);
-    ok('state has the expected shape',
-       Array.isArray(r.json?.data?.tables) && Array.isArray(r.json?.data?.guestTypes),
-       JSON.stringify(r.json?.data)?.slice(0, 60));
+    // Visibility decides whether an ANONYMOUS caller may read at all.
+    const anon = await call('GET', '/api/state', undefined, false);
+    const visibility = anon.status === 401 ? 'private' : (anon.json?.visibility || 'public');
+    results.push(`NOTE  list is currently ${visibility}`);
+
+    if (visibility === 'private') {
+        ok('private: anonymous read refused', anon.status === 401 && anon.json?.error === 'private',
+           'status ' + anon.status);
+    } else {
+        ok('public: anonymous read allowed', anon.status === 200 && Array.isArray(anon.json?.data?.tables),
+           'status ' + anon.status);
+    }
 
     if (PASSWORD) {
+        // Read as the editor, who may always see it.
+        r = await call('GET', '/api/state');
+        ok('editor read is 200', r.status === 200 && typeof r.json?.version === 'number', 'status ' + r.status);
+        ok('state has the expected shape',
+           Array.isArray(r.json?.data?.tables) && Array.isArray(r.json?.data?.guestTypes),
+           JSON.stringify(r.json?.data)?.slice(0, 60));
+
         const current = r.json;
         const next = {
             ...current.data,
             tables: [{ id: 1, name: 'Smoke Masa', capacity: 8, guests: [] }]
         };
+        // Keep whatever visibility the list already had.
+        next.settings = current.data.settings || { visibility: 'private' };
 
         r = await call('PUT', '/api/state', { data: next, version: current.version, action: 'smoke' });
         ok('editor PUT accepted', r.status === 200 && r.json?.ok === true, 'status ' + r.status);
@@ -114,6 +129,36 @@ if (DB) {
         r = await call('GET', '/api/revisions');
         ok('revision history recorded', r.status === 200 && r.json?.revisions?.length > 0,
            (r.json?.revisions?.length || 0) + ' revisions');
+
+        /* ---- visibility switching, both directions ---- */
+        let st = (await call('GET', '/api/state')).json;
+
+        const goPublic = { ...st.data, settings: { visibility: 'public' } };
+        r = await call('PUT', '/api/state', { data: goPublic, version: st.version, action: 'public' });
+        ok('editor can open the list', r.status === 200, 'status ' + r.status);
+        r = await call('GET', '/api/state', undefined, false);
+        ok('public: anonymous CAN now read', r.status === 200, 'status ' + r.status);
+
+        st = (await call('GET', '/api/state')).json;
+        const goPrivate = { ...st.data, settings: { visibility: 'private' } };
+        r = await call('PUT', '/api/state', { data: goPrivate, version: st.version, action: 'private' });
+        ok('editor can close the list', r.status === 200, 'status ' + r.status);
+        r = await call('GET', '/api/state', undefined, false);
+        ok('private: anonymous refused again', r.status === 401 && r.json?.error === 'private',
+           'status ' + r.status);
+
+        // A write that omits settings must not silently re-open the list.
+        st = (await call('GET', '/api/state')).json;
+        const noSettings = { guestTypes: st.data.guestTypes, tables: st.data.tables, notes: st.data.notes };
+        r = await call('PUT', '/api/state', { data: noSettings, version: st.version, action: 'no-settings' });
+        ok('settings-less write accepted', r.status === 200, 'status ' + r.status);
+        r = await call('GET', '/api/state', undefined, false);
+        ok('still private after settings-less write (fails closed)',
+           r.status === 401, 'status ' + r.status);
+
+        // Anonymous must never be able to write, in either mode.
+        r = await call('PUT', '/api/state', { data: noSettings, version: 999 }, false);
+        ok('anonymous write still refused', r.status === 401, 'status ' + r.status);
     }
 } else {
     results.push('SKIP  database tests (EXPECT_DB=false)');

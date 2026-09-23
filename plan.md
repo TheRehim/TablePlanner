@@ -172,12 +172,21 @@ bad import — which matters more now that Excel import exists.
 
 ---
 
-## Phase 5 — image ✅ written, build not yet verified
+## Phase 5 — image ✅ built and verified
 
-- [x] Multi-stage `Dockerfile`, `node:22-alpine`, non-root, `NODE_ENV=production`
-- [ ] **The image has never actually been built** — Docker Desktop was not
-      running. `docker compose up --build` is the first thing to try.
-- [ ] Push to GHCR, **pinned by digest**. Never `:latest` — box rule
+- [x] Multi-stage `Dockerfile`, `node:22-alpine`, non-root (uid 1000),
+      `NODE_ENV=production`
+- [x] **Image builds and runs.** 245 MB; no `.env`, keys or `node_modules`
+      from the host leak in; runs as `node`, not root.
+- [x] `docker compose up --build` brings up Postgres + app, migrations apply,
+      `/readyz` reports `db: up`, and data survives restarting BOTH containers.
+- [x] Azerbaijani text round-trips through the API and Postgres intact
+      (`npm run utf8check`).
+- [x] Idles at **~18 MiB** against the 192Mi limit.
+- [ ] Publish to GHCR — `.github/workflows/docker.yml` does it on push to
+      main; the package must be made public once, or a pull secret created.
+      See `DEPLOY.md`.
+- [ ] Pin the digest in `server/deploy/deployment.yaml`. Never `:latest`.
 
 ---
 
