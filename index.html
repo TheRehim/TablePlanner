@@ -655,6 +655,47 @@
             overflow-y: auto;
         }
 
+        /* Lock screen: covers everything when the list is private. */
+        .lock-screen {
+            position: fixed;
+            inset: 0;
+            z-index: 2050;
+            background: #f4f5f7;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        .lock-card {
+            background: #fff;
+            border: 1px solid #dcdfe4;
+            border-radius: .75rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, .08);
+            padding: 2rem;
+            width: 100%;
+            max-width: 340px;
+            text-align: center;
+        }
+
+        .lock-icon {
+            width: 54px;
+            height: 54px;
+            border-radius: 50%;
+            background: #eef0f3;
+            color: #6c757d;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            margin: 0 auto 1rem;
+        }
+
+        /* While locked, nothing behind it should be reachable or scrollable. */
+        body.locked {
+            overflow: hidden;
+        }
+
         /* Toasts */
         #toastHost {
             position: fixed;
@@ -761,8 +802,12 @@
             <span class="small d-flex align-items-center gap-2">
                 <span id="globalStatsSummary">—</span>
                 <span class="badge d-none" id="syncBadge"></span>
-                <button class="btn btn-link btn-sm p-0 d-none" id="btnLogin">Daxil ol</button>
-                <button class="btn btn-link btn-sm p-0 d-none" id="btnLogout">Çıxış</button>
+                <button class="btn btn-primary btn-sm d-none" id="btnLogin">
+                    <i class="fa-solid fa-right-to-bracket me-1"></i> Daxil ol</button>
+                <button class="btn btn-outline-secondary btn-sm d-none" id="btnVisibility" type="button">
+                    <i class="fa-solid fa-lock me-1"></i><span id="visibilityLabel">Bağlı</span></button>
+                <button class="btn btn-outline-secondary btn-sm d-none" id="btnLogout">
+                    <i class="fa-solid fa-right-from-bracket me-1"></i> Çıxış</button>
             </span>
             <div class="d-flex gap-2">
                 <button class="btn btn-outline-primary btn-sm" id="btnOpenList">
@@ -1158,6 +1203,27 @@
         </div>
     </div>
 
+    <!-- Shown instead of the app when the list is private and nobody is
+         logged in. The data is refused by the server regardless; this is just
+         what the visitor sees. -->
+    <div id="lockScreen" class="lock-screen d-none">
+        <div class="lock-card">
+            <div class="lock-icon"><i class="fa-solid fa-lock"></i></div>
+            <h1 class="h5 fw-bold mb-1">Toy Masa İdarəetməsi</h1>
+            <p class="text-muted small mb-4" id="lockMessage">Bu siyahı bağlıdır. Baxmaq üçün daxil olun.</p>
+            <form id="lockForm" novalidate>
+                <div class="mb-2 text-start">
+                    <label class="form-label small fw-semibold">Şifrə</label>
+                    <input type="password" class="form-control" id="lockPassword"
+                        autocomplete="current-password" required>
+                </div>
+                <div class="alert alert-danger py-2 small d-none" id="lockError"></div>
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fa-solid fa-right-to-bracket me-1"></i> Daxil ol</button>
+            </form>
+        </div>
+    </div>
+
     <!-- Modal: editor login -->
     <div class="modal fade" id="loginModal" tabindex="-1">
         <div class="modal-dialog modal-sm">
@@ -1309,7 +1375,9 @@
             tables: [],
             // Notes are free text for the organisers. They are deliberately
             // NOT part of any seating count.
-            notes: []
+            notes: [],
+            // Who may READ the list. Enforced by the server; see plan.md.
+            settings: { visibility: 'private' }
         };
 
         /* =====================================================================
@@ -1568,6 +1636,8 @@
         const SERVER = {
             online: false,      // an API answered
             canEdit: false,     // this session may write
+            visibility: 'private',  // 'public' = anonymous may read
+            locked: false,      // private and not logged in: app is hidden
             version: 0,         // last version seen; sent back to detect conflicts
             saving: false,
             pending: null,      // action name waiting to be flushed
@@ -1580,7 +1650,29 @@
                 .toggleClass('d-none', !text);
         }
 
+        function showLockScreen(show, message) {
+            SERVER.locked = !!show;
+            $('#lockScreen').toggleClass('d-none', !show);
+            $('body').toggleClass('locked', !!show);
+            if (message) $('#lockMessage').text(message);
+            if (show) setTimeout(() => $('#lockPassword').trigger('focus'), 150);
+        }
+
+        function refreshVisibilityUi() {
+            const isPublic = SERVER.visibility === 'public';
+            $('#btnVisibility').toggleClass('d-none', !(SERVER.online && SERVER.canEdit))
+                .toggleClass('btn-outline-success', isPublic)
+                .toggleClass('btn-outline-secondary', !isPublic)
+                .attr('title', isPublic
+                    ? 'Hamı baxa bilər. Bağlamaq üçün klikləyin.'
+                    : 'Yalnız daxil olanlar baxa bilər. Açmaq üçün klikləyin.');
+            $('#visibilityLabel').text(isPublic ? 'Açıq' : 'Bağlı');
+            $('#btnVisibility i').attr('class', isPublic
+                ? 'fa-solid fa-globe me-1' : 'fa-solid fa-lock me-1');
+        }
+
         function refreshSyncUi() {
+            refreshVisibilityUi();
             if (!SERVER.online) {
                 setSyncBadge('Yerli rejim', 'bg-secondary',
                     'Server yoxdur — dəyişikliklər yalnız bu səhifədə qalır və yenilədikdə itir.');
@@ -1674,13 +1766,30 @@
 
         async function loadFromServer() {
             const res = await fetch('/api/state', { credentials: 'same-origin' });
+
+            // The server refuses the data when the list is private and this
+            // caller is anonymous. Show the lock screen rather than an error.
+            if (res.status === 401) {
+                const why = await res.json().catch(() => ({}));
+                if (why.error === 'private') {
+                    SERVER.online = true;
+                    SERVER.canEdit = false;
+                    SERVER.visibility = 'private';
+                    showLockScreen(true, why.message);
+                    refreshSyncUi();
+                    return;
+                }
+            }
             if (!res.ok) throw new Error('HTTP ' + res.status);
             const body = await res.json();
+            showLockScreen(false);
 
             const data = body.data || {};
             weddingData.guestTypes = Array.isArray(data.guestTypes) && data.guestTypes.length
                 ? data.guestTypes : ['Dost'];
             weddingData.tables = Array.isArray(data.tables) ? data.tables : [];
+            weddingData.settings = (data.settings && typeof data.settings === 'object')
+                ? data.settings : { visibility: 'private' };
             weddingData.notes = Array.isArray(data.notes) ? data.notes : [];
 
             // Ids come from the server; the counter must clear the highest.
@@ -1694,6 +1803,7 @@
 
             SERVER.version = body.version;
             SERVER.canEdit = !!body.canEdit;
+            SERVER.visibility = body.visibility === 'public' ? 'public' : 'private';
             SERVER.failed = false;
             readOnly = !SERVER.canEdit;
             applyReadOnlyMode();
@@ -1708,6 +1818,7 @@
                 refreshSyncUi();
             } catch {
                 // No API: stay exactly as the standalone file behaves.
+                showLockScreen(false);
                 SERVER.online = false;
                 SERVER.canEdit = true;
                 readOnly = false;
@@ -1864,7 +1975,7 @@
                     </tr>`;
                 }
                 return `<tr>
-                    <td>${typeBadge(r.type)}${r.index === 0 ? ' <span class="small text-muted" title="Yeni qonaq üçün ilkin tip">· ilkin</span>' : ''}</td>
+                    <td>${typeBadge(r.type)}</td>
                     <td class="text-center small">${usage}</td>
                     <td class="text-end text-nowrap">
                         <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1 rename-type-btn" data-index="${r.index}" title="Adını dəyiş"><i class="fa-solid fa-pen"></i></button>
@@ -2032,6 +2143,7 @@
                 version: EXPORT_VERSION,
                 exportedAt: new Date().toISOString(),
                 guestTypes: weddingData.guestTypes.slice(),
+                settings: weddingData.settings || { visibility: 'private' },
                 notes: ensureNotes().map(b => ({
                     title: b.title,
                     items: b.items.map(r => ({ name: r.name, type: r.type, amount: r.amount }))
@@ -3209,6 +3321,51 @@
             renderApp();
             // Async: if no API answers, the app simply stays local-only.
             bootFromServer();
+
+            // Shared by the modal and the lock screen.
+            async function attemptLogin(password, $err) {
+                if (!password) { showError($err, 'Şifrə boşdur.'); return false; }
+                try {
+                    const res = await fetch('/api/login', {
+                        method: 'POST',
+                        headers: { 'content-type': 'application/json' },
+                        credentials: 'same-origin',
+                        body: JSON.stringify({ password: password })
+                    });
+                    const body = await res.json().catch(() => ({}));
+                    if (!res.ok) { showError($err, body.message || 'Daxil olmaq alınmadı.'); return false; }
+                    clearError($err);
+                    await loadFromServer();
+                    toast('Daxil oldunuz.');
+                    return true;
+                } catch (err) {
+                    showError($err, 'Server cavab vermir: ' + err.message);
+                    return false;
+                }
+            }
+
+            $('#lockForm').on('submit', async function (e) {
+                e.preventDefault();
+                const ok = await attemptLogin($('#lockPassword').val(), $('#lockError'));
+                if (ok) $('#lockPassword').val('');
+            });
+
+            // Flipping this changes who may READ the list. The server is what
+            // enforces it; this only writes the setting.
+            $('#btnVisibility').on('click', function () {
+                const goingPublic = SERVER.visibility !== 'public';
+                const ask = goingPublic
+                    ? 'Siyahı hamıya açılsın? Linki olan hər kəs qonaq adlarını görə biləcək (dəyişiklik edə bilməyəcək).'
+                    : 'Siyahı bağlansın? Yalnız şifrə ilə daxil olanlar baxa biləcək.';
+                askConfirm(ask, function () {
+                    if (!weddingData.settings || typeof weddingData.settings !== 'object') weddingData.settings = {};
+                    weddingData.settings.visibility = goingPublic ? 'public' : 'private';
+                    SERVER.visibility = weddingData.settings.visibility;
+                    refreshVisibilityUi();
+                    commit('setVisibility');
+                    toast(goingPublic ? 'Siyahı açıqdır — hamı baxa bilər.' : 'Siyahı bağlandı.');
+                }, goingPublic ? 'Bəli, aç' : 'Bəli, bağla');
+            });
 
             $('#btnLogin').on('click', function () {
                 $('#loginPassword').val('');

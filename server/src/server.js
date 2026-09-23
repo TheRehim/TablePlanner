@@ -3,7 +3,7 @@ import cookieParser from 'cookie-parser';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { getState, putState, ping, listRevisions, getRevision, pool } from './db.js';
+import { getState, putState, ping, listRevisions, getRevision, pool, visibilityOf } from './db.js';
 import { isEditor, login, logout, requireEditor, makeRateLimiter } from './auth.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -51,13 +51,30 @@ app.post('/api/logout', (req, res) => {
     res.json({ ok: true, canEdit: false });
 });
 
-app.get('/api/me', (req, res) => res.json({ canEdit: isEditor(req) }));
+app.get('/api/me', async (req, res) => {
+    let visibility = 'private';
+    try { visibility = visibilityOf((await getState()).data); } catch { /* fall back to closed */ }
+    res.json({ canEdit: isEditor(req), visibility });
+});
 
 /* ------------------------------------------------------------------- state */
 app.get('/api/state', async (req, res) => {
     try {
         const state = await getState();
-        res.json({ ...state, canEdit: isEditor(req) });
+        const visibility = visibilityOf(state.data);
+
+        // Private means the DATA is refused, not merely hidden in the page.
+        // Anyone can edit the markup; only this can actually keep the guest
+        // list from being read.
+        if (visibility === 'private' && !isEditor(req)) {
+            return res.status(401).json({
+                error: 'private',
+                visibility: 'private',
+                message: 'Bu siyahı bağlıdır. Baxmaq üçün daxil olun.'
+            });
+        }
+
+        res.json({ ...state, visibility, canEdit: isEditor(req) });
     } catch (err) {
         console.error('[api] GET /api/state failed:', err.message);
         res.status(500).json({ error: 'server_error', message: 'Məlumat oxunmadı.' });
@@ -81,6 +98,14 @@ app.put('/api/state', requireEditor, async (req, res) => {
     }
 
     try {
+        // Carry settings forward when a client omits them, so an older page or
+        // a hand-made payload cannot silently flip the list back to public.
+        if (!data.settings || typeof data.settings !== 'object') {
+            const current = await getState();
+            data.settings = (current.data && current.data.settings) || { visibility: 'private' };
+        }
+        if (data.settings.visibility !== 'public') data.settings.visibility = 'private';
+
         const result = await putState(data, Number(version), String(action || 'update').slice(0, 40));
         if (!result.ok && result.conflict) {
             // Somebody else wrote first. Hand back the current version so the

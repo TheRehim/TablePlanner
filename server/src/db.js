@@ -43,7 +43,18 @@ if (!MEMORY_MODE) {
     });
 }
 
-export const EMPTY_STATE = { guestTypes: ['Dost'], tables: [], notes: [] };
+export const EMPTY_STATE = {
+    guestTypes: ['Dost'],
+    tables: [],
+    notes: [],
+    // Closed by default. The guest list holds real names, so the safe default
+    // is private and opened deliberately, not the other way round.
+    settings: { visibility: 'private' }
+};
+
+export function visibilityOf(data) {
+    return data && data.settings && data.settings.visibility === 'public' ? 'public' : 'private';
+}
 
 export async function ping() {
     if (MEMORY_MODE) return true;

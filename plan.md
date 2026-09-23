@@ -280,23 +280,25 @@ Still to do:
 - [ ] Session length: currently 14 days (`SESSION_HOURS`). Confirm or change.
 - [ ] Put the secrets in a Sealed Secret for the cluster, never plaintext.
 
-### 2. Public / auth-only switch
+### 2. Public / auth-only switch ✅ built
 
-A single setting deciding whether anonymous visitors may **read** at all:
+A single setting deciding whether anonymous visitors may **read** at all.
+Stored as `settings.visibility` in the state document, default `private`,
+toggled from the bottom bar (editor only), enforced by the server:
 
 | mode | anonymous | editor |
 |---|---|---|
 | `public` (today's behaviour) | read, filter, print | everything |
 | `private` | nothing — login page only | everything |
 
-- [ ] Store it in the state document (`settings.visibility`) so it survives
+- [x] Store it in the state document (`settings.visibility`) so it survives
       restarts and is editable in the app, not baked into an env var.
-- [ ] **Enforce it server-side.** In `private`, `GET /api/state` must return
+- [x] **Enforce it server-side.** In `private`, `GET /api/state` must return
       401 for anonymous callers and `GET /` must serve a login page instead of
       the planner. Hiding the UI is not enough — the data is what has to be
       refused, exactly as with writes today.
-- [ ] Toggle in the UI, editor only.
-- [ ] Default to `private`. The guest list holds real names, so the safe
+- [x] Toggle in the UI, editor only.
+- [x] Default to `private`. The guest list holds real names, so the safe
       default is closed, opened deliberately.
 - [ ] Only then is the Ingress (Phase 7) safe to apply.
 
