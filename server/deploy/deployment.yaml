@@ -26,6 +26,27 @@ spec:
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
+      # Compose runs migrations in its command; the image's own CMD does not.
+      # Without this the pod starts against an empty database and reports Ready
+      # while every read fails. Migrations are idempotent, so re-running is safe.
+      initContainers:
+        - name: migrate
+          image: ghcr.io/therehim/tableplanner@sha256:ee069d3281e3266e27c0d7c7e18bdd5dfe4f083b1113ac603f69f1b70a06c587
+          command: ["node", "scripts/migrate.mjs"]
+          envFrom:
+            - secretRef:
+                name: tableplanner-secrets
+          resources:
+            requests: { memory: 64Mi, cpu: 50m }
+            limits:   { memory: 128Mi, cpu: 500m }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
       containers:
         - name: app
           # NEVER :latest - box rule. Take the digest from the Actions run

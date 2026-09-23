@@ -56,10 +56,14 @@ export function visibilityOf(data) {
     return data && data.settings && data.settings.visibility === 'public' ? 'public' : 'private';
 }
 
+// Readiness check. `SELECT 1` succeeds against an empty database, which would
+// let a pod report Ready while every read 500s because migrations never ran.
+// Proving the table exists is what actually makes a broken deploy visible.
 export async function ping() {
     if (MEMORY_MODE) return true;
-    const { rows } = await pool.query('SELECT 1 AS ok');
-    return rows[0].ok === 1;
+    const { rows } = await pool.query("SELECT to_regclass('public.wedding_state') AS tbl");
+    if (!rows[0].tbl) throw new Error('schema missing - migrations have not run');
+    return true;
 }
 
 export async function getState() {
