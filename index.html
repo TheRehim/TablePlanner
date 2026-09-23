@@ -327,23 +327,208 @@
         }
 
         .list-sort:hover,
-        .note-sort:hover {
+        .note-sort:hover,
+        .type-sort:hover {
             background-color: #e9ecef;
         }
 
-        .note-sort {
+        .note-sort,
+        .type-sort {
             cursor: pointer;
             user-select: none;
             white-space: nowrap;
         }
 
-        .note-sort.active .sort-ind {
+        .note-sort.active .sort-ind,
+        .type-sort.active .sort-ind {
             opacity: 1;
         }
 
-        .note-text {
+        /* ---- Qeyd Masası ---- */
+        .notes-header {
+            background: linear-gradient(180deg, #fff8e6, #fff);
+        }
+
+        .notes-body {
+            background: #f4f5f7;
+        }
+
+        .notes-stat {
+            font-size: .8rem;
+            padding: .15rem .55rem;
+            border-radius: 999px;
+            background: #fff;
+            border: 1px solid #e3e6ea;
+            color: #495057;
+        }
+
+        .notes-sort-wrap {
+            width: 150px;
+        }
+
+        /* Blocks flow like the note columns beside the seating sheet. */
+        .note-blocks {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+            gap: 1rem;
+            align-items: start;
+        }
+
+        .note-block {
+            background: #fff;
+            border: 1px solid #dcdfe4;
+            border-radius: .5rem;
+            overflow: hidden;
+        }
+
+        .note-block-head {
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+            padding: .45rem .6rem;
+            background: #fffbeb;
+            border-bottom: 1px solid #f3e3b0;
+            min-height: 2.6rem;
+        }
+
+        .note-block-title {
+            flex: 1 1 auto;
+            min-width: 0;
+            font-weight: 700;
             word-break: break-word;
-            white-space: pre-wrap;
+            cursor: text;
+        }
+
+        .note-block-title.untitled {
+            font-weight: 400;
+            font-style: italic;
+            color: #adb5bd;
+        }
+
+        .note-block-total {
+            font-size: .8rem;
+            font-weight: 700;
+            padding: .1rem .5rem;
+            border-radius: 999px;
+            background: #fde68a;
+            color: #7c5a00;
+            white-space: nowrap;
+        }
+
+        .note-block table {
+            margin: 0;
+        }
+
+        .note-block th {
+            font-size: .72rem;
+            text-transform: uppercase;
+            letter-spacing: .03em;
+            color: #6c757d;
+            background: #fafbfc;
+            font-weight: 600;
+        }
+
+        .note-block td,
+        .note-block th {
+            border-color: #f0f1f3;
+            padding: .3rem .45rem;
+        }
+
+        .note-block td:first-child {
+            word-break: break-word;
+        }
+
+        .note-row:hover td {
+            background: #fafbfc;
+        }
+
+        .note-amount {
+            display: inline-block;
+            min-width: 1.8rem;
+            padding: .05rem .4rem;
+            border-radius: .35rem;
+            background: #f1f3f5;
+            font-weight: 600;
+            font-size: .85rem;
+        }
+
+        .note-type-none {
+            color: #ced4da;
+        }
+
+        /* Row actions stay out of the way until the row is hovered. */
+        .note-actions {
+            white-space: nowrap;
+            text-align: right;
+            width: 1%;
+        }
+
+        .note-actions .btn {
+            --bs-btn-padding-y: 0;
+            --bs-btn-padding-x: .3rem;
+            --bs-btn-font-size: .75rem;
+        }
+
+        @media (hover: hover) {
+            .note-row .note-actions .btn {
+                opacity: .25;
+            }
+
+            .note-row:hover .note-actions .btn,
+            .note-row .note-actions .btn:focus-visible {
+                opacity: 1;
+            }
+        }
+
+        .note-add-row td {
+            background: #fffdf5;
+            border-top: 1px dashed #f3d27a;
+        }
+
+        .note-add-row .form-control,
+        .note-editing .form-control {
+            padding-left: .35rem;
+            padding-right: .35rem;
+        }
+
+        .note-block input[type=number] {
+            padding-left: .1rem;
+            padding-right: .1rem;
+        }
+
+        .note-empty {
+            border: 2px dashed #e3d6a8;
+            border-radius: .5rem;
+            background: #fffdf5;
+            color: #8a7a4a;
+        }
+
+        .note-flash td,
+        .note-flash .note-block-head {
+            animation: noteFlash 1.4s ease-out;
+        }
+
+        @keyframes noteFlash {
+            from { background-color: #fde68a; }
+        }
+
+        .type-dot {
+            display: inline-block;
+            width: .6rem;
+            height: .6rem;
+            border-radius: 50%;
+            margin-right: .4rem;
+            vertical-align: baseline;
+        }
+
+        /* The confirm dialog can open on top of another modal (Tiplər,
+           Qeyd Masası): lift it and its backdrop above the first one. */
+        #confirmModal {
+            z-index: 1065;
+        }
+
+        .modal-backdrop ~ .modal-backdrop {
+            z-index: 1060;
         }
 
         .sort-ind {
@@ -730,18 +915,19 @@
                     </div>
                     <div class="alert alert-danger py-2 small d-none" id="typeError"></div>
                     <div class="table-responsive">
-                        <table class="table table-sm table-bordered align-middle">
+                        <table class="table table-sm table-bordered align-middle" id="typesTable">
                             <thead class="table-light">
                                 <tr>
-                                    <th>Tip Adı</th>
-                                    <th class="text-center" style="width: 90px;">İstifadə</th>
+                                    <th role="button" class="type-sort" data-key="name">Tip Adı <span class="sort-ind"></span></th>
+                                    <th role="button" class="type-sort text-center" data-key="usage" style="width: 110px;">İstifadə <span class="sort-ind"></span></th>
                                     <th class="text-end" style="width: 100px;">Əməliyyat</th>
                                 </tr>
                             </thead>
                             <tbody id="typesTableBody"></tbody>
                         </table>
                     </div>
-                    <div class="form-text small">İstifadədə olan tipi silmək olmaz — əvvəlcə adını dəyişin və ya
+                    <div class="form-text small">Sütun başlığına klikləyin: A→Z, Z→A, sonra əlavə sırası.
+                        İstifadədə olan tipi (qonaq və ya qeyd) silmək olmaz — əvvəlcə adını dəyişin və ya
                         qonaqların tipini dəyişin.</div>
                 </div>
             </div>
@@ -962,59 +1148,44 @@
         </div>
     </div>
 
-    <!-- Modal: Qeyd Masası — same row shape as a masa (Ad / Tip / Say),
-         but deliberately excluded from every seating count. -->
+    <!-- Modal: Qeyd Masası — loose blocks of rows, like the side notes on the
+         seating sheet. Each block has an optional title and rows with the
+         same shape as a masa (Ad / Tip / Say), but nothing here is counted. -->
     <div class="modal fade" id="notesModal" tabindex="-1">
-        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-dialog modal-xl modal-fullscreen-md-down modal-dialog-scrollable">
             <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title fs-6 fw-bold"><i class="fa-solid fa-note-sticky me-1"></i> Qeyd Masası</h5>
+                <div class="modal-header notes-header">
+                    <div>
+                        <h5 class="modal-title fs-6 fw-bold mb-0"><i class="fa-solid fa-note-sticky me-1 text-warning"></i> Qeyd Masası</h5>
+                        <div class="small text-muted">Heç bir hesablamaya daxil deyil — nə masa, nə nəfər, nə də qonaq siyahısına.</div>
+                    </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body">
-                    <div class="alert alert-secondary py-2 small mb-3">
-                        Masa ilə eyni quruluşdadır (Ad / Tip / Say), lakin
-                        <strong>heç bir hesablamaya daxil deyil</strong> — nə masa sayına,
-                        nə nəfər sayına, nə də qonaq siyahısına.
-                    </div>
-                    <div class="row g-2 mb-2">
-                        <div class="col-md-5">
-                            <label class="form-label small fw-semibold">Ad</label>
-                            <input type="text" id="newNoteName" class="form-control form-control-sm"
-                                placeholder="Məs: Ehtiyat qonaq" maxlength="200">
+                <div class="modal-body notes-body">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                        <div class="d-flex gap-2 align-items-center flex-wrap">
+                            <span class="notes-stat" id="notesStatBlocks"><strong>0</strong> blok</span>
+                            <span class="notes-stat" id="notesStatRows"><strong>0</strong> sətr</span>
+                            <span class="notes-stat" id="notesStatPeople"><strong>0</strong> nəfər</span>
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label small fw-semibold">Tip</label>
-                            <select id="newNoteType" class="form-select form-select-sm"></select>
-                        </div>
-                        <div class="col-md-2">
-                            <label class="form-label small fw-semibold">Say</label>
-                            <input type="number" id="newNoteAmount" class="form-control form-control-sm" min="1" value="1">
-                        </div>
-                        <div class="col-md-1 d-flex align-items-end">
-                            <button class="btn btn-outline-primary btn-sm w-100" type="button" id="btnAddNote"
-                                title="Əlavə et"><i class="fa-solid fa-plus"></i></button>
+                        <div class="d-flex gap-2 align-items-center">
+                            <div class="notes-sort-wrap">
+                                <select id="notesSortSelect" class="form-select form-select-sm">
+                                    <option value="">Əlavə sırası</option>
+                                    <option value="name:asc">Ad A→Z</option>
+                                    <option value="name:desc">Ad Z→A</option>
+                                    <option value="type:asc">Tip A→Z</option>
+                                    <option value="type:desc">Tip Z→A</option>
+                                    <option value="amount:asc">Say ↑</option>
+                                    <option value="amount:desc">Say ↓</option>
+                                </select>
+                            </div>
+                            <button type="button" class="btn btn-warning btn-sm text-nowrap" id="btnAddNoteBlock">
+                                <i class="fa-solid fa-plus me-1"></i> Yeni blok</button>
                         </div>
                     </div>
                     <div class="alert alert-danger py-2 small d-none" id="noteError"></div>
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                        <span class="form-text small mb-0">Sütun başlığına klikləyərək sıralayın (A→Z / Z→A).</span>
-                        <span class="small text-muted" id="notesCount"></span>
-                    </div>
-                    <div class="table-responsive">
-                        <table class="table table-sm table-bordered align-middle mb-0" id="notesTable">
-                            <thead class="table-light">
-                                <tr>
-                                    <th role="button" class="note-sort" data-key="name">Ad <span class="sort-ind"></span></th>
-                                    <th role="button" class="note-sort" data-key="type" style="width:150px;">Tip <span class="sort-ind"></span></th>
-                                    <th role="button" class="note-sort text-center" data-key="amount" style="width:80px;">Say <span class="sort-ind"></span></th>
-                                    <th class="text-end" style="width:120px;">Əməliyyat</th>
-                                </tr>
-                            </thead>
-                            <tbody id="notesTableBody"></tbody>
-                        </table>
-                    </div>
-                    <div class="form-text small mt-2" id="notesTotals"></div>
+                    <div id="noteBlocks" class="note-blocks"></div>
                 </div>
                 <div class="modal-footer py-2">
                     <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Bağla</button>
@@ -1485,7 +1656,8 @@
                 idCounter = Math.max(idCounter, Number(t.id) || 0);
                 (t.guests || []).forEach(g => { idCounter = Math.max(idCounter, Number(g.id) || 0); });
             });
-            weddingData.notes.forEach(n => { idCounter = Math.max(idCounter, Number(n.id) || 0); });
+            noteIds(weddingData.notes).forEach(id => { idCounter = Math.max(idCounter, id); });
+            ensureNotes();   // older note shapes become blocks, with ids above the counter
 
             SERVER.version = body.version;
             SERVER.canEdit = !!body.canEdit;
@@ -1616,23 +1788,59 @@
             $el.val(next).trigger('change.select2');
         }
 
+        // key null = declared order (the first type is the default for new guests).
+        let typesSort = { key: null, dir: 'asc' };
+        let typeEditIndex = null;   // row being renamed inline
+
+        function countNotesOfType(typeName) {
+            let count = 0;
+            forEachNote(n => { if (n.type === typeName) count++; });
+            return count;
+        }
+
         function renderTypesList() {
             const tbody = $('#typesTableBody');
-            tbody.empty();
-            weddingData.guestTypes.forEach((type, index) => {
-                const usage = countGuestsOfType(type);
-                const color = typeColor(type);
-                tbody.append(`
-                    <tr>
-                        <td><span class="badge badge-type" style="background:${color.bg};color:${color.fg}">${escapeHtml(type)}</span></td>
-                        <td class="text-center small ${usage > 0 ? 'fw-bold' : 'text-muted'}">${usage}</td>
+            if (typeEditIndex !== null && weddingData.guestTypes[typeEditIndex] === undefined) typeEditIndex = null;
+
+            let rows = weddingData.guestTypes.map((type, index) => ({
+                type: type, index: index,
+                guests: countGuestsOfType(type), notes: countNotesOfType(type)
+            }));
+            if (typesSort.key) {
+                const dir = typesSort.dir === 'desc' ? -1 : 1;
+                rows = rows.sort((a, b) => {
+                    const d = typesSort.key === 'usage'
+                        ? (a.guests + a.notes) - (b.guests + b.notes)
+                        : collator.compare(a.type, b.type);
+                    return (d !== 0 ? d : collator.compare(a.type, b.type)) * dir;
+                });
+            }
+
+            tbody.html(rows.map(r => {
+                const used = r.guests + r.notes > 0;
+                const usage = `<span class="${r.guests > 0 ? 'fw-bold' : 'text-muted'}">${r.guests}</span>` +
+                    (r.notes > 0 ? ` <span class="text-muted" title="Qeyd Masasında">+${r.notes} qeyd</span>` : '');
+                if (r.index === typeEditIndex) {
+                    return `<tr>
+                        <td><input type="text" class="form-control form-control-sm type-edit-name" value="${escapeHtml(r.type)}" maxlength="60"></td>
+                        <td class="text-center small">${usage}</td>
                         <td class="text-end text-nowrap">
-                            <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1 rename-type-btn" data-index="${index}" title="Adını dəyiş"><i class="fa-solid fa-pen"></i></button>
-                            <button type="button" class="btn btn-sm btn-outline-danger py-0 px-1 ms-1 delete-type-btn" data-index="${index}" title="Sil" ${usage > 0 ? 'disabled' : ''}><i class="fa-solid fa-trash"></i></button>
+                            <button type="button" class="btn btn-sm btn-success py-0 px-1 type-save-btn" data-index="${r.index}" title="Yadda saxla"><i class="fa-solid fa-check"></i></button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1 ms-1 type-cancel-btn" title="İmtina"><i class="fa-solid fa-xmark"></i></button>
                         </td>
-                    </tr>
-                `);
-            });
+                    </tr>`;
+                }
+                return `<tr>
+                    <td>${typeBadge(r.type)}${r.index === 0 ? ' <span class="small text-muted" title="Yeni qonaq üçün ilkin tip">· ilkin</span>' : ''}</td>
+                    <td class="text-center small">${usage}</td>
+                    <td class="text-end text-nowrap">
+                        <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1 rename-type-btn" data-index="${r.index}" title="Adını dəyiş"><i class="fa-solid fa-pen"></i></button>
+                        <button type="button" class="btn btn-sm btn-outline-danger py-0 px-1 ms-1 delete-type-btn" data-index="${r.index}" title="${used ? 'İstifadədədir — silmək olmaz' : 'Sil'}" ${used ? 'disabled' : ''}><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                </tr>`;
+            }).join(''));
+
+            paintSortHeaders($('#typesTable .type-sort'), typesSort);
         }
 
         function renderTables() {
@@ -1791,7 +1999,10 @@
                 version: EXPORT_VERSION,
                 exportedAt: new Date().toISOString(),
                 guestTypes: weddingData.guestTypes.slice(),
-                notes: ensureNotes().map(n => ({ name: n.name, type: n.type, amount: n.amount })),
+                notes: ensureNotes().map(b => ({
+                    title: b.title,
+                    items: b.items.map(r => ({ name: r.name, type: r.type, amount: r.amount }))
+                })),
                 tables: weddingData.tables.map(t => ({
                     name: t.name,
                     capacity: t.capacity,
@@ -1906,19 +2117,10 @@
 
             if (types.length === 0) types.push('Dost');
 
-            // Notes are optional and never block an import.
-            const notes = [];
-            if (Array.isArray(obj.notes)) {
-                obj.notes.forEach(n => {
-                    if (!n || typeof n !== 'object') return;
-                    // Tolerate the older { text } shape from an earlier export.
-                    const name = String(n.name || n.text || '').trim();
-                    if (!name) return;
-                    let amount = parseInt(n.amount, 10);
-                    if (!Number.isFinite(amount) || amount < 1) amount = 1;
-                    notes.push({ id: ++idSeq, name: name, type: addType(n.type) || types[0], amount: amount });
-                });
-            }
+            // Notes are optional and never block an import. Older exports
+            // (flat rows, or rows with sub-rows) become blocks.
+            const notes = normalizeNoteBlocks(obj.notes, () => ++idSeq, t => addType(t) || '')
+                .filter(b => b.title || b.items.length);
 
             return { guestTypes: types, tables: tables, notes: notes, warnings: warnings };
         }
@@ -1933,7 +2135,7 @@
                 idCounter = Math.max(idCounter, t.id);
                 t.guests.forEach(g => { idCounter = Math.max(idCounter, g.id); });
             });
-            ensureNotes().forEach(n => { idCounter = Math.max(idCounter, Number(n.id) || 0); });
+            noteIds(weddingData.notes).forEach(id => { idCounter = Math.max(idCounter, id); });
             commit('importData');
         }
 
@@ -2485,88 +2687,234 @@
 
         /* =====================================================================
            QEYD MASASI (notes)
-           Rows have the same shape as a masa's guests - { name, type, amount } -
-           but they live outside weddingData.tables and are never summed into
-           occupancy, capacity, the guest list or the printout.
+           Loose blocks of rows, like the side notes next to the seating sheet:
+             notes: [{ id, title, items: [{ id, name, type, amount }] }]
+           The title is optional and so is a row's type. Rows have the same
+           shape as a masa's guests but live outside weddingData.tables and are
+           never summed into occupancy, capacity, the guest list or printout.
            ===================================================================== */
-        let notesSort = { key: 'name', dir: 'asc' };
-        let noteEditId = null;      // row currently being edited inline
-        let noteConfirmId = null;   // row currently asking "delete?"
+        // key null = insertion order, so a new row always lands at the bottom.
+        let notesSort = { key: null, dir: 'asc' };
+        let noteEditId = null;        // row being edited inline
+        let noteTitleEditId = null;   // block whose title is being edited
+
+        function isNoteBlock(n) {
+            return !!n && typeof n === 'object' && Array.isArray(n.items);
+        }
+
+        function cleanNoteRow(r, nextId, cleanType) {
+            if (!r || typeof r !== 'object') return null;
+            // Tolerates the older { text } shape from an earlier export.
+            const name = String(r.name || r.text || '').trim();
+            if (!name) return null;
+            let amount = parseInt(r.amount, 10);
+            if (!Number.isFinite(amount) || amount < 1) amount = 1;
+            return { id: nextId(r.id), name: name, type: cleanType(r.type), amount: amount };
+        }
+
+        /* Accepts blocks, and the older shapes: flat rows (consecutive ones
+           share one untitled block) and rows with sub-rows (their name becomes
+           the block title). */
+        function normalizeNoteBlocks(list, nextId, cleanType) {
+            const blocks = [];
+            let loose = null;
+            (Array.isArray(list) ? list : []).forEach(n => {
+                if (!n || typeof n !== 'object') return;
+                const rows = isNoteBlock(n) ? n.items : (Array.isArray(n.subs) && n.subs.length ? n.subs : null);
+                if (rows) {
+                    blocks.push({
+                        id: nextId(isNoteBlock(n) ? n.id : null),
+                        title: String((isNoteBlock(n) ? n.title : n.name) || '').trim(),
+                        items: rows.map(r => cleanNoteRow(r, nextId, cleanType)).filter(Boolean)
+                    });
+                    loose = null;
+                    return;
+                }
+                const row = cleanNoteRow(n, nextId, cleanType);
+                if (!row) return;
+                if (!loose) { loose = { id: nextId(null), title: '', items: [] }; blocks.push(loose); }
+                loose.items.push(row);
+            });
+            return blocks;
+        }
+
+        // Every id in the raw notes, whatever shape they are in (for idCounter).
+        function noteIds(list) {
+            const ids = [];
+            (Array.isArray(list) ? list : []).forEach(n => {
+                if (!n || typeof n !== 'object') return;
+                ids.push(Number(n.id) || 0);
+                (n.items || n.subs || []).forEach(r => ids.push(Number(r && r.id) || 0));
+            });
+            return ids;
+        }
 
         function ensureNotes() {
             if (!Array.isArray(weddingData.notes)) weddingData.notes = [];
+            if (!weddingData.notes.every(isNoteBlock)) {
+                weddingData.notes = normalizeNoteBlocks(weddingData.notes,
+                    id => (Number(id) > 0 ? Number(id) : newId()), t => String(t || ''));
+            }
             return weddingData.notes;
         }
 
-        function sortedNotes() {
+        // Visits every row with its block.
+        function forEachNote(fn) {
+            ensureNotes().forEach(b => b.items.forEach(r => fn(r, b)));
+        }
+
+        function findNote(id) {
+            let hit = null;
+            forEachNote((r, block) => { if (!hit && r.id === id) hit = { note: r, block: block }; });
+            return hit;
+        }
+
+        function findNoteBlock(id) {
+            return ensureNotes().find(b => b.id === id) || null;
+        }
+
+        function blockTotal(b) {
+            return b.items.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+        }
+
+        function sortNoteList(list) {
+            if (!notesSort.key) return list.slice();
             const dir = notesSort.dir === 'desc' ? -1 : 1;
             const key = notesSort.key;
-            return ensureNotes().slice().sort((a, b) => {
-                if (key === 'amount') {
-                    const d = (Number(a.amount) || 0) - (Number(b.amount) || 0);
-                    return (d !== 0 ? d : collator.compare(a.name, b.name)) * dir;
-                }
-                const d = collator.compare(String(a[key] || ''), String(b[key] || ''));
+            return list.slice().sort((a, b) => {
+                const d = key === 'amount'
+                    ? (Number(a.amount) || 0) - (Number(b.amount) || 0)
+                    : collator.compare(String(a[key] || ''), String(b[key] || ''));
                 return (d !== 0 ? d : collator.compare(a.name, b.name)) * dir;
             });
         }
 
+        // Header click: A→Z, Z→A, then back to insertion order.
+        function cycleSort(state, key) {
+            if (state.key !== key) return { key: key, dir: 'asc' };
+            if (state.dir === 'asc') return { key: key, dir: 'desc' };
+            return { key: null, dir: 'asc' };
+        }
+
+        function paintSortHeaders($headers, state) {
+            $headers.each(function () {
+                const active = $(this).data('key') === state.key;
+                $(this).toggleClass('active', active);
+                $(this).find('.sort-ind').text(active ? (state.dir === 'asc' ? '▲' : '▼') : '⇅');
+            });
+        }
+
+        // Notes may leave the type empty, as the sheet does.
         function noteTypeOptions(selected) {
-            return weddingData.guestTypes.map(t =>
-                `<option value="${escapeHtml(t)}"${t === selected ? ' selected' : ''}>${escapeHtml(t)}</option>`
-            ).join('');
+            return `<option value=""${selected ? '' : ' selected'}>—</option>` +
+                weddingData.guestTypes.map(t =>
+                    `<option value="${escapeHtml(t)}"${t === selected ? ' selected' : ''}>${escapeHtml(t)}</option>`
+                ).join('');
+        }
+
+        function typeBadge(type) {
+            if (!type) return '<span class="note-type-none">—</span>';
+            const c = typeColor(type);
+            return `<span class="badge badge-type" style="background:${c.bg};color:${c.fg}">${escapeHtml(type)}</span>`;
+        }
+
+        // select2 rendering for type pickers: a colour dot matching the badge.
+        function typeOptionTemplate(state) {
+            if (!state.id) return state.text;
+            const c = typeColor(state.id);
+            return $(`<span><span class="type-dot" style="background:${c.bg}"></span>${escapeHtml(state.text)}</span>`);
+        }
+
+        function initTypeSelect2($el, $parent) {
+            $el.select2({
+                theme: 'bootstrap-5', width: '100%', dropdownParent: $parent,
+                minimumResultsForSearch: 6,
+                templateResult: typeOptionTemplate, templateSelection: typeOptionTemplate
+            });
+        }
+
+        const NOTE_BTN = 'btn btn-sm';
+
+        function noteRowHtml(r) {
+            if (r.id === noteEditId) {
+                return `<tr class="note-row note-editing" data-note-id="${r.id}">
+                    <td><input type="text" class="form-control form-control-sm note-edit-name" value="${escapeHtml(r.name)}" maxlength="200"></td>
+                    <td><select class="form-select form-select-sm note-edit-type">${noteTypeOptions(r.type)}</select></td>
+                    <td><input type="number" class="form-control form-control-sm note-edit-amount text-center" min="1" value="${Number(r.amount) || 1}"></td>
+                    <td class="note-actions">
+                        <button type="button" class="${NOTE_BTN} btn-success note-save-btn" data-note-id="${r.id}" title="Yadda saxla"><i class="fa-solid fa-check"></i></button>
+                        <button type="button" class="${NOTE_BTN} btn-outline-secondary note-cancel-btn" title="İmtina"><i class="fa-solid fa-xmark"></i></button>
+                    </td>
+                </tr>`;
+            }
+            return `<tr class="note-row" data-note-id="${r.id}">
+                <td>${escapeHtml(r.name)}</td>
+                <td>${typeBadge(r.type)}</td>
+                <td class="text-center"><span class="note-amount">${Number(r.amount) || 1}</span></td>
+                <td class="note-actions">
+                    <button type="button" class="${NOTE_BTN} btn-outline-secondary edit-note-btn" data-note-id="${r.id}" title="Dəyiş"><i class="fa-solid fa-pen"></i></button>
+                    <button type="button" class="${NOTE_BTN} btn-outline-danger delete-note-btn" data-note-id="${r.id}" title="Sil"><i class="fa-solid fa-xmark"></i></button>
+                </td>
+            </tr>`;
+        }
+
+        function noteBlockHtml(b) {
+            const title = b.id === noteTitleEditId
+                ? `<input type="text" class="form-control form-control-sm note-title-input" value="${escapeHtml(b.title)}" maxlength="120" placeholder="Başlıq (məs: mayorlar) — boş qala bilər">`
+                : `<div class="note-block-title ${b.title ? '' : 'untitled'}" data-block-id="${b.id}" title="Başlığı dəyiş">${b.title ? escapeHtml(b.title) : 'Başlıqsız'}</div>`;
+            // New rows default to the block's last type: blocks tend to be one kind.
+            const lastType = b.items.length ? b.items[b.items.length - 1].type : '';
+            return `<div class="note-block" data-block-id="${b.id}">
+                <div class="note-block-head">
+                    ${title}
+                    <span class="note-block-total" title="Cəmi nəfər">${blockTotal(b)}</span>
+                    <button type="button" class="${NOTE_BTN} btn-link text-danger p-0 px-1 delete-block-btn" data-block-id="${b.id}" title="Bloku sil"><i class="fa-solid fa-trash"></i></button>
+                </div>
+                <table class="table table-sm align-middle">
+                    <thead><tr>
+                        <th>Ad</th><th style="width:30%">Tip</th><th class="text-center" style="width:54px">Say</th><th></th>
+                    </tr></thead>
+                    <tbody>
+                        ${sortNoteList(b.items).map(noteRowHtml).join('')}
+                        <tr class="note-add-row" data-block-id="${b.id}">
+                            <td><input type="text" class="form-control form-control-sm note-new-name" placeholder="Ad…" maxlength="200"></td>
+                            <td><select class="form-select form-select-sm note-new-type">${noteTypeOptions(lastType)}</select></td>
+                            <td><input type="number" class="form-control form-control-sm note-new-amount text-center" min="1" value="1"></td>
+                            <td class="note-actions"><button type="button" class="${NOTE_BTN} btn-warning note-add-btn" data-block-id="${b.id}" title="Sətr əlavə et"><i class="fa-solid fa-plus"></i></button></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>`;
         }
 
         function renderNotes() {
-            const rows = sortedNotes();
-            const $body = $('#notesTableBody');
+            const blocks = ensureNotes();
+            const $host = $('#noteBlocks');
 
-            $body.html(rows.length === 0
-                ? `<tr><td colspan="4" class="text-center text-muted py-3 small">Hələ qeyd yoxdur.</td></tr>`
-                : rows.map(n => {
-                    if (n.id === noteEditId) {
-                        return `<tr class="note-editing">
-                            <td><input type="text" class="form-control form-control-sm note-edit-name" value="${escapeHtml(n.name)}" maxlength="200"></td>
-                            <td><select class="form-select form-select-sm note-edit-type">${noteTypeOptions(n.type)}</select></td>
-                            <td><input type="number" class="form-control form-control-sm note-edit-amount text-center" min="1" value="${Number(n.amount) || 1}"></td>
-                            <td class="text-end text-nowrap">
-                                <button type="button" class="btn btn-sm btn-success py-0 px-1 note-save-btn" data-note-id="${n.id}" title="Yadda saxla"><i class="fa-solid fa-check"></i></button>
-                                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1 ms-1 note-cancel-btn" title="İmtina"><i class="fa-solid fa-xmark"></i></button>
-                            </td>
-                        </tr>`;
-                    }
-                    if (n.id === noteConfirmId) {
-                        return `<tr class="table-danger">
-                            <td colspan="3" class="small fw-semibold">"${escapeHtml(n.name)}" silinsin?</td>
-                            <td class="text-end text-nowrap">
-                                <button type="button" class="btn btn-sm btn-danger py-0 px-1 note-confirm-btn" data-note-id="${n.id}">Bəli</button>
-                                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1 ms-1 note-cancel-btn">Xeyr</button>
-                            </td>
-                        </tr>`;
-                    }
-                    return `<tr>
-                        <td class="note-text">${escapeHtml(n.name)}</td>
-                        <td>${escapeHtml(n.type)}</td>
-                        <td class="text-center">${Number(n.amount) || 1}</td>
-                        <td class="text-end text-nowrap">
-                            <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1 edit-note-btn" data-note-id="${n.id}" title="Dəyiş"><i class="fa-solid fa-pen"></i></button>
-                            <button type="button" class="btn btn-sm btn-outline-danger py-0 px-1 ms-1 delete-note-btn" data-note-id="${n.id}" title="Sil"><i class="fa-solid fa-trash"></i></button>
-                        </td>
-                    </tr>`;
-                }).join(''));
+            // Drop UI state that points at rows which no longer exist.
+            if (noteEditId !== null && !findNote(noteEditId)) noteEditId = null;
+            if (noteTitleEditId !== null && !findNoteBlock(noteTitleEditId)) noteTitleEditId = null;
 
-            const people = rows.reduce((n, x) => n + (Number(x.amount) || 0), 0);
-            $('#notesCount').text(`${rows.length} qeyd`);
-            $('#notesTotals').html(rows.length === 0 ? ''
-                : `Cəmi <strong>${rows.length}</strong> sətr, <strong>${people}</strong> nəfər —
-                   <em>bu rəqəmlər ümumi hesablamaya daxil deyil.</em>`);
-            $('#notesCountBadge').text(rows.length).toggleClass('d-none', rows.length === 0);
+            $host.find('select.select2-hidden-accessible').select2('destroy');
 
-            $('#notesTable .note-sort').each(function () {
-                const active = $(this).data('key') === notesSort.key;
-                $(this).toggleClass('active', active);
-                $(this).find('.sort-ind').text(active ? (notesSort.dir === 'asc' ? '▲' : '▼') : '⇅');
-            });
+            if (blocks.length === 0) {
+                $host.html(`<div class="note-empty text-center py-5 small" style="grid-column: 1 / -1">
+                    <i class="fa-regular fa-note-sticky fa-2x d-block mb-2 opacity-50"></i>
+                    Hələ qeyd yoxdur.
+                    <div class="mt-2"><button type="button" class="btn btn-warning btn-sm" id="btnFirstNoteBlock">
+                        <i class="fa-solid fa-plus me-1"></i> İlk bloku yarat</button></div>
+                </div>`);
+            } else {
+                $host.html(blocks.map(noteBlockHtml).join(''));
+                $host.find('select').each(function () { initTypeSelect2($(this), $('#notesModal')); });
+            }
+
+            let rows = 0, people = 0;
+            blocks.forEach(b => { rows += b.items.length; people += blockTotal(b); });
+            $('#notesStatBlocks').html(`<strong>${blocks.length}</strong> blok`);
+            $('#notesStatRows').html(`<strong>${rows}</strong> sətr`);
+            $('#notesStatPeople').html(`<strong>${people}</strong> nəfər`);
+            $('#notesCountBadge').text(rows).toggleClass('d-none', rows === 0);
         }
 
         /* =====================================================================
@@ -3104,6 +3452,11 @@
                 if (e.key === 'Enter') { e.preventDefault(); $('#btnAddType').click(); }
             });
 
+            $('#typesTable').on('click', '.type-sort', function () {
+                typesSort = cycleSort(typesSort, $(this).data('key'));
+                renderTypesList();
+            });
+
             $('#typesTableBody').on('click', '.delete-type-btn', function () {
                 const index = $(this).data('index');
                 const type = weddingData.guestTypes[index];
@@ -3111,43 +3464,69 @@
                 if (weddingData.guestTypes.length <= 1) {
                     return showError($('#typeError'), 'Ən azı bir qonaq növü qalmalıdır.');
                 }
-                const usage = countGuestsOfType(type);
-                if (usage > 0) {
-                    return showError($('#typeError'), `"${type}" tipi ${usage} qonaqda istifadə olunur — silmək olmaz.`);
+                const guests = countGuestsOfType(type);
+                const notes = countNotesOfType(type);
+                if (guests + notes > 0) {
+                    return showError($('#typeError'),
+                        `"${type}" tipi ${guests} qonaqda və ${notes} qeyddə istifadə olunur — silmək olmaz.`);
                 }
                 clearError($('#typeError'));
                 askConfirm(`"${type}" qonaq növünü silmək istədiyinizdən əminsinizmi?`, function () {
-                    weddingData.guestTypes.splice(index, 1);
+                    // Look it up again: the list may have changed while the dialog was open.
+                    const at = weddingData.guestTypes.indexOf(type);
+                    if (at === -1) return;
+                    weddingData.guestTypes.splice(at, 1);
+                    typeEditIndex = null;
                     commit('deleteType');
                     toast(`"${type}" tipi silindi.`);
                 });
             });
 
-            // Renaming rewrites every guest that carries the old type, so no orphans.
+            // Rename inline. Every guest and note carrying the old type follows it,
+            // so nothing is left orphaned.
             $('#typesTableBody').on('click', '.rename-type-btn', function () {
+                typeEditIndex = $(this).data('index');
+                clearError($('#typeError'));
+                renderTypesList();
+                $('#typesTableBody .type-edit-name').trigger('focus').trigger('select');
+            });
+
+            $('#typesTableBody').on('click', '.type-cancel-btn', function () {
+                typeEditIndex = null;
+                clearError($('#typeError'));
+                renderTypesList();
+            });
+
+            $('#typesTableBody').on('click', '.type-save-btn', function () {
+                const $err = $('#typeError');
                 const index = $(this).data('index');
                 const oldName = weddingData.guestTypes[index];
-                if (oldName === undefined) return;
+                if (oldName === undefined) { typeEditIndex = null; return renderTypesList(); }
 
-                const input = window.prompt('Yeni tip adı:', oldName);
-                if (input === null) return;
-                const newName = input.trim();
-                if (!newName) return showError($('#typeError'), 'Tip adı boş ola bilməz.');
-                if (newName === oldName) return;
+                const newName = $(this).closest('tr').find('.type-edit-name').val().trim();
+                if (!newName) return showError($err, 'Tip adı boş ola bilməz.');
+                if (newName === oldName) { typeEditIndex = null; clearError($err); return renderTypesList(); }
                 if (weddingData.guestTypes.some((t, i) => i !== index && t.toLowerCase() === newName.toLowerCase())) {
-                    return showError($('#typeError'), `"${newName}" tipi artıq mövcuddur.`);
+                    return showError($err, `"${newName}" tipi artıq mövcuddur.`);
                 }
 
                 weddingData.guestTypes[index] = newName;
                 weddingData.tables.forEach(t => t.guests.forEach(g => {
                     if (g.type === oldName) g.type = newName;
                 }));
-                clearError($('#typeError'));
+                forEachNote(n => { if (n.type === oldName) n.type = newName; });
+                typeEditIndex = null;
+                clearError($err);
                 commit('renameType');
                 toast(`"${oldName}" → "${newName}"`);
             });
 
-            /* ---------- Move / switch ---------- */
+            $('#typesTableBody').on('keydown', '.type-edit-name', function (e) {
+                if (e.key === 'Enter') { e.preventDefault(); $(this).closest('tr').find('.type-save-btn').click(); }
+                if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); typeEditIndex = null; renderTypesList(); }
+            });
+
+/* ---------- Move / switch ---------- */
             $('input[name="moveMode"]').on('change', function () {
                 $('#switchGuestContainer').toggleClass('d-none', $(this).val() !== 'switch');
                 updateCapacityPreview();
@@ -3279,105 +3658,176 @@
             });
 
             /* ---------- Qeyd Masası ---------- */
+            const $noteBlocks = $('#noteBlocks');
+
             $('#btnOpenNotes').on('click', function () {
-                noteEditId = null; noteConfirmId = null;
-                $('#newNoteName').val('');
-                $('#newNoteAmount').val(1);
-                $('#newNoteType').html(noteTypeOptions(weddingData.guestTypes[0]));
+                noteEditId = null; noteTitleEditId = null;
                 clearError($('#noteError'));
                 renderNotes();
                 showModal('notesModal');
             });
 
-            function addNote() {
-                const $err = $('#noteError');
-                const name = $('#newNoteName').val().trim();
-                const type = $('#newNoteType').val();
-                const amount = parseInt($('#newNoteAmount').val(), 10);
-
-                if (!name) return showError($err, 'Ad boş ola bilməz.');
-                if (!type || !weddingData.guestTypes.includes(type)) return showError($err, 'Tip seçin.');
-                if (!Number.isFinite(amount) || amount < 1) return showError($err, 'Say ən azı 1 olmalıdır.');
-
-                ensureNotes().push({ id: newId(), name: name, type: type, amount: amount });
-                $('#newNoteName').val('');
-                $('#newNoteAmount').val(1);
-                clearError($err);
-                commit('addNote');
-                $('#newNoteName').trigger('focus');
-            }
-
-            $('#btnAddNote').on('click', addNote);
-            $('#newNoteName, #newNoteAmount').on('keydown', function (e) {
-                if (e.key === 'Enter') { e.preventDefault(); addNote(); }
-            });
-
-            $('#notesTable').on('click', '.note-sort', function () {
-                const key = $(this).data('key');
-                if (notesSort.key === key) {
-                    notesSort.dir = notesSort.dir === 'asc' ? 'desc' : 'asc';
-                } else {
-                    notesSort = { key: key, dir: 'asc' };
-                }
+            $('#notesSortSelect').select2({
+                theme: 'bootstrap-5', width: '100%', dropdownParent: $('#notesModal'),
+                minimumResultsForSearch: Infinity
+            }).on('change', function () {
+                const [key, dir] = String($(this).val() || '').split(':');
+                notesSort = key ? { key: key, dir: dir } : { key: null, dir: 'asc' };
                 renderNotes();
             });
 
-            // Inline edit and delete: no second modal, so nothing can race with
-            // Bootstrap's transition state.
-            $('#notesTableBody').on('click', '.edit-note-btn', function () {
-                noteConfirmId = null;
+            // Brings a just-added row or block into view and flashes it.
+            function flashNote(selector) {
+                const el = document.querySelector(selector);
+                if (!el) return;
+                el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                el.classList.add('note-flash');
+            }
+
+            function noteFieldsProblem(name, type, amount) {
+                if (!name) return 'Ad boş ola bilməz.';
+                if (type && !weddingData.guestTypes.includes(type)) return 'Belə tip yoxdur.';
+                if (!Number.isFinite(amount) || amount < 1) return 'Say ən azı 1 olmalıdır.';
+                return null;
+            }
+
+            /* ----- Blocks ----- */
+            function addNoteBlock() {
+                const id = newId();
+                ensureNotes().push({ id: id, title: '', items: [] });
+                noteEditId = null; noteTitleEditId = null;
+                clearError($('#noteError'));
+                commit('addNoteBlock');
+                flashNote(`.note-block[data-block-id="${id}"]`);
+                $(`.note-block[data-block-id="${id}"] .note-new-name`).trigger('focus');
+            }
+
+            $('#btnAddNoteBlock').on('click', addNoteBlock);
+            $noteBlocks.on('click', '#btnFirstNoteBlock', addNoteBlock);
+
+            $noteBlocks.on('click', '.note-block-title', function () {
+                noteEditId = null;
+                noteTitleEditId = parseInt($(this).data('block-id'), 10);
+                renderNotes();
+                $('#noteBlocks .note-title-input').trigger('focus').trigger('select');
+            });
+
+            // Saved on Enter or when focus leaves; an empty title is allowed.
+            function saveBlockTitle($input) {
+                const block = findNoteBlock(noteTitleEditId);
+                noteTitleEditId = null;
+                if (!block) return renderNotes();
+                const title = String($input.val() || '').trim();
+                if (title === block.title) return renderNotes();
+                block.title = title;
+                commit('renameNoteBlock');
+            }
+
+            $noteBlocks.on('keydown', '.note-title-input', function (e) {
+                if (e.key === 'Enter') { e.preventDefault(); saveBlockTitle($(this)); }
+                if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); noteTitleEditId = null; renderNotes(); }
+            });
+            $noteBlocks.on('blur', '.note-title-input', function () {
+                if (noteTitleEditId !== null && this.isConnected) saveBlockTitle($(this));
+            });
+
+            $noteBlocks.on('click', '.delete-block-btn', function () {
+                const block = findNoteBlock(parseInt($(this).data('block-id'), 10));
+                if (!block) return;
+                const drop = () => {
+                    weddingData.notes = ensureNotes().filter(b => b.id !== block.id);
+                    commit('deleteNoteBlock');
+                };
+                // An empty block has nothing to lose.
+                if (block.items.length === 0) return drop();
+                const label = block.title ? `"${block.title}" bloku` : 'Başlıqsız blok';
+                askConfirm(`${label} və içindəki ${block.items.length} sətr (${blockTotal(block)} nəfər) silinsin?`, function () {
+                    drop();
+                    toast('Blok silindi.');
+                });
+            });
+
+            /* ----- Rows ----- */
+            function addNoteRow(blockId) {
+                const $err = $('#noteError');
+                const block = findNoteBlock(blockId);
+                if (!block) return renderNotes();
+                const $row = $(`#noteBlocks .note-add-row[data-block-id="${blockId}"]`);
+                const name = $row.find('.note-new-name').val().trim();
+                const type = $row.find('.note-new-type').val() || '';
+                const amount = parseInt($row.find('.note-new-amount').val(), 10);
+                const problem = noteFieldsProblem(name, type, amount);
+                if (problem) return showError($err, problem);
+
+                const id = newId();
+                block.items.push({ id: id, name: name, type: type, amount: amount });
+                clearError($err);
+                commit('addNote');
+                flashNote(`#noteBlocks tr[data-note-id="${id}"]`);
+                // Keep typing into the same block.
+                $(`#noteBlocks .note-add-row[data-block-id="${blockId}"] .note-new-name`).trigger('focus');
+            }
+
+            $noteBlocks.on('click', '.note-add-btn', function () {
+                addNoteRow(parseInt($(this).data('block-id'), 10));
+            });
+            $noteBlocks.on('keydown', '.note-new-name, .note-new-amount', function (e) {
+                if (e.key !== 'Enter') return;
+                e.preventDefault();
+                addNoteRow(parseInt($(this).closest('tr').data('block-id'), 10));
+            });
+
+            $noteBlocks.on('click', '.edit-note-btn', function () {
+                noteTitleEditId = null;
                 noteEditId = parseInt($(this).data('note-id'), 10);
                 clearError($('#noteError'));
                 renderNotes();
-                $('#notesTableBody .note-edit-name').trigger('focus');
+                $('#noteBlocks .note-edit-name').trigger('focus');
             });
 
-            $('#notesTableBody').on('click', '.note-cancel-btn', function () {
-                noteEditId = null; noteConfirmId = null;
+            $noteBlocks.on('click', '.note-cancel-btn', function () {
+                noteEditId = null;
                 clearError($('#noteError'));
                 renderNotes();
             });
 
-            $('#notesTableBody').on('click', '.note-save-btn', function () {
+            $noteBlocks.on('click', '.note-save-btn', function () {
                 const $err = $('#noteError');
-                const id = parseInt($(this).data('note-id'), 10);
-                const note = ensureNotes().find(n => n.id === id);
-                if (!note) { noteEditId = null; return renderNotes(); }
+                const hit = findNote(parseInt($(this).data('note-id'), 10));
+                if (!hit) { noteEditId = null; return renderNotes(); }
 
                 const $row = $(this).closest('tr');
                 const name = $row.find('.note-edit-name').val().trim();
-                const type = $row.find('.note-edit-type').val();
+                const type = $row.find('.note-edit-type').val() || '';
                 const amount = parseInt($row.find('.note-edit-amount').val(), 10);
+                const problem = noteFieldsProblem(name, type, amount);
+                if (problem) return showError($err, problem);
 
-                if (!name) return showError($err, 'Ad boş ola bilməz.');
-                if (!type || !weddingData.guestTypes.includes(type)) return showError($err, 'Tip seçin.');
-                if (!Number.isFinite(amount) || amount < 1) return showError($err, 'Say ən azı 1 olmalıdır.');
-
-                note.name = name; note.type = type; note.amount = amount;
+                Object.assign(hit.note, { name: name, type: type, amount: amount });
                 noteEditId = null;
                 clearError($err);
                 commit('editNote');
             });
 
-            $('#notesTableBody').on('keydown', '.note-edit-name, .note-edit-amount', function (e) {
+            // stopPropagation keeps Escape from also closing the whole modal.
+            $noteBlocks.on('keydown', '.note-edit-name, .note-edit-amount', function (e) {
                 if (e.key === 'Enter') { e.preventDefault(); $(this).closest('tr').find('.note-save-btn').click(); }
-                if (e.key === 'Escape') { e.preventDefault(); noteEditId = null; renderNotes(); }
+                if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); noteEditId = null; renderNotes(); }
             });
 
-            $('#notesTableBody').on('click', '.delete-note-btn', function () {
-                noteEditId = null;
-                noteConfirmId = parseInt($(this).data('note-id'), 10);
-                renderNotes();
+            $noteBlocks.on('click', '.delete-note-btn', function () {
+                const hit = findNote(parseInt($(this).data('note-id'), 10));
+                if (!hit) return;
+                const note = hit.note;
+                askConfirm(`"${note.name}" (${note.amount} nəfər) qeydi silinsin?`, function () {
+                    hit.block.items = hit.block.items.filter(r => r.id !== note.id);
+                    if (noteEditId === note.id) noteEditId = null;
+                    commit('deleteNote');
+                    toast(`"${note.name}" silindi.`);
+                });
             });
 
-            $('#notesTableBody').on('click', '.note-confirm-btn', function () {
-                const id = parseInt($(this).data('note-id'), 10);
-                weddingData.notes = ensureNotes().filter(n => n.id !== id);
-                noteConfirmId = null;
-                commit('deleteNote');
-            });
-
-            /* ---------- Guest list ---------- */            /* ---------- Guest list ---------- */
+/* ---------- Guest list ---------- */
             $('#btnOpenList').on('click', function () {
                 renderGuestList();
                 showModal('guestListModal');
@@ -3817,7 +4267,10 @@
             // Never leave a stale callback armed if the dialog is dismissed.
             $('#confirmModal').on('hidden.bs.modal', function () { pendingConfirmAction = null; });
 
-            $('#typesModal').on('hidden.bs.modal', function () { clearError($('#typeError')); });
+            $('#typesModal').on('hidden.bs.modal', function () {
+                clearError($('#typeError'));
+                if (typeEditIndex !== null) { typeEditIndex = null; renderTypesList(); }
+            });
         });
     </script>
 </body>
