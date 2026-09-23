@@ -1,0 +1,23 @@
+# ClusterIP, deliberately.
+#
+# On this box NodePort and LoadBalancer BYPASS the host firewall: service
+# traffic is DNAT'd in PREROUTING and traverses FORWARD, not INPUT, so
+# ufw/nftables INPUT rules do not block it. The Service type IS the firewall
+# decision. Reach this over Tailscale with:
+#
+#   kubectl -n lab port-forward svc/tableplanner 3000:80
+apiVersion: v1
+kind: Service
+metadata:
+  name: tableplanner
+  namespace: lab
+  labels:
+    app: tableplanner
+spec:
+  type: ClusterIP
+  selector:
+    app: tableplanner
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

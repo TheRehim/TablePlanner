@@ -1,0 +1,150 @@
+import express from 'express';
+import cookieParser from 'cookie-parser';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import { getState, putState, ping, listRevisions, getRevision, pool } from './db.js';
+import { isEditor, login, logout, requireEditor, makeRateLimiter } from './auth.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// The app itself is the single index.html at the repo root; in the container it
+// is copied to /app/public. Only that one file is served - the repo is not
+// exposed as a static directory.
+const PUBLIC_DIR = process.env.PUBLIC_DIR || path.resolve(__dirname, '../..');
+const INDEX_FILE = path.join(PUBLIC_DIR, 'index.html');
+
+const PORT = Number(process.env.PORT || 3000);
+
+const app = express();
+app.disable('x-powered-by');
+// Behind Traefik; needed for req.ip to be the real client in the rate limiter.
+app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS || 1));
+
+app.use(cookieParser());
+app.use(express.json({ limit: process.env.BODY_LIMIT || '2mb' }));
+
+/* ------------------------------------------------------------------ health */
+// Liveness must not touch the database: a DB blip should not get the pod killed.
+app.get('/healthz', (req, res) => res.json({ ok: true }));
+
+app.get('/readyz', async (req, res) => {
+    try {
+        await ping();
+        res.json({ ok: true, db: 'up' });
+    } catch (err) {
+        res.status(503).json({ ok: false, db: 'down', message: err.message });
+    }
+});
+
+/* -------------------------------------------------------------------- auth */
+const loginLimiter = makeRateLimiter({ windowMs: 60_000, max: 10 });
+
+app.post('/api/login', loginLimiter, (req, res) => {
+    const ok = login(req, res, req.body?.password);
+    if (!ok) return res.status(401).json({ error: 'bad_password', message: 'Şifrə yanlışdır.' });
+    res.json({ ok: true, canEdit: true });
+});
+
+app.post('/api/logout', (req, res) => {
+    logout(res);
+    res.json({ ok: true, canEdit: false });
+});
+
+app.get('/api/me', (req, res) => res.json({ canEdit: isEditor(req) }));
+
+/* ------------------------------------------------------------------- state */
+app.get('/api/state', async (req, res) => {
+    try {
+        const state = await getState();
+        res.json({ ...state, canEdit: isEditor(req) });
+    } catch (err) {
+        console.error('[api] GET /api/state failed:', err.message);
+        res.status(500).json({ error: 'server_error', message: 'Məlumat oxunmadı.' });
+    }
+});
+
+app.put('/api/state', requireEditor, async (req, res) => {
+    const { data, version, action } = req.body || {};
+
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+        return res.status(400).json({ error: 'bad_request', message: '"data" obyekt olmalıdır.' });
+    }
+    if (!Array.isArray(data.tables) || !Array.isArray(data.guestTypes)) {
+        return res.status(400).json({
+            error: 'bad_request',
+            message: '"tables" və "guestTypes" massiv olmalıdır.'
+        });
+    }
+    if (!Number.isFinite(Number(version))) {
+        return res.status(400).json({ error: 'bad_request', message: '"version" rəqəm olmalıdır.' });
+    }
+
+    try {
+        const result = await putState(data, Number(version), String(action || 'update').slice(0, 40));
+        if (!result.ok && result.conflict) {
+            // Somebody else wrote first. Hand back the current version so the
+            // client can re-fetch rather than clobber their change.
+            return res.status(409).json({
+                error: 'conflict',
+                message: 'Məlumat başqa yerdə dəyişdirilib. Yeniləyin.',
+                currentVersion: result.current
+            });
+        }
+        res.json({ ok: true, version: result.version });
+    } catch (err) {
+        console.error('[api] PUT /api/state failed:', err.message);
+        res.status(500).json({ error: 'server_error', message: 'Yadda saxlanmadı.' });
+    }
+});
+
+/* --------------------------------------------------------------- revisions */
+app.get('/api/revisions', requireEditor, async (req, res) => {
+    try {
+        res.json({ revisions: await listRevisions(req.query.limit) });
+    } catch (err) {
+        console.error('[api] GET /api/revisions failed:', err.message);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+app.get('/api/revisions/:id', requireEditor, async (req, res) => {
+    try {
+        const revision = await getRevision(Number(req.params.id));
+        if (!revision) return res.status(404).json({ error: 'not_found' });
+        res.json(revision);
+    } catch (err) {
+        console.error('[api] GET /api/revisions/:id failed:', err.message);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* --------------------------------------------------------------------- app */
+app.get('/', (req, res) => res.sendFile(INDEX_FILE));
+app.get('/index.html', (req, res) => res.sendFile(INDEX_FILE));
+
+app.use((req, res) => res.status(404).json({ error: 'not_found' }));
+
+// Express 4 needs the four-arg signature to treat this as an error handler.
+app.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
+    console.error('[api] unhandled:', err.message);
+    res.status(500).json({ error: 'server_error' });
+});
+
+const server = app.listen(PORT, () => {
+    console.log(`[tableplanner] listening on :${PORT}`);
+    console.log(`[tableplanner] serving ${INDEX_FILE}`);
+});
+
+/* Graceful shutdown so Kubernetes rolling updates do not cut live requests. */
+for (const signal of ['SIGTERM', 'SIGINT']) {
+    process.on(signal, () => {
+        console.log(`[tableplanner] ${signal} received, shutting down`);
+        server.close(async () => {
+            try { await pool.end(); } catch { /* already closed */ }
+            process.exit(0);
+        });
+        // Do not hang forever if a connection refuses to drain.
+        setTimeout(() => process.exit(1), 10_000).unref();
+    });
+}

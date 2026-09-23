@@ -1,5 +1,15 @@
 # TablePlanner — build and deploy plan
 
+> **Status:** Phases 1, 2, 3, 5 and 6 are built and live in `server/`.
+> See `server/README.md` to run it. Remaining: Phase 0 (confirm the box),
+> Phase 4 (the real database on the server) and Phase 7 (go public).
+>
+> Departures from the plan as written, both deliberate:
+> - Code lives in `server/` rather than restructuring the repo root. The server
+>   serves the root `index.html` directly, so there is still only one copy of
+>   the app.
+> - Node **22**, not 20 — Node 20 reached end of life in April 2026.
+
 Target host: single-node **k3s** box (sunucum.net.tr XE4, Istanbul), admin over Tailscale
 only. Operating rules for that box live in its own `CLAUDE.md` — this plan follows them.
 
@@ -41,39 +51,32 @@ These change the numbers in the rest of the plan.
 
 ---
 
-## Phase 1 — repo structure
+## Phase 1 — repo structure ✅ done
 
 ```
 TablePlanner/
-├─ public/
-│  └─ index.html              ← the app (moved from repo root)
-├─ src/
-│  ├─ server.js               ← express: static + api
-│  ├─ db.js                   ← pg pool, single jsonb row
-│  └─ auth.js                 ← one shared password → signed cookie
-├─ migrations/
-│  └─ 001_init.sql
-├─ deploy/
-│  ├─ deployment.yaml
-│  ├─ service.yaml
-│  ├─ ingress.yaml            ← phase 7 only
-│  └─ sealedsecret.yaml
-├─ Dockerfile
-├─ compose.yaml               ← local dev only, never deployed
-├─ package.json
+├─ index.html                 ← the app, left at the root and served from there
 ├─ plan.md
-└─ README.md
+├─ README.md
+└─ server/
+   ├─ src/{server,db,auth}.js
+   ├─ migrations/001_init.sql
+   ├─ scripts/{migrate,hash-password,smoke}.mjs
+   ├─ deploy/{deployment,service}.yaml + ingress/secret examples
+   ├─ Dockerfile               ← build context is the REPO ROOT
+   ├─ compose.yaml
+   ├─ .env.example
+   └─ README.md
 ```
 
-- [ ] `git mv index.html public/index.html`
-- [ ] `package.json` — `express`, `pg`, `cookie-parser`; Node 20
-- [ ] `.env.example` with **no real values** — `DATABASE_URL`, `SESSION_SECRET`,
-      `EDITOR_PASSWORD_HASH`, `PORT`
-- [ ] `compose.yaml` — app + throwaway Postgres, for local development only
+- [x] app stays at the repo root; the server serves it (no duplicate copy)
+- [x] `package.json` — `express`, `pg`, `cookie-parser`; **Node 22**
+- [x] `.env.example` with no real values
+- [x] `compose.yaml` — app + Postgres, one command
 
 ---
 
-## Phase 2 — server (~150 lines)
+## Phase 2 — server ✅ done
 
 - [ ] `src/db.js` — `pg` pool; read and write the single state row
 - [ ] `src/auth.js` — one shared password stored **hashed** (scrypt or bcrypt), issuing a
@@ -101,7 +104,7 @@ actual boundary.
 
 ---
 
-## Phase 3 — app wiring
+## Phase 3 — app wiring ✅ done
 
 This is the "make the app actually work" half. The front end currently holds everything
 in memory and loses it on refresh.
@@ -169,15 +172,16 @@ bad import — which matters more now that Excel import exists.
 
 ---
 
-## Phase 5 — image
+## Phase 5 — image ✅ written, build not yet verified
 
-- [ ] Multi-stage `Dockerfile`, `node:20-alpine`, **non-root** user, `NODE_ENV=production`
-- [ ] Build and push to GHCR, **pinned by digest**. Never `:latest` — box rule
-- [ ] Run it locally against the compose Postgres before it goes near the server
+- [x] Multi-stage `Dockerfile`, `node:22-alpine`, non-root, `NODE_ENV=production`
+- [ ] **The image has never actually been built** — Docker Desktop was not
+      running. `docker compose up --build` is the first thing to try.
+- [ ] Push to GHCR, **pinned by digest**. Never `:latest` — box rule
 
 ---
 
-## Phase 6 — deploy to `lab/`
+## Phase 6 — deploy to `lab/` ✅ manifests written, not yet applied
 
 `lab/` can be deployed, restarted and deleted freely. Prove it there, then promote.
 

@@ -1,0 +1,51 @@
+# Local development: one command, self-contained.
+#
+#   cd server && docker compose up --build
+#
+# Build context is the repo root so index.html is included in the image.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: tableplanner
+      POSTGRES_PASSWORD: local-dev-only
+      POSTGRES_DB: tableplanner
+    volumes:
+      - tableplanner-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tableplanner -d tableplanner"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    # Not published to the host: the app reaches it over the compose network.
+    expose:
+      - "5432"
+
+  app:
+    build:
+      context: ..
+      dockerfile: server/Dockerfile
+    # SESSION_SECRET and EDITOR_PASSWORD_HASH come from .env via env_file,
+    # which passes values through literally. They are deliberately NOT repeated
+    # under `environment:` - anything referenced as ${...} gets interpolated,
+    # and these values contain characters that would be eaten.
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgres://tableplanner:local-dev-only@db:5432/tableplanner
+      COOKIE_SECURE: "false"
+      PORT: "3000"
+    ports:
+      - "3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    # Applies migrations, then starts. Safe to re-run: migrations are idempotent.
+    command: >
+      sh -c "node scripts/migrate.mjs && node src/server.js"
+    # Mirrors the memory limit used on the k3s box, so local behaviour matches.
+    mem_limit: 256m
+    restart: unless-stopped
+
+volumes:
+  tableplanner-db:

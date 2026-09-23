@@ -4,6 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- The guest list holds real names: keep it out of search engines even
+         once the page is publicly reachable. -->
+    <meta name="robots" content="noindex, nofollow">
     <title>Toy Masa və Qonaq Planlayıcısı</title>
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -538,7 +541,12 @@
     <!-- FIXED BOTTOM BAR -->
     <div class="fixed-bottom-bar py-2 px-3">
         <div class="container-fluid d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <span class="small" id="globalStatsSummary">—</span>
+            <span class="small d-flex align-items-center gap-2">
+                <span id="globalStatsSummary">—</span>
+                <span class="badge d-none" id="syncBadge"></span>
+                <button class="btn btn-link btn-sm p-0 d-none" id="btnLogin">Daxil ol</button>
+                <button class="btn btn-link btn-sm p-0 d-none" id="btnLogout">Çıxış</button>
+            </span>
             <div class="d-flex gap-2">
                 <button class="btn btn-outline-primary btn-sm" id="btnOpenList">
                     <i class="fa-solid fa-list-ul me-1"></i> Siyahı
@@ -927,6 +935,28 @@
                     <button type="button" class="btn btn-primary btn-sm" id="btnDoImportMasa" disabled>
                         <i class="fa-solid fa-plus me-1"></i> <span id="impMasaBtnLabel">Masanı Əlavə Et</span>
                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: editor login -->
+    <div class="modal fade" id="loginModal" tabindex="-1">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-header py-2">
+                    <h5 class="modal-title fs-6 fw-bold"><i class="fa-solid fa-lock me-1"></i> Daxil ol</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="loginForm" novalidate>
+                        <label class="form-label small fw-semibold">Şifrə</label>
+                        <input type="password" class="form-control form-control-sm" id="loginPassword"
+                            autocomplete="current-password" required>
+                        <div class="form-text small">Dəyişiklik etmək üçün. Baxmaq üçün lazım deyil.</div>
+                        <div class="alert alert-danger py-2 small d-none mt-2" id="loginError"></div>
+                        <button type="submit" class="btn btn-primary btn-sm w-100 mt-2">Daxil ol</button>
+                    </form>
                 </div>
             </div>
         </div>
@@ -1325,12 +1355,161 @@
            touch TWO masas at once, so they must persist as one atomic unit,
            not two independent writes.
            ===================================================================== */
+        /* =====================================================================
+           SERVER SYNC
+           The app still runs with no server at all - opened straight from
+           disk it stays in memory exactly as before, marked "Yerli rejim".
+           When an API is reachable it becomes the source of truth.
+           ===================================================================== */
+        const SERVER = {
+            online: false,      // an API answered
+            canEdit: false,     // this session may write
+            version: 0,         // last version seen; sent back to detect conflicts
+            saving: false,
+            pending: null,      // action name waiting to be flushed
+            timer: null,
+            failed: false
+        };
+
+        function setSyncBadge(text, cls, title) {
+            $('#syncBadge').text(text).attr('class', 'badge ' + cls).attr('title', title || '')
+                .toggleClass('d-none', !text);
+        }
+
+        function refreshSyncUi() {
+            if (!SERVER.online) {
+                setSyncBadge('Yerli rejim', 'bg-secondary',
+                    'Server yoxdur — dəyişikliklər yalnız bu səhifədə qalır və yenilədikdə itir.');
+                $('#btnLogin, #btnLogout').addClass('d-none');
+                return;
+            }
+            if (SERVER.failed) {
+                setSyncBadge('Yadda saxlanmadı', 'bg-danger', 'Serverə yazmaq alınmadı.');
+            } else if (SERVER.saving || SERVER.pending) {
+                setSyncBadge('Saxlanılır…', 'bg-info text-dark');
+            } else {
+                setSyncBadge('Saxlanıldı', 'bg-success', 'Bütün dəyişikliklər serverdədir.');
+            }
+            $('#btnLogin').toggleClass('d-none', SERVER.canEdit);
+            $('#btnLogout').toggleClass('d-none', !SERVER.canEdit);
+        }
+
+        // Every mutation still funnels through here. With no server this is
+        // just a re-render, which is why the file keeps working on its own.
         function commit(action) {
-            // TODO(backend): persist the change here, e.g.
-            //   api.save(action, weddingData).catch(err => toast(err.message, 'danger'));
-            // Keep renderApp() last so the UI reflects committed state.
-            void action;
             renderApp();
+            if (!SERVER.online || !SERVER.canEdit) return;
+            SERVER.pending = action || 'update';
+            SERVER.failed = false;
+            refreshSyncUi();
+            clearTimeout(SERVER.timer);
+            // Coalesce bursts (typing, repeated moves) into one request.
+            SERVER.timer = setTimeout(flushSave, 400);
+        }
+
+        async function flushSave() {
+            if (SERVER.saving || !SERVER.pending) return;
+            const action = SERVER.pending;
+            SERVER.pending = null;
+            SERVER.saving = true;
+            refreshSyncUi();
+
+            try {
+                const res = await fetch('/api/state', {
+                    method: 'PUT',
+                    headers: { 'content-type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ data: weddingData, version: SERVER.version, action: action })
+                });
+
+                if (res.status === 409) {
+                    const body = await res.json().catch(() => ({}));
+                    SERVER.saving = false;
+                    handleConflict(body.currentVersion);
+                    return;
+                }
+                if (res.status === 401) {
+                    SERVER.canEdit = false;
+                    SERVER.saving = false;
+                    refreshSyncUi();
+                    toast('Sessiya bitib. Yenidən daxil olun.', 'warning');
+                    showModal('loginModal');
+                    return;
+                }
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+
+                const body = await res.json();
+                SERVER.version = body.version;
+                SERVER.failed = false;
+            } catch (err) {
+                // Keep the in-memory state: blanking the screen would lose work.
+                SERVER.failed = true;
+                toast('Yadda saxlanmadı: ' + err.message, 'danger');
+            } finally {
+                SERVER.saving = false;
+                refreshSyncUi();
+                if (SERVER.pending) setTimeout(flushSave, 100);
+            }
+        }
+
+        // Someone else wrote first. Never silently overwrite them.
+        function handleConflict(currentVersion) {
+            SERVER.failed = true;
+            refreshSyncUi();
+            askConfirm(
+                'Məlumat başqa yerdə dəyişdirilib (versiya ' + currentVersion + ').\n' +
+                'Serverdəki nüsxəni yükləmək üçün "Bəli" seçin — bu səhifədəki ' +
+                'son dəyişikliklər itəcək. Əvvəlcə ixrac edib saxlaya bilərsiniz.',
+                async function () {
+                    await loadFromServer();
+                    toast('Serverdəki nüsxə yükləndi.');
+                },
+                'Bəli, yenilə'
+            );
+        }
+
+        async function loadFromServer() {
+            const res = await fetch('/api/state', { credentials: 'same-origin' });
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const body = await res.json();
+
+            const data = body.data || {};
+            weddingData.guestTypes = Array.isArray(data.guestTypes) && data.guestTypes.length
+                ? data.guestTypes : ['Dost'];
+            weddingData.tables = Array.isArray(data.tables) ? data.tables : [];
+            weddingData.notes = Array.isArray(data.notes) ? data.notes : [];
+
+            // Ids come from the server; the counter must clear the highest.
+            idCounter = 0;
+            weddingData.tables.forEach(t => {
+                idCounter = Math.max(idCounter, Number(t.id) || 0);
+                (t.guests || []).forEach(g => { idCounter = Math.max(idCounter, Number(g.id) || 0); });
+            });
+            weddingData.notes.forEach(n => { idCounter = Math.max(idCounter, Number(n.id) || 0); });
+
+            SERVER.version = body.version;
+            SERVER.canEdit = !!body.canEdit;
+            SERVER.failed = false;
+            readOnly = !SERVER.canEdit;
+            applyReadOnlyMode();
+            renderApp();
+            refreshSyncUi();
+        }
+
+        async function bootFromServer() {
+            try {
+                await loadFromServer();
+                SERVER.online = true;
+                refreshSyncUi();
+            } catch {
+                // No API: stay exactly as the standalone file behaves.
+                SERVER.online = false;
+                SERVER.canEdit = true;
+                readOnly = false;
+                applyReadOnlyMode();
+                renderApp();
+                refreshSyncUi();
+            }
         }
 
         function renderApp() {
@@ -2631,6 +2810,49 @@
 
             applyReadOnlyMode();
             renderApp();
+            // Async: if no API answers, the app simply stays local-only.
+            bootFromServer();
+
+            $('#btnLogin').on('click', function () {
+                $('#loginPassword').val('');
+                clearError($('#loginError'));
+                showModal('loginModal');
+            });
+
+            $('#loginForm').on('submit', async function (e) {
+                e.preventDefault();
+                const $err = $('#loginError');
+                const password = $('#loginPassword').val();
+                if (!password) return showError($err, 'Şifrə boşdur.');
+                try {
+                    const res = await fetch('/api/login', {
+                        method: 'POST',
+                        headers: { 'content-type': 'application/json' },
+                        credentials: 'same-origin',
+                        body: JSON.stringify({ password: password })
+                    });
+                    const body = await res.json().catch(() => ({}));
+                    if (!res.ok) return showError($err, body.message || 'Daxil olmaq alınmadı.');
+
+                    $('#loginPassword').val('');
+                    clearError($err);
+                    hideModal('loginModal');
+                    await loadFromServer();
+                    toast('Daxil oldunuz.');
+                } catch (err) {
+                    showError($err, 'Server cavab vermir: ' + err.message);
+                }
+            });
+
+            $('#btnLogout').on('click', async function () {
+                try {
+                    await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' });
+                    await loadFromServer();
+                    toast('Çıxış edildi.');
+                } catch (err) {
+                    toast('Çıxış alınmadı: ' + err.message, 'danger');
+                }
+            });
 
             /* ---------- Keep content clear of the fixed bars ----------
                The bars change height when filter tags stack or controls wrap,

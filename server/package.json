@@ -1,0 +1,22 @@
+{
+  "name": "tableplanner-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "API and host for the TablePlanner wedding seating app",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "migrate": "node scripts/migrate.mjs",
+    "hash-password": "node scripts/hash-password.mjs",
+    "smoke": "node scripts/smoke.mjs"
+  },
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "express": "^4.21.2",
+    "pg": "^8.13.1"
+  }
+}
