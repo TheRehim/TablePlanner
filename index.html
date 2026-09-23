@@ -362,14 +362,32 @@
             color: #495057;
         }
 
+        /* As wide as the window allows. */
+        @media (min-width: 768px) {
+            .notes-dialog {
+                max-width: calc(100vw - 2rem);
+                margin-left: 1rem;
+                margin-right: 1rem;
+            }
+        }
+
         .notes-sort-wrap {
             width: 150px;
+        }
+
+        .notes-search {
+            width: 240px;
+        }
+
+        .note-block mark {
+            padding: 0 .1rem;
+            background: #fde68a;
         }
 
         /* Blocks flow like the note columns beside the seating sheet. */
         .note-blocks {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
             gap: 1rem;
             align-items: start;
         }
@@ -450,6 +468,20 @@
             background: #f1f3f5;
             font-weight: 600;
             font-size: .85rem;
+        }
+
+        /* Tip picker inside a block: room for the name, and a dropdown wider
+           than the cell so long type names are readable. */
+        .note-block .select2-container {
+            min-width: 120px;
+        }
+
+        #notesModal .select2-dropdown {
+            min-width: 200px;
+        }
+
+        #notesModal .select2-results__option {
+            white-space: nowrap;
         }
 
         .note-type-none {
@@ -1152,13 +1184,10 @@
          seating sheet. Each block has an optional title and rows with the
          same shape as a masa (Ad / Tip / Say), but nothing here is counted. -->
     <div class="modal fade" id="notesModal" tabindex="-1">
-        <div class="modal-dialog modal-xl modal-fullscreen-md-down modal-dialog-scrollable">
+        <div class="modal-dialog modal-xl notes-dialog modal-fullscreen-md-down modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header notes-header">
-                    <div>
-                        <h5 class="modal-title fs-6 fw-bold mb-0"><i class="fa-solid fa-note-sticky me-1 text-warning"></i> Qeyd Masası</h5>
-                        <div class="small text-muted">Heç bir hesablamaya daxil deyil — nə masa, nə nəfər, nə də qonaq siyahısına.</div>
-                    </div>
+                    <h5 class="modal-title fs-6 fw-bold mb-0"><i class="fa-solid fa-note-sticky me-1 text-warning"></i> Qeyd Masası</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body notes-body">
@@ -1168,7 +1197,11 @@
                             <span class="notes-stat" id="notesStatRows"><strong>0</strong> sətr</span>
                             <span class="notes-stat" id="notesStatPeople"><strong>0</strong> nəfər</span>
                         </div>
-                        <div class="d-flex gap-2 align-items-center">
+                        <div class="d-flex gap-2 align-items-center flex-wrap">
+                            <div class="input-group input-group-sm notes-search">
+                                <span class="input-group-text bg-white"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+                                <input type="search" id="notesSearch" class="form-control" placeholder="Ada görə axtar…" autocomplete="off">
+                            </div>
                             <div class="notes-sort-wrap">
                                 <select id="notesSortSelect" class="form-select form-select-sm">
                                     <option value="">Əlavə sırası</option>
@@ -2697,6 +2730,11 @@
         let notesSort = { key: null, dir: 'asc' };
         let noteEditId = null;        // row being edited inline
         let noteTitleEditId = null;   // block whose title is being edited
+        let notesSearch = '';         // lower-cased name search, '' = show all
+
+        function noteMatches(r) {
+            return !notesSearch || r.name.toLowerCase().includes(notesSearch);
+        }
 
         function isNoteBlock(n) {
             return !!n && typeof n === 'object' && Array.isArray(n.items);
@@ -2828,7 +2866,7 @@
         function initTypeSelect2($el, $parent) {
             $el.select2({
                 theme: 'bootstrap-5', width: '100%', dropdownParent: $parent,
-                minimumResultsForSearch: 6,
+                minimumResultsForSearch: 6, dropdownAutoWidth: true,
                 templateResult: typeOptionTemplate, templateSelection: typeOptionTemplate
             });
         }
@@ -2848,7 +2886,7 @@
                 </tr>`;
             }
             return `<tr class="note-row" data-note-id="${r.id}">
-                <td>${escapeHtml(r.name)}</td>
+                <td>${highlightName(r.name, notesSearch)}</td>
                 <td>${typeBadge(r.type)}</td>
                 <td class="text-center"><span class="note-amount">${Number(r.amount) || 1}</span></td>
                 <td class="note-actions">
@@ -2872,10 +2910,10 @@
                 </div>
                 <table class="table table-sm align-middle">
                     <thead><tr>
-                        <th>Ad</th><th style="width:30%">Tip</th><th class="text-center" style="width:54px">Say</th><th></th>
+                        <th>Ad</th><th style="width:38%">Tip</th><th class="text-center" style="width:58px">Say</th><th></th>
                     </tr></thead>
                     <tbody>
-                        ${sortNoteList(b.items).map(noteRowHtml).join('')}
+                        ${sortNoteList(b.items.filter(noteMatches)).map(noteRowHtml).join('')}
                         <tr class="note-add-row" data-block-id="${b.id}">
                             <td><input type="text" class="form-control form-control-sm note-new-name" placeholder="Ad…" maxlength="200"></td>
                             <td><select class="form-select form-select-sm note-new-type">${noteTypeOptions(lastType)}</select></td>
@@ -2905,7 +2943,18 @@
                         <i class="fa-solid fa-plus me-1"></i> İlk bloku yarat</button></div>
                 </div>`);
             } else {
-                $host.html(blocks.map(noteBlockHtml).join(''));
+                // Searching hides blocks with no matching row. Without a search
+                // every block is shown, including empty ones - `[].some()` is
+                // false, so filtering unconditionally made a newly created block
+                // disappear the moment it was added.
+                const shown = notesSearch
+                    ? blocks.filter(b => b.items.some(noteMatches))
+                    : blocks;
+                $host.html(shown.length
+                    ? shown.map(noteBlockHtml).join('')
+                    : `<div class="note-empty text-center py-5 small" style="grid-column: 1 / -1">
+                        <i class="fa-solid fa-magnifying-glass fa-2x d-block mb-2 opacity-50"></i>
+                        "${escapeHtml(notesSearch)}" adlı qeyd tapılmadı.</div>`);
                 $host.find('select').each(function () { initTypeSelect2($(this), $('#notesModal')); });
             }
 
@@ -3662,6 +3711,8 @@
 
             $('#btnOpenNotes').on('click', function () {
                 noteEditId = null; noteTitleEditId = null;
+                notesSearch = '';
+                $('#notesSearch').val('');
                 clearError($('#noteError'));
                 renderNotes();
                 showModal('notesModal');
@@ -3673,6 +3724,12 @@
             }).on('change', function () {
                 const [key, dir] = String($(this).val() || '').split(':');
                 notesSort = key ? { key: key, dir: dir } : { key: null, dir: 'asc' };
+                renderNotes();
+            });
+
+            $('#notesSearch').on('input', function () {
+                notesSearch = $(this).val().trim().toLowerCase();
+                noteEditId = null; noteTitleEditId = null;
                 renderNotes();
             });
 
@@ -3693,6 +3750,8 @@
 
             /* ----- Blocks ----- */
             function addNoteBlock() {
+                // A new, empty block would be hidden by an active search.
+                if (notesSearch) { notesSearch = ''; $('#notesSearch').val(''); }
                 const id = newId();
                 ensureNotes().push({ id: id, title: '', items: [] });
                 noteEditId = null; noteTitleEditId = null;

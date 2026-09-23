@@ -262,6 +262,53 @@ exact rather than inferred, in both the board and flat layouts.
 
 ---
 
+## Remaining work
+
+Per the latest pass, this is essentially all that is left.
+
+### 1. Auth — mostly built, not finished
+
+Done: one shared password (scrypt, `:`-separated), signed `httpOnly` cookie,
+`requireEditor` on every write, login rate limited, anonymous `PUT` rejected
+with 401. Verified from a browser, not just by reading.
+
+Still to do:
+
+- [ ] Choose the real password — `cd server && npm run hash-password`. The
+      plaintext never leaves the machine that runs it; only the hash is stored.
+- [ ] `COOKIE_SECURE=true` once it is behind TLS, or the cookie is never stored.
+- [ ] Session length: currently 14 days (`SESSION_HOURS`). Confirm or change.
+- [ ] Put the secrets in a Sealed Secret for the cluster, never plaintext.
+
+### 2. Public / auth-only switch
+
+A single setting deciding whether anonymous visitors may **read** at all:
+
+| mode | anonymous | editor |
+|---|---|---|
+| `public` (today's behaviour) | read, filter, print | everything |
+| `private` | nothing — login page only | everything |
+
+- [ ] Store it in the state document (`settings.visibility`) so it survives
+      restarts and is editable in the app, not baked into an env var.
+- [ ] **Enforce it server-side.** In `private`, `GET /api/state` must return
+      401 for anonymous callers and `GET /` must serve a login page instead of
+      the planner. Hiding the UI is not enough — the data is what has to be
+      refused, exactly as with writes today.
+- [ ] Toggle in the UI, editor only.
+- [ ] Default to `private`. The guest list holds real names, so the safe
+      default is closed, opened deliberately.
+- [ ] Only then is the Ingress (Phase 7) safe to apply.
+
+### 3. Standing UI rule
+
+- [x] **No native browser dialogs.** No `alert()`, `confirm()` or `prompt()` —
+      everything goes through a Bootstrap modal (`askConfirm`) or inline
+      confirmation in the row. Currently zero native dialogs remain; keep it
+      that way for anything added later.
+
+---
+
 ## Open questions
 
 - Single editor, or several at once? The plan assumes one. Several would mean the `409`
