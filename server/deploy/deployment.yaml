@@ -30,7 +30,7 @@ spec:
         - name: app
           # NEVER :latest - box rule. Take the digest from the Actions run
           # summary (.github/workflows/docker.yml prints it) and pin it here.
-          image: ghcr.io/therehim/tableplanner@sha256:REPLACE_WITH_DIGEST
+          image: ghcr.io/therehim/tableplanner@sha256:ee069d3281e3266e27c0d7c7e18bdd5dfe4f083b1113ac603f69f1b70a06c587
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
