@@ -39,9 +39,14 @@ Three ways. Pick one.
 Pushing to `main` builds and publishes automatically
 (`.github/workflows/docker.yml`). No registry password ever leaves a laptop.
 
-The package starts **private**. Either make it public once —
-*GitHub → Packages → tableplanner → Package settings → Change visibility* — or
-keep it private and create a pull secret:
+**The package is already public** — confirmed by pulling it with no
+credentials — so the box needs no pull secret:
+
+```bash
+docker pull ghcr.io/therehim/tableplanner@sha256:ee069d3281e3266e27c0d7c7e18bdd5dfe4f083b1113ac603f69f1b70a06c587
+```
+
+If you ever make it private, create a pull secret and reference it:
 
 ```bash
 kubectl -n lab create secret docker-registry ghcr \
@@ -50,10 +55,12 @@ kubectl -n lab create secret docker-registry ghcr \
   --docker-password='<a PAT with read:packages>'
 ```
 
-Then add `imagePullSecrets: [{name: ghcr}]` to the pod spec.
+then add `imagePullSecrets: [{name: ghcr}]` to the pod spec.
 
-Take the digest from the Actions run summary and pin it in
-`server/deploy/deployment.yaml`. **Never `:latest`** — box rule.
+`server/deploy/deployment.yaml` is already pinned to the digest above.
+After each push to main, take the new digest from the Actions run summary
+and update it. **Never `:latest`** — box rule.
+
 
 ### b. Build on the box
 
