@@ -43,7 +43,7 @@ Pushing to `main` builds and publishes automatically
 credentials — so the box needs no pull secret:
 
 ```bash
-docker pull ghcr.io/therehim/tableplanner@sha256:e4051efb9f31485f64551576433d141373f8aaa7c3de92e72c25235be55103db
+docker pull ghcr.io/therehim/tableplanner@sha256:ffb9387d4d591259f1cc1d33b73406ba48decd2afb52700be76158c1660b9e07
 ```
 
 If you ever make it private, create a pull secret and reference it:
@@ -57,9 +57,23 @@ kubectl -n lab create secret docker-registry ghcr \
 
 then add `imagePullSecrets: [{name: ghcr}]` to the pod spec.
 
-`server/deploy/deployment.yaml` is already pinned to the digest above.
-After each push to main, take the new digest from the Actions run summary
-and update it. **Never `:latest`** — box rule.
+**The digest in `deployment.yaml` will be out of date.** The image labels
+embed the commit SHA, so every push to main publishes a new digest and any
+value committed to the repo is stale the moment it lands. Resolve the current
+one and deploy that:
+
+```bash
+sh server/scripts/current-digest.sh
+# ghcr.io/therehim/tableplanner@sha256:...
+
+kubectl -n lab set image deploy/tableplanner \
+  app=$(sh server/scripts/current-digest.sh) \
+  migrate=$(sh server/scripts/current-digest.sh)
+```
+
+For something that does not move, cut a tag — `git tag v1.0.0 && git push
+--tags` — and pin `sh server/scripts/current-digest.sh v1.0.0`, which stays
+fixed. **Never `:latest`** — box rule.
 
 
 ### b. Build on the box

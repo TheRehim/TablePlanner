@@ -31,7 +31,7 @@ spec:
       # while every read fails. Migrations are idempotent, so re-running is safe.
       initContainers:
         - name: migrate
-          image: ghcr.io/therehim/tableplanner@sha256:e4051efb9f31485f64551576433d141373f8aaa7c3de92e72c25235be55103db
+          image: ghcr.io/therehim/tableplanner@sha256:ffb9387d4d591259f1cc1d33b73406ba48decd2afb52700be76158c1660b9e07
           command: ["node", "scripts/migrate.mjs"]
           envFrom:
             - secretRef:
@@ -49,9 +49,14 @@ spec:
               mountPath: /tmp
       containers:
         - name: app
-          # NEVER :latest - box rule. Take the digest from the Actions run
-          # summary (.github/workflows/docker.yml prints it) and pin it here.
-          image: ghcr.io/therehim/tableplanner@sha256:e4051efb9f31485f64551576433d141373f8aaa7c3de92e72c25235be55103db
+          # NEVER :latest - box rule.
+          #
+          # This pin WILL be out of date: the image labels embed the commit
+          # SHA, so every push to main publishes a new digest and any value
+          # committed here is stale immediately. Resolve the real one before
+          # deploying:
+          #     sh server/scripts/current-digest.sh
+          image: ghcr.io/therehim/tableplanner@sha256:ffb9387d4d591259f1cc1d33b73406ba48decd2afb52700be76158c1660b9e07
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000

@@ -25,10 +25,14 @@ transaction.
 
 - Repo: <https://github.com/TheRehim/TablePlanner> (**public**)
 - Image: `ghcr.io/therehim/tableplanner` — **public**, no pull secret needed
-- Pinned digest:
-  `sha256:e4051efb9f31485f64551576433d141373f8aaa7c3de92e72c25235be55103db`
-- CI: pushing to `main` rebuilds and publishes; the run summary prints the new
-  digest to pin in `server/deploy/deployment.yaml`.
+- CI: pushing to `main` rebuilds and publishes.
+- **Do not trust the digest committed in `deployment.yaml`.** Image labels
+  embed the commit SHA, so every push publishes a new digest and the committed
+  value is stale immediately. Resolve the real one first:
+
+  ```bash
+  sh server/scripts/current-digest.sh          # or: ... v1.0.0 for a tag
+  ```
 
 ---
 
