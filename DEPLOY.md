@@ -43,7 +43,7 @@ Pushing to `main` builds and publishes automatically
 credentials — so the box needs no pull secret:
 
 ```bash
-docker pull ghcr.io/therehim/tableplanner@sha256:ee069d3281e3266e27c0d7c7e18bdd5dfe4f083b1113ac603f69f1b70a06c587
+docker pull ghcr.io/therehim/tableplanner@sha256:e4051efb9f31485f64551576433d141373f8aaa7c3de92e72c25235be55103db
 ```
 
 If you ever make it private, create a pull secret and reference it:

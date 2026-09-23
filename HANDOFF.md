@@ -26,7 +26,7 @@ transaction.
 - Repo: <https://github.com/TheRehim/TablePlanner> (**public**)
 - Image: `ghcr.io/therehim/tableplanner` — **public**, no pull secret needed
 - Pinned digest:
-  `sha256:ee069d3281e3266e27c0d7c7e18bdd5dfe4f083b1113ac603f69f1b70a06c587`
+  `sha256:e4051efb9f31485f64551576433d141373f8aaa7c3de92e72c25235be55103db`
 - CI: pushing to `main` rebuilds and publishes; the run summary prints the new
   digest to pin in `server/deploy/deployment.yaml`.
 
