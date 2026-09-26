@@ -12,7 +12,7 @@ metadata:
   labels:
     app: tableplanner
 spec:
-  replicas: 1
+  replicas: 1             # live updates are broadcast in-process (src/live.js)
   strategy:
     type: Recreate          # single writer, single row: never two versions at once
   selector:

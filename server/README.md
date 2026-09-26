@@ -72,6 +72,7 @@ and there is a test for exactly that.
 | `POST /api/login` | public | rate limited, 10/min per IP |
 | `POST /api/logout` | — | |
 | `GET /api/me` | public | `{canEdit}` |
+| `GET /api/events` | public | live updates (Server-Sent Events): `{version, visibility}` after every write — never the data; pages re-read `/api/state` |
 | `GET /api/revisions` | editor | recent history |
 | `GET /healthz` | public | liveness — **never touches the DB** |
 | `GET /readyz` | public | readiness — checks Postgres |

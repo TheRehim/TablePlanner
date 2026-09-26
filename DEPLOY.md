@@ -206,14 +206,20 @@ cd server
 BASE=http://localhost:3000 PASSWORD='<the password>' npm run smoke
 ```
 
-25 checks: auth, cookie tampering, the anonymous-write boundary, optimistic
-concurrency, visibility in both directions, and that a settings-less write
-fails closed.
+31 checks: auth, cookie tampering, the anonymous-write boundary, optimistic
+concurrency, visibility in both directions, that a settings-less write fails
+closed, and that live updates are pushed and never carry guest data.
 
 Then confirm by hand, from a **logged-out** browser:
 
 - private → the login card, and `GET /api/state` returns 401
 - public → the board is readable but every write is refused
+- **live**: open the app in two windows (one logged in), change something in
+  one — the other shows it within a second, without a refresh. The badge
+  bottom-left says "Canlı deyil" if the live stream is down.
+- **live through the proxy** (once there is an Ingress): repeat that over the
+  real domain. If the change only shows after a refresh, something in front is
+  buffering `GET /api/events`.
 
 ---
 
@@ -250,7 +256,8 @@ there rather than from a backup.
 |---|---|
 | liveness | `/healthz` — deliberately does **not** touch the database, so a DB blip cannot get the pod killed in a loop |
 | readiness | `/readyz` — checks Postgres, so traffic stops while the DB is down |
-| shutdown | SIGTERM drains connections, then closes the pool; 10s hard cap |
+| shutdown | SIGTERM ends the live streams (pages reconnect by themselves), drains connections, closes the pool; 10s hard cap |
+| live updates | `GET /api/events` (Server-Sent Events), in-process broadcast — **correct only at `replicas: 1`**. Capped at 500 streams, 20 per client IP |
 | filesystem | read-only, with an `emptyDir` at `/tmp` — without it the pod builds fine and crashes at runtime |
 | user | non-root (uid 1000) |
 | memory | ~18 MiB idle, limit 192Mi |

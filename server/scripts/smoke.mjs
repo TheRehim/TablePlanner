@@ -35,6 +35,33 @@ async function call(method, path, body, useCookie = true) {
     return { status: res.status, json, text };
 }
 
+// Open GET /api/events anonymously and collect every `state` event it sends.
+async function listen() {
+    const controller = new AbortController();
+    const res = await fetch(BASE + '/api/events', { signal: controller.signal });
+    const events = [];
+    (async () => {
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = '';
+        try {
+            for (;;) {
+                const { value, done } = await reader.read();
+                if (done) break;
+                buf += decoder.decode(value, { stream: true });
+                let i;
+                while ((i = buf.indexOf('\n\n')) >= 0) {
+                    const m = buf.slice(0, i).match(/^data: (.*)$/m);
+                    buf = buf.slice(i + 2);
+                    if (m) events.push(JSON.parse(m[1]));
+                }
+            }
+        } catch { /* aborted */ }
+    })();
+    return { res, events, close: () => controller.abort() };
+}
+const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+
 /* ------------------------------------------------------------- always on */
 let r = await call('GET', '/healthz', undefined, false);
 ok('GET /healthz is 200', r.status === 200 && r.json?.ok === true, 'status ' + r.status);
@@ -107,11 +134,29 @@ if (DB) {
         // Keep whatever visibility the list already had.
         next.settings = current.data.settings || { visibility: 'private' };
 
+        // Live updates: an anonymous page must hear about the write, and
+        // must hear only the version - never the guest data itself.
+        const live = await listen();
+        ok('live stream opens', live.res.status === 200 &&
+           /text\/event-stream/.test(live.res.headers.get('content-type') || ''),
+           'status ' + live.res.status);
+        await pause(200);
+        ok('live stream sends the current version on connect',
+           live.events[0]?.version === current.version, JSON.stringify(live.events[0]));
+
         r = await call('PUT', '/api/state', { data: next, version: current.version, action: 'smoke' });
         ok('editor PUT accepted', r.status === 200 && r.json?.ok === true, 'status ' + r.status);
         const newVersion = r.json?.version;
         ok('version incremented', newVersion === current.version + 1,
            `${current.version} -> ${newVersion}`);
+
+        await pause(300);
+        const announced = live.events.find(e => e.version === newVersion);
+        ok('write is pushed live', !!announced, JSON.stringify(live.events));
+        ok('live event carries no guest data',
+           !!announced && Object.keys(announced).sort().join() === 'version,visibility',
+           JSON.stringify(announced));
+        live.close();
 
         // Writing again with the OLD version must conflict, not clobber.
         r = await call('PUT', '/api/state', { data: next, version: current.version, action: 'stale' });

@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 import { getState, putState, ping, listRevisions, getRevision, pool, visibilityOf } from './db.js';
 import { isEditor, login, logout, requireEditor, makeRateLimiter } from './auth.js';
+import { eventsHandler, broadcast, noteState, closeAll } from './live.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -62,6 +63,7 @@ app.get('/api/state', async (req, res) => {
     try {
         const state = await getState();
         const visibility = visibilityOf(state.data);
+        noteState(state.version, visibility);
 
         // Private means the DATA is refused, not merely hidden in the page.
         // Anyone can edit the markup; only this can actually keep the guest
@@ -117,11 +119,22 @@ app.put('/api/state', requireEditor, async (req, res) => {
             });
         }
         res.json({ ok: true, version: result.version });
+        // Every other open page re-fetches. Only the number goes out; each
+        // page reads the data through GET /api/state and its access check.
+        broadcast(result.version, visibilityOf(data));
     } catch (err) {
         console.error('[api] PUT /api/state failed:', err.message);
         res.status(500).json({ error: 'server_error', message: 'Yadda saxlanmadı.' });
     }
 });
+
+/* -------------------------------------------------------------------- live */
+// Open to anonymous callers on purpose: a locked page must learn when the list
+// is opened. It only ever carries { version, visibility } - see live.js.
+app.get('/api/events', eventsHandler(async () => {
+    const state = await getState();
+    return { version: state.version, visibility: visibilityOf(state.data) };
+}));
 
 /* --------------------------------------------------------------- revisions */
 app.get('/api/revisions', requireEditor, async (req, res) => {
@@ -165,6 +178,7 @@ const server = app.listen(PORT, () => {
 for (const signal of ['SIGTERM', 'SIGINT']) {
     process.on(signal, () => {
         console.log(`[tableplanner] ${signal} received, shutting down`);
+        closeAll();
         server.close(async () => {
             try { await pool.end(); } catch { /* already closed */ }
             process.exit(0);

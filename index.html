@@ -1642,7 +1642,13 @@
             saving: false,
             pending: null,      // action name waiting to be flushed
             timer: null,
-            failed: false
+            failed: false,
+            stream: null,       // EventSource to /api/events
+            live: null,         // null = connecting, true = streaming, false = dropped
+            remoteVersion: 0,   // newest version the server has announced
+            reset: false,       // server came back BEHIND us (database reset/restored)
+            fresh: false,       // next event is the first after a (re)connect
+            applying: false
         };
 
         function setSyncBadge(text, cls, title) {
@@ -1683,6 +1689,12 @@
                 setSyncBadge('Yadda saxlanmadı', 'bg-danger', 'Serverə yazmaq alınmadı.');
             } else if (SERVER.saving || SERVER.pending) {
                 setSyncBadge('Saxlanılır…', 'bg-info text-dark');
+            } else if (SERVER.live === false) {
+                setSyncBadge('Canlı deyil', 'bg-warning text-dark',
+                    'Serverlə canlı əlaqə kəsilib — yenidən qoşulur. Başqa yerdəki dəyişikliklər qoşulan kimi gələcək.');
+            } else if (!SERVER.locked && (SERVER.reset || SERVER.remoteVersion > SERVER.version)) {
+                setSyncBadge('Yeni dəyişiklik var', 'bg-warning text-dark',
+                    'Başqa yerdə dəyişiklik edilib — açıq pəncərə bağlanan kimi yüklənəcək.');
             } else {
                 setSyncBadge('Saxlanıldı', 'bg-success', 'Bütün dəyişikliklər serverdədir.');
             }
@@ -1745,6 +1757,7 @@
                 SERVER.saving = false;
                 refreshSyncUi();
                 if (SERVER.pending) setTimeout(flushSave, 100);
+                else applyRemote();   // anything announced while this was saving
             }
         }
 
@@ -1775,6 +1788,13 @@
                     SERVER.online = true;
                     SERVER.canEdit = false;
                     SERVER.visibility = 'private';
+                    // The list can be closed while a viewer has it open. Drop
+                    // what they had, not just cover it.
+                    weddingData.tables = [];
+                    weddingData.notes = [];
+                    readOnly = true;
+                    applyReadOnlyMode();
+                    renderApp();
                     showLockScreen(true, why.message);
                     refreshSyncUi();
                     return;
@@ -1802,6 +1822,7 @@
             ensureNotes();   // older note shapes become blocks, with ids above the counter
 
             SERVER.version = body.version;
+            SERVER.reset = false;
             SERVER.canEdit = !!body.canEdit;
             SERVER.visibility = body.visibility === 'public' ? 'public' : 'private';
             SERVER.failed = false;
@@ -1811,11 +1832,85 @@
             refreshSyncUi();
         }
 
+        /* ---------- Live updates ----------
+           The server pushes { version, visibility } over Server-Sent Events
+           after every write; this page then re-reads /api/state, so what it
+           may see is still decided there. No polling, no refresh button. */
+        function openLiveStream() {
+            if (!window.EventSource || SERVER.stream) return;
+            const es = new EventSource('/api/events');
+            SERVER.stream = es;
+            es.addEventListener('state', onRemoteState);
+            es.onopen = function () { SERVER.live = true; SERVER.fresh = true; refreshSyncUi(); };
+            es.onerror = function () {
+                SERVER.live = false;
+                refreshSyncUi();
+                // The browser reconnects by itself after a dropped stream, but
+                // gives up for good if the server answered with an error (503
+                // while restarting or busy). Then it is up to us.
+                if (es.readyState === EventSource.CLOSED) {
+                    SERVER.stream = null;
+                    setTimeout(openLiveStream, 5000);
+                }
+            };
+        }
+
+        function onRemoteState(ev) {
+            let msg;
+            try { msg = JSON.parse(ev.data); } catch { return; }
+            const v = Number(msg.version) || 0;
+            // Versions only climb, so a lower one on reconnect means the
+            // server's data was reset underneath us: take the server's copy.
+            if (SERVER.fresh && v < SERVER.version) {
+                SERVER.reset = true;
+                SERVER.remoteVersion = v;
+            } else {
+                SERVER.remoteVersion = Math.max(SERVER.remoteVersion, v);
+            }
+            SERVER.fresh = false;
+            SERVER.live = true;
+            // Behind the lock screen the only news worth a request is that
+            // the list was opened; anything else would just be refused again.
+            if (SERVER.locked && msg.visibility !== 'public') return refreshSyncUi();
+            applyRemote();
+        }
+
+        // Would re-rendering right now throw away something the editor is
+        // doing? Every inline input (types, notes) and every form lives in a
+        // modal, so an open modal is the signal. A viewer has nothing to lose.
+        function editorIsBusy() {
+            return SERVER.canEdit && !!document.querySelector('.modal.show');
+        }
+
+        async function applyRemote() {
+            if (!SERVER.locked && !SERVER.reset && SERVER.remoteVersion <= SERVER.version) return refreshSyncUi();
+            if (SERVER.applying) return;
+            // An unsaved or failed local change must not be overwritten here:
+            // its save either lands (and the version catches up) or gets a 409
+            // and the conflict prompt. An open modal waits until it closes.
+            if (SERVER.saving || SERVER.pending || SERVER.failed || editorIsBusy()) {
+                return refreshSyncUi();
+            }
+            const target = SERVER.remoteVersion;
+            SERVER.applying = true;
+            try {
+                await loadFromServer();
+            } catch {
+                // Leave it: the next announcement, or the reconnect, retries.
+            } finally {
+                SERVER.applying = false;
+                refreshSyncUi();
+            }
+            // Only go again if something newer arrived during the fetch.
+            if (SERVER.remoteVersion > target) applyRemote();
+        }
+
         async function bootFromServer() {
             try {
                 await loadFromServer();
                 SERVER.online = true;
                 refreshSyncUi();
+                openLiveStream();
             } catch {
                 // No API: stay exactly as the standalone file behaves.
                 showLockScreen(false);
@@ -3321,6 +3416,10 @@
             renderApp();
             // Async: if no API answers, the app simply stays local-only.
             bootFromServer();
+            // A change that arrived while a modal was open is applied on close.
+            $(document).on('hidden.bs.modal', '.modal', function () {
+                if (SERVER.stream) applyRemote();
+            });
 
             // Shared by the modal and the lock screen.
             async function attemptLogin(password, $err) {
