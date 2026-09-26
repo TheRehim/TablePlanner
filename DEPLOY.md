@@ -206,7 +206,7 @@ cd server
 BASE=http://localhost:3000 PASSWORD='<the password>' npm run smoke
 ```
 
-31 checks: auth, cookie tampering, the anonymous-write boundary, optimistic
+32 checks: auth, cookie tampering, the anonymous-write boundary, optimistic
 concurrency, visibility in both directions, that a settings-less write fails
 closed, and that live updates are pushed and never carry guest data.
 

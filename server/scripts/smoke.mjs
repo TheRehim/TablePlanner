@@ -69,6 +69,13 @@ ok('GET /healthz is 200', r.status === 200 && r.json?.ok === true, 'status ' + r
 r = await call('GET', '/', undefined, false);
 ok('GET / serves the app', r.status === 200 && /Toy Masa/.test(r.text), 'status ' + r.status);
 
+{
+    const res = await fetch(BASE + '/favicon.ico');
+    ok('GET /favicon.ico serves the icon', res.status === 200 &&
+       /icon/.test(res.headers.get('content-type') || ''),
+       `status ${res.status}, ${res.headers.get('content-type')}`);
+}
+
 r = await call('GET', '/api/me', undefined, false);
 ok('anonymous cannot edit', r.status === 200 && r.json?.canEdit === false, JSON.stringify(r.json));
 

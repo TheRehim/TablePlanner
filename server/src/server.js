@@ -10,10 +10,11 @@ import { eventsHandler, broadcast, noteState, closeAll } from './live.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // The app itself is the single index.html at the repo root; in the container it
-// is copied to /app/public. Only that one file is served - the repo is not
-// exposed as a static directory.
+// is copied to /app/public. Only that file and its icon are served - the repo
+// is not exposed as a static directory.
 const PUBLIC_DIR = process.env.PUBLIC_DIR || path.resolve(__dirname, '../..');
 const INDEX_FILE = path.join(PUBLIC_DIR, 'index.html');
+const FAVICON_FILE = path.join(PUBLIC_DIR, 'favicon.ico');
 
 const PORT = Number(process.env.PORT || 3000);
 
@@ -160,6 +161,7 @@ app.get('/api/revisions/:id', requireEditor, async (req, res) => {
 /* --------------------------------------------------------------------- app */
 app.get('/', (req, res) => res.sendFile(INDEX_FILE));
 app.get('/index.html', (req, res) => res.sendFile(INDEX_FILE));
+app.get('/favicon.ico', (req, res) => res.sendFile(FAVICON_FILE, { maxAge: '7d' }));
 
 app.use((req, res) => res.status(404).json({ error: 'not_found' }));
 

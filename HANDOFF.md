@@ -19,8 +19,9 @@ Last updated 2026-09-27, after adding live updates.
 
 ## What this is
 
-A wedding seating planner. One page (`index.html`, Azerbaijani UI) plus a small
-Express API in `server/`. The whole dataset is a **single JSONB document** —
+A wedding seating planner. One page (`index.html`, Azerbaijani UI, with its
+icon `favicon.ico` beside it) plus a small Express API in `server/`. Those two
+files are all the server serves statically; the repo is not exposed. The whole dataset is a **single JSONB document** —
 deliberately, because there is one editor and `moveGuest`/`switchGuests` each
 touch two masas at once, which as a single-document write needs no cross-row
 transaction.
@@ -51,8 +52,8 @@ change within about a second, with no refresh. See "Live updates" below.
 - Image builds, runs non-root, no secrets baked in.
 - `docker compose up --build` → Postgres + app, migrations applied, data **and
   its version number** survive restarting **both** containers.
-- **31 smoke checks pass** (`cd server && BASE=... PASSWORD=... npm run smoke`),
-  including the 4 live-update checks.
+- **32 smoke checks pass** (`cd server && BASE=... PASSWORD=... npm run smoke`),
+  including the 4 live-update checks and the favicon.
 - Azerbaijani text round-trips through API and Postgres (`npm run utf8check`).
 - Auth: one shared password (scrypt), signed httpOnly cookie.
 - Visibility: `private` (default) or `public`, stored in the document,
