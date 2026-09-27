@@ -18,6 +18,10 @@ DATABASE_URL=memory: npm start
 Open <http://localhost:3000>. **Memory mode keeps nothing** — everything is lost
 when the process stops. It is for a quick look, never for real planning.
 
+The Claude desktop app's preview (`.claude/launch.json`, "tableplanner-memory")
+runs the same thing on port 3999 from `server/.env.memory` — a copy of `.env`
+with `DATABASE_URL=memory:` and `PORT=3999`. It is gitignored; create it once.
+
 ### 2. Docker Compose (self-contained, with Postgres)
 
 ```bash
