@@ -6,9 +6,8 @@ As of writing, **nothing had been deployed to the server** — check
 `kubectl get deploy -A | grep tableplanner` before assuming either way; the
 steps differ (see "Do this").
 
-Last updated 2026-09-27, for the invitation-list release (invite tick per
-guest, "Dəvətnamə siyahısı", Arial, coloured masa title bars, quieter bottom
-bar).
+Last updated 2026-09-27, for the release with PDF sharing, drag undo and
+edge auto-scroll, list column choice and the phone layout.
 
 ---
 
@@ -49,23 +48,23 @@ single-document write needs no cross-row transaction.
 ## What is in this version
 
 Everything since the first handoff, newest first. "new" is this release;
-"prev" shipped in the previous image (`6496aab`); "earlier" before that.
+"prev" shipped in the previous image (`73b6bb6`); "earlier" before that.
 
 | | What | Where |
 |---|---|---|
-| **new** | **Invitation tick** on every guest row, left of edit (editors only). Saved as `invited: true/false` on the guest; carried through JSON export and import (older exports read as not invited). Moves with the guest when dragged. | `setGuestInvited()` |
-| **new** | **"Dəvətnamə siyahısı"** button (with a ticked/total badge) opens the invitation list: who has one / who has not / everyone, A→Z, tickable in place, printable. | `renderInviteList()` |
-| **new** | **Arial everywhere** (icons keep Font Awesome). Guest names 15px. | `index.html` |
-| **new** | **Masa title bar** is bold and solid capacity colour (blue free seats, dark exactly full, red over), white text; square corners; edit/delete sit on white with their own hover colours (they used to turn invisible on hover). | `index.html` |
-| **new** | **Quieter bottom bar**: no page title, no "Saxlanıldı" (the status badge now appears only when something is wrong), stats cut to `N masa \| seated / capacity nəfər \| boş yer or artıq \| aşan masa` with red only for over-capacity, buttons grouped with `\|`, only the add buttons and the drag toggle coloured. The "Sonuncu masa…" hint moved to the Yeni Masa button's tooltip. | `index.html` |
-| prev | Drag-and-drop on/off switch (phones start off, remembered per device); drag only moves; ⇄ button removed from rows (modal and `switchGuestsBetween()` kept, unwired); 13px badges capped at 80px; no bold. | `setDragEnabled()`, `initDragDrop()` |
-| prev | Dense board, data-driven card widths filling each row, drag-and-drop (jQuery UI), smoke/utf8check overwrite guard. | `sizeTableColumns()`, `server/scripts/` |
-| earlier | Favicon at `/favicon.ico`; **live updates** over Server-Sent Events. | `server.js`, `src/live.js` |
+| **new** | **"PDF göndər"** in both lists (Siyahı, Dəvətnamə siyahısı): a real text PDF built in the browser (jsPDF + autotable, DejaVu Sans embedded for ə/ı/ş/ğ), then the device's **share sheet** (WhatsApp, Telegram, mail…) via Web Share; where that is unavailable it **downloads**. ~115 KB, ~0.2 s. Libraries + font (~1.8 MB) load only when a list opens. | `buildPdf()`, `shareOrDownload()` |
+| **new** | **List columns**: "Sütunlar: Tip / Say / Masa" toggles in both lists; Qonaq always shown; **default only Qonaq + Masa**. Siyahı gained a Say column (off by default). Screen, print and PDF follow the same choice; kept per device per list (`tp.cols.*`). | `visibleListColumns()` |
+| **new** | **Undo after drag-and-drop**: a notice bottom-right for 5 s, `"Name" → Masa N [Geri al]`, red if the drop went over capacity. Undo puts the guest back in the same masa and row; refuses (with a message) if the guest or masa changed meanwhile. Only the latest drop is undoable. | `showUndo()`, `undoMove()` |
+| **new** | **Auto-scroll while dragging** near the top/bottom bars: time-based, eases in, max ~450 px/s at the bar, keeps going while the pointer is still. | `autoScrollStep()` |
+| **new** | **Fix: a drop over the top/bottom bar no longer lands in the masa hidden behind it** (existed since drag-and-drop shipped). Nothing lights green over a bar. | `pointerOverBars()` |
+| **new** | Fix: the hovered masa's 3px capacity-coloured top border turns green with the rest (a red/blue strip stayed above the green header). | CSS `.drop-move` |
+| **new** | **Phone layout**: bottom bar = one stats line with a ▼ toggle that folds the buttons away (remembered), plus one row of icon-only buttons (65 px open, 29 px folded). **Filters start collapsed at phone size**; **drag starts off at phone size**. Phone and desktop sizes keep separate settings and switch live when the window crosses 768 px. | `index.html` |
+| prev | Invitation tick + "Dəvətnamə siyahısı", Arial, coloured masa title bars, quieter bottom bar. | `setGuestInvited()` |
+| prev | Drag on/off switch, move-only drag, ⇄ removed from rows, dense board, data-driven card widths, smoke/utf8check overwrite guard. | `initDragDrop()`, `sizeTableColumns()` |
+| earlier | Favicon; **live updates** over Server-Sent Events. | `server.js`, `src/live.js` |
 
 No server behaviour, schema, migration, env var or manifest changed in this
-release. The new `invited` flag lives inside the existing JSONB document —
-the API stores guests as the page sends them, so nothing server-side needed
-to change, and existing data simply reads as "not invited".
+release. It is a front-end release; deploying is an image swap.
 
 ---
 
@@ -76,25 +75,26 @@ to change, and existing data simply reads as "not invited".
 - Image builds, runs non-root, no secrets baked in.
 - Migrations applied; data **and its version number** survive restarting
   **both** containers.
-- **32 smoke checks pass** on an empty board (`npm run smoke`), and
-  `npm run utf8check` passes. On a board with masas smoke runs only its 14
-  read-only checks and skips the writes; utf8check refuses.
-- In the browser against that stack: Arial everywhere, names 15px, masa title
-  bold on the solid capacity colour with square corners, rows have tick + edit
-  + delete, "Saxlanıldı" not shown. Ticking a guest saved `invited: true` to
-  Postgres and the badge read 1/113; the invitation list showed that guest;
-  dragging the ticked guest to another masa saved one `moveGuest` and the tick
-  went with them.
-- In the dev preview: a real click on a tick saves it and does not start a
-  drag; the list's three views and ticking inside it work and update the
-  board; export → import keeps ticks and an older export imports as unticked;
-  a viewer of a public list sees no ticks, no row buttons, no drag toggle and
-  no invitation-list button; header edit/delete hover to light grey / light
-  red with dark icons; nothing clipped and the bottom bar stays on one line
-  at 1440 px.
-- From earlier releases, still true: the drag switch (phones start off,
-  remembered per device), move-only drops, a live update mid-drag waits for
-  the drop, row buttons click rather than drag.
+- **32 smoke checks pass** on an empty board, and `npm run utf8check` passes.
+  On a board with masas smoke runs only its 14 read-only checks and skips the
+  writes; utf8check refuses.
+- In the browser against that stack: a drag-and-drop move saved `moveGuest`,
+  the hovered card's top border was green, "Geri al" saved `undoMove` and put
+  the guest back in the same row; the list opened with Qonaq + Masa only; a
+  PDF built from the real image (fonts from jsDelivr), 112 KB. At phone size
+  (375 px): drag off, filters collapsed, bottom bar 65 px with one row of
+  icon-only buttons and the ▼ toggle.
+- On a separate dev server: the PDF rendered (via pdf.js) with correct
+  Azerbaijani letters, ✓ marks and A→Z order; all four send paths behave
+  (shared / sheet closed / share refused → download / no Web Share →
+  download); auto-scroll measured ~106 px/s half-way into the zone and ~443
+  px/s at the bar; a drop over the bottom bar moved nobody; undo refuses when
+  the guest moved meanwhile; column toggles drive screen, print and PDF;
+  desktop → phone size without reload switched to drag off + filters
+  collapsed, and each size kept its own choice after that.
+- From earlier releases, still true: invite ticks and list, live updates,
+  move-only drops, row buttons click rather than drag, viewers see no edit
+  controls.
 - Auth: one shared password (scrypt), signed httpOnly cookie.
 - Visibility `private` (default) / `public`, **enforced server-side** — private
   returns 401 from `GET /api/state` for anonymous callers.
@@ -109,8 +109,10 @@ to change, and existing data simply reads as "not invited".
 - **Touch dragging never tried on a real phone or tablet.** It is off by
   default on phones; a user who switches it on gets Touch Punch's touch-to-mouse
   mapping, which nobody has tried with a finger.
-- **On a phone the bottom bar wraps to several lines** and takes a large part
-  of the screen. Known, raised with the user, not changed yet.
+- **The PDF share sheet never seen on a real phone.** Web Share was exercised
+  with stand-ins only. It needs **HTTPS** (or localhost): over plain http from
+  another device the button downloads the PDF instead — correct, but not the
+  share sheet. Once the domain has TLS, try it from a phone.
 - **Open choice — 3 or 4 masas per row at 1440 px.** Arial is wider, so the
   narrowest card grew to ~367 px and a 1440 px window now fits 3 per row
   (was 4). The cause is one long guest name. The user was offered lowering the
@@ -212,11 +214,14 @@ utf8check run logs in. Several runs back to back get `429`. Wait a minute —
 restarting the pod also clears it, but that is not a reason to restart it.
 
 **The page loads its libraries from CDNs**: jQuery and jQuery UI from
-`code.jquery.com`; Bootstrap, Select2, Touch Punch from `cdn.jsdelivr.net`;
-Font Awesome from `cdnjs.cloudflare.com`. That was already true for jQuery,
-Bootstrap and Select2 — the new ones use the same hosts. If jQuery UI fails
-to load, drag-and-drop is simply off; editing a guest can still change their
-masa. Browsers need those hosts; the pod does not.
+`code.jquery.com`; Bootstrap, Select2, Touch Punch, **jsPDF, jspdf-autotable
+and the DejaVu Sans font files** from `cdn.jsdelivr.net`; Font Awesome from
+`cdnjs.cloudflare.com`. The PDF pieces load only when a list is opened. If
+jQuery UI fails to load, drag-and-drop is simply off; if the PDF pieces fail,
+"PDF göndər" shows an error and "Çap Et" still works. Browsers need those
+hosts; the pod does not. A Content-Security-Policy added later must allow
+`cdn.jsdelivr.net` for `script-src` **and** `connect-src` (the fonts are
+fetched).
 
 **Live updates assume one replica.** The broadcast is in-process
 (`server/src/live.js`) — correct with `replicas: 1` + `Recreate`, as deployed.
@@ -273,6 +278,13 @@ from name / type / amount only will silently untick everyone.
   does nothing while it is off, for viewers, or if jQuery UI did not load.
 - `setGuestInvited()` is the only place the tick changes — the row checkbox
   and the invitation list both call it, and it writes through `commit()`.
+- `undoMove()` writes through `commit('undoMove')` like any other change and
+  only acts if the guest is still where the drop left them.
+- Per-device settings live in `localStorage`: `tp.dragEnabled.phone` /
+  `.desktop`, `tp.filtersOpen.phone`, `tp.bottomBarCollapsed`, `tp.cols.*`.
+  Phone vs desktop is decided by width (under 768 px) or a phone browser, and
+  re-applied when the window crosses that line. They are conveniences only —
+  nothing about the data lives there.
 - `sizeTableColumns()` measures from **all** guests, not the filtered ones, so
   filtering never makes cards jump. It runs on every render and again when the
   icon font finishes loading (button widths depend on it).
@@ -280,9 +292,10 @@ from name / type / amount only will silently untick everyone.
 **The look is what the user asked for.** Arial; 14px text, 15px guest names
 and titles, 13px badges capped at 80px; nothing bold except the masa title
 bar, which is solid capacity colour; one-line headers, no column headers, 4px
-gaps; move-only drag, no switch button on rows, phones start with drag off; a
-quiet bottom bar with "|" separators and no "Saxlanıldı". Do not "restore"
-defaults or bring removed things back without asking.
+gaps; move-only drag, no switch button on rows, phones start with drag off and
+filters collapsed; a quiet bottom bar with "|" separators and no
+"Saxlanıldı"; lists default to Qonaq + Masa. Do not "restore" defaults or
+bring removed things back without asking.
 
 ---
 

@@ -240,6 +240,16 @@ Then confirm by hand, from a **logged-out** browser:
   shows that guest. Untick it in the list — the row's box clears too. Export
   JSON and check the guest has `"invited": true`. A logged-out viewer of a
   public list sees no ticks and no list button.
+- **undo + auto-scroll** (logged in, desktop): drag a guest onto another
+  masa — a notice appears bottom-right for 5 s; "Geri al" puts the guest back
+  in the same row. Drag towards the bottom bar and hold: the page scrolls,
+  gently. Releasing over a bar must move nobody.
+- **PDF** (logged in): open Siyahı → "PDF göndər". On a phone over HTTPS the
+  share sheet opens with the file; on a computer it downloads. Open the PDF
+  and check the Azerbaijani letters (ə, ı, ş, ğ). "Sütunlar" toggles change
+  the columns in the list, print and PDF alike; default is Qonaq + Masa.
+- **phone** (or a window under 768 px): filters start collapsed, drag starts
+  off, the bottom bar is one stats line + one row of icons, and ▼ folds it.
 
 ---
 

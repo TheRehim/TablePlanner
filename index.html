@@ -910,6 +910,76 @@
             }
         }
 
+        /* ---- Bottom bar on a phone ----
+           Two thin lines at most: the stats (one line, ends in "…"), and one
+           row of icon-only buttons - labels, separators and count badges are
+           hidden, every button still has a title / aria-label. The ▼ toggle
+           folds the button row away (remembered per device). */
+        @media (max-width: 767.98px) {
+            .fixed-bottom-bar > .container-fluid {
+                flex-direction: column;
+                align-items: stretch !important;
+                flex-wrap: nowrap !important;
+                gap: 3px !important;
+            }
+
+            .bb-info {
+                flex-wrap: nowrap !important;
+                white-space: nowrap;
+                overflow: hidden;
+                min-width: 0;
+            }
+
+            .bb-info > #globalStatsSummary {
+                min-width: 0;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .bb-actions {
+                flex-wrap: nowrap !important;
+                justify-content: space-between;
+                gap: 3px !important;
+                overflow-x: auto;
+            }
+
+            .bb-actions .bb-label,
+            .bb-actions .bb-sep,
+            #inviteCountBadge,
+            #notesCountBadge {
+                display: none !important;
+            }
+
+            .bb-actions .btn {
+                flex: 1 1 0;
+                min-width: 32px;
+                padding: 5px 0;
+            }
+
+            .bb-actions .btn i {
+                margin: 0 !important;
+            }
+
+            .bb-actions .dropup {
+                flex: 1 1 0;
+                display: flex;
+            }
+
+            .bb-actions .dropup .btn {
+                flex: 1 1 auto;
+            }
+
+            .fixed-bottom-bar.bb-collapsed .bb-actions {
+                display: none !important;
+            }
+
+            #bbToggle {
+                color: #6c757d;
+                text-decoration: none;
+                min-width: 22px;
+            }
+        }
+
         /* ---- Drag and drop ----
            Green: dropping here MOVES the guest to this masa. That is the only
            thing a drop does - switching two guests is not done by dragging. */
@@ -932,15 +1002,77 @@
             pointer-events: none;
         }
 
+        /* The whole card goes green, its 3px capacity-coloured top border
+           included - otherwise a red / blue / dark strip stays above the
+           green title bar. (Same specificity as .cap-*, later, so it wins.) */
         .table-card.drop-move {
             outline: 2px solid #2e8b57;
             outline-offset: -2px;
             background: #e8f6ee;
+            border-top-color: #2e8b57;
         }
 
         .table-card.drop-move .card-header {
             background: #2e8b57;
             border-bottom-color: #2e8b57;
+        }
+
+        /* Undo notice after a drag-and-drop: bottom right, above the bar. A
+           thin bar underneath runs down over the 5 seconds it stays. */
+        #undoHost {
+            position: fixed;
+            right: 12px;
+            bottom: 54px;
+            z-index: 2000;
+            max-width: 420px;
+        }
+
+        .undo-toast {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 10px 10px 12px;
+            border-radius: 4px;
+            background: #2b2f33;
+            color: #fff;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, .25);
+            overflow: hidden;
+        }
+
+        .undo-toast.undo-warn {
+            background: #7a1d1d;
+        }
+
+        .undo-text {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+
+        .undo-over {
+            color: #ffd2d2;
+        }
+
+        .undo-btn {
+            flex: 0 0 auto;
+            white-space: nowrap;
+        }
+
+        .undo-bar {
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            height: 3px;
+            width: 100%;
+            background: rgba(255, 255, 255, .6);
+            animation-name: undoRunDown;
+            animation-timing-function: linear;
+            animation-fill-mode: forwards;
+        }
+
+        @keyframes undoRunDown {
+            from { width: 100%; }
+            to { width: 0; }
         }
 
         /* Invitation tick, left of the row's edit button. */
@@ -1041,6 +1173,8 @@
     </div>
 
     <div id="toastHost"></div>
+    <!-- Bottom right, above the bar: the undo notice after a drag-and-drop. -->
+    <div id="undoHost" aria-live="polite"></div>
 
     <!-- MAIN CONTENT: nothing but the masas. The title, hints and "Yeni Masa"
          live in the bottom bar so every pixel of height goes to the board. -->
@@ -1052,6 +1186,10 @@
     <div class="fixed-bottom-bar py-1 px-1">
         <div class="container-fluid d-flex justify-content-between align-items-center flex-wrap gap-2">
             <span class="small d-flex align-items-center flex-wrap gap-2 bb-info">
+                <!-- Phones only: fold the button row away, keep this one line. -->
+                <button type="button" class="btn btn-sm btn-link p-0 d-md-none" id="bbToggle"
+                    aria-expanded="true" aria-controls="bbActions" title="Düymələri gizlət / göstər">
+                    <i class="fa-solid fa-chevron-down"></i></button>
                 <span class="badge bg-secondary view-badge"
                     title="Yalnız baxış — dəyişiklik etmək mümkün deyil"><i
                         class="fa-solid fa-eye me-1"></i>Baxış rejimi</span>
@@ -1061,39 +1199,39 @@
             </span>
             <!-- Groups, left to right: drag switch | add | lists | account + more.
                  Only the add buttons and the drag switch carry colour. -->
-            <div class="d-flex flex-wrap gap-1 bb-actions">
+            <div class="d-flex flex-wrap gap-1 bb-actions" id="bbActions">
                 <button class="btn btn-sm btn-drag-on edit-only" id="btnDragToggle" type="button" aria-pressed="true">
-                    <i class="fa-solid fa-hand me-1"></i><span id="dragToggleLabel">Sürüklə: açıq</span>
+                    <i class="fa-solid fa-hand me-1"></i><span class="bb-label" id="dragToggleLabel">Sürüklə: açıq</span>
                 </button>
                 <span class="bb-sep edit-only">|</span>
-                <button class="btn btn-primary btn-sm edit-only" id="btnOpenAddTable">
-                    <i class="fa-solid fa-circle-plus me-1"></i> Yeni Masa
+                <button class="btn btn-primary btn-sm edit-only" id="btnOpenAddTable" aria-label="Yeni Masa">
+                    <i class="fa-solid fa-circle-plus me-1"></i><span class="bb-label">Yeni Masa</span>
                 </button>
-                <button class="btn btn-success btn-sm edit-only" id="btnOpenAddGuest">
-                    <i class="fa-solid fa-user-plus me-1"></i> Qonaq Əlavə Et
+                <button class="btn btn-success btn-sm edit-only" id="btnOpenAddGuest" title="Qonaq Əlavə Et" aria-label="Qonaq Əlavə Et">
+                    <i class="fa-solid fa-user-plus me-1"></i><span class="bb-label">Qonaq Əlavə Et</span>
                 </button>
                 <span class="bb-sep edit-only">|</span>
-                <button class="btn btn-outline-secondary btn-sm" id="btnOpenList">
-                    <i class="fa-solid fa-list-ul me-1"></i> Siyahı
+                <button class="btn btn-outline-secondary btn-sm" id="btnOpenList" title="Siyahı" aria-label="Siyahı">
+                    <i class="fa-solid fa-list-ul me-1"></i><span class="bb-label">Siyahı</span>
                 </button>
-                <button class="btn btn-outline-secondary btn-sm edit-only" id="btnOpenInvites">
-                    <i class="fa-solid fa-envelope me-1"></i> Dəvətnamə siyahısı
+                <button class="btn btn-outline-secondary btn-sm edit-only" id="btnOpenInvites" title="Dəvətnamə siyahısı" aria-label="Dəvətnamə siyahısı">
+                    <i class="fa-solid fa-envelope me-1"></i><span class="bb-label">Dəvətnamə siyahısı</span>
                     <span class="badge bg-secondary ms-1" id="inviteCountBadge"></span>
                 </button>
-                <button class="btn btn-outline-secondary btn-sm edit-only" id="btnOpenNotes">
-                    <i class="fa-solid fa-note-sticky me-1"></i> Qeyd Masası
+                <button class="btn btn-outline-secondary btn-sm edit-only" id="btnOpenNotes" title="Qeyd Masası" aria-label="Qeyd Masası">
+                    <i class="fa-solid fa-note-sticky me-1"></i><span class="bb-label">Qeyd Masası</span>
                     <span class="badge bg-secondary ms-1 d-none" id="notesCountBadge">0</span>
                 </button>
-                <button class="btn btn-outline-secondary btn-sm edit-only" data-bs-toggle="modal" data-bs-target="#typesModal">
-                    <i class="fa-solid fa-tags me-1"></i> Tiplər
+                <button class="btn btn-outline-secondary btn-sm edit-only" data-bs-toggle="modal" data-bs-target="#typesModal" title="Tiplər" aria-label="Tiplər">
+                    <i class="fa-solid fa-tags me-1"></i><span class="bb-label">Tiplər</span>
                 </button>
                 <span class="bb-sep">|</span>
-                <button class="btn btn-primary btn-sm d-none" id="btnLogin">
-                    <i class="fa-solid fa-right-to-bracket me-1"></i> Daxil ol</button>
+                <button class="btn btn-primary btn-sm d-none" id="btnLogin" title="Daxil ol" aria-label="Daxil ol">
+                    <i class="fa-solid fa-right-to-bracket me-1"></i><span class="bb-label">Daxil ol</span></button>
                 <button class="btn btn-outline-secondary btn-sm d-none" id="btnVisibility" type="button">
-                    <i class="fa-solid fa-lock me-1"></i><span id="visibilityLabel">Bağlı</span></button>
-                <button class="btn btn-outline-secondary btn-sm d-none" id="btnLogout">
-                    <i class="fa-solid fa-right-from-bracket me-1"></i> Çıxış</button>
+                    <i class="fa-solid fa-lock me-1"></i><span class="bb-label" id="visibilityLabel">Bağlı</span></button>
+                <button class="btn btn-outline-secondary btn-sm d-none" id="btnLogout" title="Çıxış" aria-label="Çıxış">
+                    <i class="fa-solid fa-right-from-bracket me-1"></i><span class="bb-label">Çıxış</span></button>
                 <div class="dropup">
                     <button class="btn btn-outline-secondary btn-sm" type="button" id="btnMoreMenu"
                         data-bs-toggle="dropdown" data-bs-auto-close="true" aria-expanded="false"
@@ -1580,17 +1718,14 @@
                             <input type="radio" class="btn-check" name="listScope" id="listScopeFiltered" value="filtered">
                             <label class="btn btn-outline-secondary" for="listScopeFiltered">Yalnız filtrlənmiş</label>
                         </div>
+                        <div class="btn-group btn-group-sm col-toggles" data-list="guestList" role="group" aria-label="Sütunlar"></div>
                         <span class="small text-muted ms-auto" id="listCount"></span>
                     </div>
                     <div class="form-text small mb-2">Sütun başlığına klikləyərək sıralayın (A&rarr;Z / Z&rarr;A).</div>
                     <div class="table-responsive">
                         <table class="table table-sm table-bordered align-middle mb-0" id="guestListTable">
                             <thead class="table-light">
-                                <tr>
-                                    <th role="button" class="list-sort" data-key="name">Qonaq <span class="sort-ind"></span></th>
-                                    <th role="button" class="list-sort" data-key="type" style="width:140px;">Tip <span class="sort-ind"></span></th>
-                                    <th role="button" class="list-sort" data-key="table" style="width:150px;">Masa <span class="sort-ind"></span></th>
-                                </tr>
+                                <tr id="guestListHead"></tr>
                             </thead>
                             <tbody id="guestListBody"></tbody>
                         </table>
@@ -1598,6 +1733,10 @@
                 </div>
                 <div class="modal-footer py-2">
                     <button type="button" class="btn btn-outline-secondary btn-sm" id="btnCloseList">Bağla</button>
+                    <button type="button" class="btn btn-success btn-sm" id="btnPdfList"
+                        title="PDF yaradıb WhatsApp, Telegram, poçt və s. ilə göndərin (və ya yükləyin)">
+                        <i class="fa-solid fa-file-pdf me-1"></i> PDF göndər
+                    </button>
                     <button type="button" class="btn btn-primary btn-sm" id="btnPrintList">
                         <i class="fa-solid fa-print me-1"></i> Çap Et
                     </button>
@@ -1624,18 +1763,13 @@
                             <input type="radio" class="btn-check" name="inviteScope" id="inviteScopeAll" value="all">
                             <label class="btn btn-outline-secondary" for="inviteScopeAll">Hamısı</label>
                         </div>
+                        <div class="btn-group btn-group-sm col-toggles" data-list="inviteList" role="group" aria-label="Sütunlar"></div>
                         <span class="small text-muted ms-auto" id="inviteCount"></span>
                     </div>
                     <div class="table-responsive">
                         <table class="table table-sm table-bordered align-middle mb-0">
                             <thead class="table-light">
-                                <tr>
-                                    <th style="width:36px;" class="text-center"><i class="fa-solid fa-envelope"></i></th>
-                                    <th>Qonaq</th>
-                                    <th style="width:140px;">Tip</th>
-                                    <th style="width:60px;" class="text-center">Say</th>
-                                    <th style="width:150px;">Masa</th>
-                                </tr>
+                                <tr id="inviteListHead"></tr>
                             </thead>
                             <tbody id="inviteListBody"></tbody>
                         </table>
@@ -1643,6 +1777,10 @@
                 </div>
                 <div class="modal-footer py-2">
                     <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Bağla</button>
+                    <button type="button" class="btn btn-success btn-sm" id="btnPdfInvites"
+                        title="PDF yaradıb WhatsApp, Telegram, poçt və s. ilə göndərin (və ya yükləyin)">
+                        <i class="fa-solid fa-file-pdf me-1"></i> PDF göndər
+                    </button>
                     <button type="button" class="btn btn-primary btn-sm" id="btnPrintInvites">
                         <i class="fa-solid fa-print me-1"></i> Çap Et
                     </button>
@@ -2609,20 +2747,73 @@
            for reuse) uses both. Each writes through commit() once - a switch
            touches both masas in ONE commit, never two.
            ===================================================================== */
-        function moveGuestTo(sourceTable, guestId, targetTable) {
+        // Returns { guest, fromIndex, over } - what an undo needs - or null.
+        // `quiet` skips the toast, for callers that show their own message.
+        function moveGuestTo(sourceTable, guestId, targetTable, quiet) {
             const index = sourceTable.guests.findIndex(g => g.id === guestId);
-            if (index === -1 || sourceTable.id === targetTable.id) return false;
+            if (index === -1 || sourceTable.id === targetTable.id) return null;
             const guest = sourceTable.guests.splice(index, 1)[0];
             targetTable.guests.push(guest);
             commit('moveGuest');
 
             const after = occupancyOf(targetTable);
-            if (after > targetTable.capacity) {
-                toast(`"${guest.name}" → ${targetTable.name}. Diqqət: tutum aşıldı (${after}/${targetTable.capacity}).`, 'warning');
-            } else {
-                toast(`"${guest.name}" → ${targetTable.name}`);
+            const over = after > targetTable.capacity ? `${after}/${targetTable.capacity}` : null;
+            if (!quiet) {
+                if (over) {
+                    toast(`"${guest.name}" → ${targetTable.name}. Diqqət: tutum aşıldı (${over}).`, 'warning');
+                } else {
+                    toast(`"${guest.name}" → ${targetTable.name}`);
+                }
             }
-            return true;
+            return { guest: guest, fromIndex: index, over: over };
+        }
+
+        /* ---------- Undo a drag-and-drop move ----------
+           Every drop shows a notice at the bottom right for UNDO_MS with a
+           "Geri al" button. Undo puts the guest back in the masa they came
+           from, at the row they had. It only acts if the guest is still where
+           the drop left them and the old masa still exists - after a live
+           update, a delete or another move it says so instead of guessing.
+           A newer drop replaces the notice (only the last drop is undoable). */
+        const UNDO_MS = 5000;
+        let undoTimer = null;
+
+        function showUndo(move) {
+            clearTimeout(undoTimer);
+            const $host = $('#undoHost');
+            $host.html(`
+                <div class="undo-toast ${move.over ? 'undo-warn' : ''}" role="status">
+                    <div class="undo-text">"${escapeHtml(move.guestName)}" → ${escapeHtml(move.toName)}${move.over
+                        ? ` <span class="undo-over">tutum aşıldı (${escapeHtml(move.over)})</span>` : ''}</div>
+                    <button type="button" class="btn btn-light btn-sm undo-btn">
+                        <i class="fa-solid fa-rotate-left me-1"></i>Geri al</button>
+                    <div class="undo-bar" style="animation-duration:${UNDO_MS}ms"></div>
+                </div>`);
+            $host.find('.undo-btn').on('click', function () {
+                hideUndo();
+                undoMove(move);
+            });
+            undoTimer = setTimeout(hideUndo, UNDO_MS);
+        }
+
+        function hideUndo() {
+            clearTimeout(undoTimer);
+            undoTimer = null;
+            $('#undoHost').empty();
+        }
+
+        function undoMove(move) {
+            const from = findTable(move.fromTableId);
+            const to = findTable(move.toTableId);
+            const index = to ? to.guests.findIndex(g => g.id === move.guestId) : -1;
+            if (!from || index === -1) {
+                toast('Geri almaq olmadı: qonaq və ya masa artıq dəyişib.', 'warning');
+                return;
+            }
+            const guest = to.guests.splice(index, 1)[0];
+            from.guests.splice(Math.min(move.fromIndex, from.guests.length), 0, guest);
+            commit('undoMove');
+            toast(`Geri alındı: "${guest.name}" → ${from.name}`);
         }
 
         function switchGuestsBetween(tableA, guestIdA, tableB, guestIdB) {
@@ -2648,11 +2839,112 @@
            guest's own masa does nothing.
 
            A switch in the bottom bar turns it on and off. The choice is kept
-           per device; with none saved, a phone starts with it OFF (rows must
-           scroll under a finger) and everything else starts ON.
+           SEPARATELY for phone size and desktop size, and re-applied whenever
+           the window crosses between them - not only on load. With nothing
+           saved, phone size starts OFF (rows must scroll under a finger) and
+           desktop size starts ON.
            ===================================================================== */
-        const DRAG_KEY = 'tp.dragEnabled';
+        const DRAG_KEY_PREFIX = 'tp.dragEnabled.';      // + 'phone' / 'desktop'
         let dragRow = null;      // the row being dragged, while a drag is on
+
+        /* ---------- Auto-scroll while dragging ----------
+           Bring the pointer near the top or bottom of the board - within
+           SCROLL_EDGE px of the fixed bars - and the page scrolls that way and
+           keeps going while the pointer is held still. jQuery UI's own
+           `scroll` option only reacts to mouse movement and to the window's
+           outer 20px, which sit under the bars.
+
+           Speed is per SECOND, not per step, so it is the same on any screen:
+           it eases in (quadratic) from a crawl at the zone's inner edge to
+           SCROLL_MAX_PX_S at the bar, and runs on animation frames for smooth
+           motion. A 50 ms timer backs the frame up, for windows where frames
+           are paused. After each step the pointer position is replayed as a
+           mousemove, so the helper and the green drop target keep up with the
+           content moving underneath. */
+        const SCROLL_EDGE = 70;          // px inside each bar where scrolling starts
+        const SCROLL_MAX_PX_S = 450;     // px per second at the bar itself
+        let dragPointer = null;          // last { x, y } of the pointer during a drag
+        let scrollTimer = null;          // { raf, timeout } while a step is queued
+        let scrollLastAt = 0;            // time of the previous step
+        let scrollCarry = 0;             // sub-pixel remainder between steps
+
+        function queueScrollStep() {
+            if (scrollTimer) return;
+            let ran = false;
+            const run = () => {
+                if (ran) return;
+                ran = true;
+                cancelAnimationFrame(scrollTimer.raf);
+                clearTimeout(scrollTimer.timeout);
+                scrollTimer = null;
+                autoScrollStep();
+            };
+            scrollTimer = { raf: requestAnimationFrame(run), timeout: setTimeout(run, 50) };
+        }
+
+        function autoScrollStep() {
+            if (!dragRow || !dragPointer) return;
+            const now = performance.now();
+            // First step after a pause: assume one frame, never a big jump.
+            const dt = scrollLastAt && now - scrollLastAt < 100 ? now - scrollLastAt : 16;
+            scrollLastAt = now;
+
+            const top = document.querySelector('.fixed-top-bar').offsetHeight;
+            const bottom = window.innerHeight - document.querySelector('.fixed-bottom-bar').offsetHeight;
+            const y = dragPointer.y;
+            let depth = 0;                       // 0 = zone edge, 1 = at / over the bar
+            if (y < top + SCROLL_EDGE) depth = -Math.min(1, (top + SCROLL_EDGE - y) / SCROLL_EDGE);
+            else if (y > bottom - SCROLL_EDGE) depth = Math.min(1, (y - (bottom - SCROLL_EDGE)) / SCROLL_EDGE);
+            if (!depth) { scrollLastAt = 0; scrollCarry = 0; return; }
+
+            const speed = SCROLL_MAX_PX_S * depth * Math.abs(depth);   // ease in
+            scrollCarry += speed * dt / 1000;
+            const dy = Math.trunc(scrollCarry);
+            scrollCarry -= dy;
+            if (dy) {
+                const before = window.scrollY;
+                // Instant: Bootstrap makes the page scroll smoothly, which turns
+                // every step into an animation that never keeps up.
+                window.scrollBy({ top: dy, behavior: 'instant' });
+                if (window.scrollY === before) { scrollLastAt = 0; scrollCarry = 0; return; }   // at the top / bottom
+                document.dispatchEvent(new MouseEvent('mousemove', {
+                    bubbles: true, cancelable: true, view: window,
+                    clientX: dragPointer.x, clientY: dragPointer.y, button: 0
+                }));
+            }
+            queueScrollStep();
+        }
+
+        function stopAutoScroll() {
+            if (scrollTimer) {
+                cancelAnimationFrame(scrollTimer.raf);
+                clearTimeout(scrollTimer.timeout);
+            }
+            scrollTimer = null;
+            scrollLastAt = 0;
+            scrollCarry = 0;
+            dragPointer = null;
+        }
+
+        /* ---------- Drop target, bars excluded ----------
+           jQuery UI matches the pointer against where each masa IS, not what
+           is on top of it - so over the fixed top or bottom bar it would still
+           see the masa hidden underneath, light it green and drop there. The
+           highlight is therefore painted here: the masa jQuery UI reports
+           (hoverCard), unless the pointer is over a bar. drop() checks too. */
+        let hoverCard = null;
+
+        function pointerOverBars(y) {
+            const top = document.querySelector('.fixed-top-bar').offsetHeight;
+            const bottom = window.innerHeight - document.querySelector('.fixed-bottom-bar').offsetHeight;
+            return y < top || y > bottom;
+        }
+
+        function paintDropTarget() {
+            const target = hoverCard && dragPointer && !pointerOverBars(dragPointer.y) ? hoverCard : null;
+            $('#tablesContainer .table-card.drop-move').not(target).removeClass('drop-move');
+            if (target) $(target).addClass('drop-move');
+        }
 
         // Narrow screen or a phone browser. A width of 0 (a page laid out while
         // hidden) says nothing about the device, so only the browser counts then.
@@ -2661,17 +2953,37 @@
             return narrow || /Mobi|Android|iPhone|iPod/i.test(navigator.userAgent);
         }
 
-        let dragEnabled = (function () {
+        function dragKey() {
+            return DRAG_KEY_PREFIX + (isPhone() ? 'phone' : 'desktop');
+        }
+
+        function savedOrDefaultDrag() {
             try {
-                const saved = localStorage.getItem(DRAG_KEY);
+                const saved = localStorage.getItem(dragKey());
                 if (saved === '1' || saved === '0') return saved === '1';
-            } catch { /* storage blocked: fall back to the device default */ }
+            } catch { /* storage blocked: fall back to the default */ }
             return !isPhone();
-        })();
+        }
+
+        // The old single key was shared by every width - a choice made on a
+        // wide window leaked into the phone view. Drop it.
+        try { localStorage.removeItem('tp.dragEnabled'); } catch { /* nothing to drop */ }
+
+        let dragEnabled = savedOrDefaultDrag();
 
         function setDragEnabled(on) {
             dragEnabled = !!on;
-            try { localStorage.setItem(DRAG_KEY, dragEnabled ? '1' : '0'); } catch { /* not remembered, still works */ }
+            try { localStorage.setItem(dragKey(), dragEnabled ? '1' : '0'); } catch { /* not remembered, still works */ }
+            refreshDragToggle();
+            renderTables();
+        }
+
+        // Crossing the phone / desktop line switches to that size's setting.
+        const phoneQuery = window.matchMedia('(max-width: 767.98px)');
+        function applyDragForSize() {
+            const next = savedOrDefaultDrag();
+            if (next === dragEnabled) return;
+            dragEnabled = next;
             refreshDragToggle();
             renderTables();
         }
@@ -2709,12 +3021,19 @@
                 distance: 4,                          // a plain click stays a click
                 cancel: 'button, .btn, a, input',
                 zIndex: 3000,
-                scroll: false,
+                scroll: false,                        // see autoScrollStep()
                 start: function () {
                     dragRow = this;
                     $(this).addClass('drag-source-row');
                 },
+                drag: function (e) {
+                    dragPointer = { x: e.clientX, y: e.clientY };
+                    paintDropTarget();
+                    queueScrollStep();
+                },
                 stop: function () {
+                    stopAutoScroll();
+                    hoverCard = null;
                     $(this).removeClass('drag-source-row');
                     dragRow = null;
                     $board.find('.drop-move').removeClass('drop-move');
@@ -2726,13 +3045,26 @@
             $board.find('.table-card').droppable({
                 accept: function ($drag) { return fromOtherTable($drag, this); },
                 tolerance: 'pointer',
-                classes: { 'ui-droppable-hover': 'drop-move' },
+                over: function () { hoverCard = this; paintDropTarget(); },
+                out: function () { if (hoverCard === this) hoverCard = null; paintDropTarget(); },
                 drop: function (e, ui) {
+                    // Released over a bar: the masa underneath is hidden, not a target.
+                    if (pointerOverBars(e.clientY)) return;
                     const from = findTable(Number(ui.draggable.data('tableId')));
                     const to = findTable(Number($(this).data('tableId')));
                     const guestId = Number(ui.draggable.data('guestId'));
                     // Let jQuery UI finish the drag before the board is rebuilt.
-                    setTimeout(() => { if (from && to) moveGuestTo(from, guestId, to); }, 0);
+                    setTimeout(() => {
+                        if (!from || !to) return;
+                        const moved = moveGuestTo(from, guestId, to, true);
+                        if (moved) {
+                            showUndo({
+                                guestId: guestId, guestName: moved.guest.name,
+                                fromTableId: from.id, fromIndex: moved.fromIndex,
+                                toTableId: to.id, toName: to.name, over: moved.over
+                            });
+                        }
+                    }, 0);
                 }
             });
         }
@@ -3696,13 +4028,56 @@
         let lastVisibleTableIds = [];
         let listSort = { key: 'name', dir: 'asc' };
 
+        /* ---------- Columns of the printable lists ----------
+           Qonaq is always there. Tip, Say and Masa are switched per list with
+           the "Sütunlar" toggles; by default only Qonaq and Masa. The choice
+           is kept per device and used by the screen, print AND PDF alike. */
+        const LIST_COLUMNS = [
+            { key: 'type', label: 'Tip', width: '140px' },
+            { key: 'amount', label: 'Say', width: '60px', center: true },
+            { key: 'table', label: 'Masa', width: '150px' }
+        ];
+        const LIST_COLUMN_DEFAULTS = { type: false, amount: false, table: true };
+
+        function listColumnPrefs(list) {
+            let saved = {};
+            try { saved = JSON.parse(localStorage.getItem('tp.cols.' + list) || '{}') || {}; } catch { saved = {}; }
+            return Object.assign({}, LIST_COLUMN_DEFAULTS, saved);
+        }
+
+        function setListColumn(list, key, on) {
+            const prefs = listColumnPrefs(list);
+            prefs[key] = !!on;
+            try { localStorage.setItem('tp.cols.' + list, JSON.stringify(prefs)); } catch { /* this session only */ }
+        }
+
+        // [{ key, label, ... }] in display order, Qonaq first.
+        function visibleListColumns(list) {
+            const prefs = listColumnPrefs(list);
+            return [{ key: 'name', label: 'Qonaq' }].concat(LIST_COLUMNS.filter(c => prefs[c.key]));
+        }
+
+        function renderColumnToggles(list) {
+            const prefs = listColumnPrefs(list);
+            $(`.col-toggles[data-list="${list}"]`).html(
+                `<span class="btn btn-sm disabled border-0 text-muted pe-1">Sütunlar:</span>` +
+                LIST_COLUMNS.map(c => `
+                    <input type="checkbox" class="btn-check col-toggle" id="col-${list}-${c.key}"
+                        data-list="${list}" data-key="${c.key}" autocomplete="off" ${prefs[c.key] ? 'checked' : ''}>
+                    <label class="btn btn-outline-secondary" for="col-${list}-${c.key}">${c.label}</label>`).join(''));
+        }
+
+        function cellText(row, key) {
+            return key === 'amount' ? String(row.amount) : String(row[key] === undefined ? '' : row[key]);
+        }
+
         function collectGuestList(scope) {
             const limit = scope === 'filtered' ? new Set(lastVisibleTableIds) : null;
             const rows = [];
             weddingData.tables.forEach(table => {
                 if (limit && !limit.has(table.id)) return;
                 table.guests.forEach(g => rows.push({
-                    name: g.name, type: g.type, table: table.name
+                    name: g.name, type: g.type, amount: Number(g.amount) || 0, table: table.name
                 }));
             });
             return rows;
@@ -3728,17 +4103,21 @@
         }
 
         function renderGuestList() {
+            const cols = visibleListColumns('guestList');
+            // Sorting by a column that is now hidden would look random.
+            if (!cols.some(c => c.key === listSort.key)) listSort = { key: 'name', dir: 'asc' };
             const rows = sortGuestList(collectGuestList(currentListScope()));
             const $body = $('#guestListBody');
 
+            $('#guestListHead').html(cols.map(c => `
+                <th role="button" class="list-sort ${c.center ? 'text-center' : ''}" data-key="${c.key}"
+                    ${c.width ? `style="width:${c.width};"` : ''}>${c.label} <span class="sort-ind"></span></th>`).join(''));
+            renderColumnToggles('guestList');
+
             $body.html(rows.length === 0
-                ? `<tr><td colspan="3" class="text-center text-muted py-3">Qonaq yoxdur.</td></tr>`
+                ? `<tr><td colspan="${cols.length}" class="text-center text-muted py-3">Qonaq yoxdur.</td></tr>`
                 : rows.map(r => `
-                    <tr>
-                        <td>${escapeHtml(r.name)}</td>
-                        <td>${escapeHtml(r.type)}</td>
-                        <td>${escapeHtml(r.table)}</td>
-                    </tr>`).join(''));
+                    <tr>${cols.map(c => `<td class="${c.center ? 'text-center' : ''}">${escapeHtml(cellText(r, c.key))}</td>`).join('')}</tr>`).join(''));
 
             $('#listCount').text(`${rows.length} qeyd`);
 
@@ -3754,21 +4133,194 @@
         function buildPrintArea() {
             const rows = sortGuestList(collectGuestList(currentListScope()));
             const scopeLabel = currentListScope() === 'filtered' ? 'Filtrlənmiş siyahı' : 'Tam siyahı';
-            const sortLabel = ({ name: 'Qonaq', type: 'Tip', table: 'Masa' })[listSort.key] +
+            const sortLabel = ({ name: 'Qonaq', type: 'Tip', amount: 'Say', table: 'Masa' })[listSort.key] +
                 (listSort.dir === 'asc' ? ' (A→Z)' : ' (Z→A)');
             const printed = new Date().toLocaleString('az-AZ');
 
+            const cols = visibleListColumns('guestList');
             $('#printArea').html(`
                 <h2>Qonaq Siyahısı</h2>
                 <div class="meta">${escapeHtml(scopeLabel)} &middot; Sıralama: ${escapeHtml(sortLabel)}
                     &middot; ${rows.length} qeyd &middot; ${escapeHtml(printed)}</div>
                 <table>
-                    <thead><tr><th>Qonaq</th><th>Tip</th><th>Masa</th></tr></thead>
+                    <thead><tr>${cols.map(c => `<th>${c.label}</th>`).join('')}</tr></thead>
                     <tbody>
-                        ${rows.map(r => `<tr><td>${escapeHtml(r.name)}</td><td>${escapeHtml(r.type)}</td><td>${escapeHtml(r.table)}</td></tr>`).join('')}
+                        ${rows.map(r => `<tr>${cols.map(c => `<td>${escapeHtml(cellText(r, c.key))}</td>`).join('')}</tr>`).join('')}
                     </tbody>
                 </table>
             `);
+        }
+
+        /* =====================================================================
+           PDF - to send a list through WhatsApp, Telegram, mail, ...
+           Built in the browser (jsPDF + autotable) as a real text PDF. The
+           built-in PDF fonts have no ə / ı / ş / ğ, so DejaVu Sans is embedded.
+           All of it (~1.8 MB) loads only when a PDF is wanted - warmed up in
+           the background when a list opens, so the button is quick.
+           Then the phone's / computer's share sheet opens with the file
+           (Web Share); where that is not available, or the user closes it
+           with an error, the PDF downloads instead.
+           ===================================================================== */
+        const PDF_SCRIPTS = [
+            'https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js',
+            'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js'
+        ];
+        const PDF_FONTS = {
+            normal: 'https://cdn.jsdelivr.net/npm/dejavu-fonts-ttf@2.37.3/ttf/DejaVuSans.ttf',
+            bold: 'https://cdn.jsdelivr.net/npm/dejavu-fonts-ttf@2.37.3/ttf/DejaVuSans-Bold.ttf'
+        };
+        let pdfKit = null;   // Promise<{ normal, bold }> once loading has started
+
+        function loadScript(src) {
+            return new Promise((resolve, reject) => {
+                const el = document.createElement('script');
+                el.src = src;
+                el.onload = resolve;
+                el.onerror = () => reject(new Error('yüklənmədi: ' + src));
+                document.head.appendChild(el);
+            });
+        }
+
+        async function fontAsBase64(url) {
+            const res = await fetch(url);
+            if (!res.ok) throw new Error('şrift yüklənmədi (' + res.status + ')');
+            const bytes = new Uint8Array(await res.arrayBuffer());
+            let bin = '';
+            for (let i = 0; i < bytes.length; i += 0x8000) {
+                bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+            }
+            return btoa(bin);
+        }
+
+        // Starts the downloads once; later calls share the same promise. A
+        // failure is not cached, so the next click tries again.
+        function preparePdf() {
+            if (!pdfKit) {
+                pdfKit = (async () => {
+                    if (!window.jspdf) {
+                        for (const src of PDF_SCRIPTS) await loadScript(src);
+                    }
+                    const [normal, bold] = await Promise.all([fontAsBase64(PDF_FONTS.normal), fontAsBase64(PDF_FONTS.bold)]);
+                    return { normal, bold };
+                })().catch(err => { pdfKit = null; throw err; });
+            }
+            return pdfKit;
+        }
+
+        async function buildPdf(opts) {
+            const fonts = await preparePdf();
+            const doc = new window.jspdf.jsPDF({ unit: 'pt', format: 'a4', compress: true });   // small enough to send
+            doc.addFileToVFS('DejaVuSans.ttf', fonts.normal);
+            doc.addFont('DejaVuSans.ttf', 'DejaVu', 'normal');
+            doc.addFileToVFS('DejaVuSans-Bold.ttf', fonts.bold);
+            doc.addFont('DejaVuSans-Bold.ttf', 'DejaVu', 'bold');
+
+            doc.setFont('DejaVu', 'bold');
+            doc.setFontSize(16);
+            doc.text(opts.title, 40, 48);
+            doc.setFont('DejaVu', 'normal');
+            doc.setFontSize(9);
+            doc.setTextColor(110);
+            doc.text(opts.meta, 40, 64);
+
+            doc.autoTable({
+                head: [opts.head],
+                body: opts.rows,
+                startY: 76,
+                margin: { left: 40, right: 40, bottom: 40 },
+                styles: { font: 'DejaVu', fontSize: 10, cellPadding: 4, textColor: 30 },
+                headStyles: { font: 'DejaVu', fontStyle: 'bold', fillColor: [43, 47, 51], textColor: 255 },
+                alternateRowStyles: { fillColor: [245, 246, 248] },
+                columnStyles: opts.columnStyles || {},
+                didDrawPage: function () {
+                    const page = doc.internal.getCurrentPageInfo().pageNumber;
+                    doc.setFont('DejaVu', 'normal');
+                    doc.setFontSize(8);
+                    doc.setTextColor(140);
+                    doc.text(String(page), doc.internal.pageSize.getWidth() - 40, doc.internal.pageSize.getHeight() - 20, { align: 'right' });
+                }
+            });
+            return new File([doc.output('blob')], opts.fileName, { type: 'application/pdf' });
+        }
+
+        async function shareOrDownload(file, title) {
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({ files: [file], title: title });
+                    return 'shared';
+                } catch (err) {
+                    if (err && err.name === 'AbortError') return 'cancelled';   // user closed the sheet
+                    // Anything else (e.g. the click is "too old" after loading):
+                    // fall through and download instead.
+                }
+            }
+            const url = URL.createObjectURL(file);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = file.name;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 10000);
+            return 'downloaded';
+        }
+
+        async function makeAndSendPdf($btn, opts) {
+            const label = $btn.html();
+            $btn.prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin me-1"></i> Hazırlanır…');
+            try {
+                const file = await buildPdf(opts);
+                const how = await shareOrDownload(file, opts.title);
+                if (how === 'downloaded') toast(`PDF yükləndi: ${file.name}`);
+            } catch (err) {
+                toast('PDF yaradılmadı: ' + err.message, 'danger');
+            } finally {
+                $btn.prop('disabled', false).html(label);
+            }
+        }
+
+        // "#" narrow and right-aligned; "Say" narrow and centred. `offset` is
+        // how many fixed columns come before the chosen ones.
+        function pdfColumnStyles(cols, offset) {
+            const styles = { 0: { cellWidth: 28, halign: 'right' } };
+            cols.forEach((c, i) => {
+                if (c.key === 'amount') styles[i + offset] = { cellWidth: 36, halign: 'center' };
+            });
+            return styles;
+        }
+
+        function pdfDateStamp() {
+            return new Date().toISOString().slice(0, 10);
+        }
+
+        function guestListPdf() {
+            const rows = sortGuestList(collectGuestList(currentListScope()));
+            const scopeLabel = currentListScope() === 'filtered' ? 'Filtrlənmiş siyahı' : 'Tam siyahı';
+            const sortLabel = ({ name: 'Qonaq', type: 'Tip', amount: 'Say', table: 'Masa' })[listSort.key] +
+                (listSort.dir === 'asc' ? ' (A→Z)' : ' (Z→A)');
+            const cols = visibleListColumns('guestList');
+            return {
+                title: 'Qonaq Siyahısı',
+                meta: `${scopeLabel} · Sıralama: ${sortLabel} · ${rows.length} qeyd · ${new Date().toLocaleString('az-AZ')}`,
+                head: ['#'].concat(cols.map(c => c.label)),
+                rows: rows.map((r, i) => [i + 1].concat(cols.map(c => cellText(r, c.key)))),
+                columnStyles: pdfColumnStyles(cols, 1),
+                fileName: `qonaq-siyahisi-${pdfDateStamp()}.pdf`
+            };
+        }
+
+        function inviteListPdf() {
+            const scope = currentInviteScope();
+            const rows = collectInviteList(scope);
+            const label = ({ yes: 'Dəvətnaməsi olanlar', no: 'Dəvətnaməsi olmayanlar', all: 'Bütün qonaqlar' })[scope];
+            return {
+                title: 'Dəvətnamə Siyahısı',
+                meta: `${label} · ${rows.length} qonaq · ${rows.reduce((n, r) => n + r.amount, 0)} nəfər · ${new Date().toLocaleString('az-AZ')}`,
+                head: ['#', '✓'].concat(visibleListColumns('inviteList').map(c => c.label)),
+                rows: rows.map((r, i) => [i + 1, r.invited ? '✓' : ''].concat(visibleListColumns('inviteList').map(c => cellText(r, c.key)))),
+                columnStyles: Object.assign({ 1: { cellWidth: 22, halign: 'center' } }, pdfColumnStyles(visibleListColumns('inviteList'), 2)),
+                fileName: `devetname-siyahisi-${pdfDateStamp()}.pdf`
+            };
         }
 
         /* =====================================================================
@@ -3796,17 +4348,19 @@
             const rows = collectInviteList(currentInviteScope());
             const all = weddingData.tables.flatMap(t => t.guests);
             const invited = all.filter(g => g.invited);
+            const cols = visibleListColumns('inviteList');
+            $('#inviteListHead').html(
+                `<th style="width:36px;" class="text-center"><i class="fa-solid fa-envelope"></i></th>` +
+                cols.map(c => `<th class="${c.center ? 'text-center' : ''}" ${c.width ? `style="width:${c.width};"` : ''}>${c.label}</th>`).join(''));
+            renderColumnToggles('inviteList');
             $('#inviteListBody').html(rows.length === 0
-                ? `<tr><td colspan="5" class="text-center text-muted py-3">Qonaq yoxdur.</td></tr>`
+                ? `<tr><td colspan="${cols.length + 1}" class="text-center text-muted py-3">Qonaq yoxdur.</td></tr>`
                 : rows.map(r => `
                     <tr>
                         <td class="text-center"><input type="checkbox" class="form-check-input invite-list-check m-0"
                             data-table-id="${r.tableId}" data-guest-id="${r.guestId}" ${r.invited ? 'checked' : ''}
                             aria-label="Dəvətnamə"></td>
-                        <td>${escapeHtml(r.name)}</td>
-                        <td>${escapeHtml(r.type)}</td>
-                        <td class="text-center">${r.amount}</td>
-                        <td>${escapeHtml(r.table)}</td>
+                        ${cols.map(c => `<td class="${c.center ? 'text-center' : ''}">${escapeHtml(cellText(r, c.key))}</td>`).join('')}
                     </tr>`).join(''));
             $('#inviteCount').text(
                 `${invited.length} / ${all.length} qonaq · ` +
@@ -3822,9 +4376,9 @@
                 <div class="meta">${escapeHtml(label)} &middot; ${rows.length} qonaq &middot;
                     ${rows.reduce((n, r) => n + r.amount, 0)} nəfər &middot; ${escapeHtml(new Date().toLocaleString('az-AZ'))}</div>
                 <table>
-                    <thead><tr><th>✓</th><th>Qonaq</th><th>Tip</th><th>Say</th><th>Masa</th></tr></thead>
+                    <thead><tr><th>✓</th>${visibleListColumns('inviteList').map(c => `<th>${c.label}</th>`).join('')}</tr></thead>
                     <tbody>
-                        ${rows.map(r => `<tr><td>${r.invited ? '✓' : ''}</td><td>${escapeHtml(r.name)}</td><td>${escapeHtml(r.type)}</td><td>${r.amount}</td><td>${escapeHtml(r.table)}</td></tr>`).join('')}
+                        ${rows.map(r => `<tr><td>${r.invited ? '✓' : ''}</td>${visibleListColumns('inviteList').map(c => `<td>${escapeHtml(cellText(r, c.key))}</td>`).join('')}</tr>`).join('')}
                     </tbody>
                 </table>
             `);
@@ -4002,6 +4556,63 @@
             // Async: if no API answers, the app simply stays local-only.
             bootFromServer();
 
+            /* ---------- Phone: fold the bottom bar's buttons ----------
+               Only shown under 768px. Remembered per device. The bar's height
+               changes, and the ResizeObserver below re-pads the page. */
+            const BB_KEY = 'tp.bottomBarCollapsed';
+            function setBottomBarCollapsed(collapsed) {
+                $('.fixed-bottom-bar').toggleClass('bb-collapsed', collapsed);
+                $('#bbToggle').attr('aria-expanded', String(!collapsed))
+                    .find('i').attr('class', collapsed ? 'fa-solid fa-chevron-up' : 'fa-solid fa-chevron-down');
+                try { localStorage.setItem(BB_KEY, collapsed ? '1' : '0'); } catch { /* not remembered */ }
+                // Re-pad the page for the new bar height now, not on the next frame.
+                // (Deferred: on load this runs before the bar measuring is set up.)
+                setTimeout(() => $(window).trigger('resize'), 0);
+            }
+            try { if (localStorage.getItem(BB_KEY) === '1') setBottomBarCollapsed(true); } catch { /* default open */ }
+            $('#bbToggle').on('click', function () {
+                setBottomBarCollapsed(!$('.fixed-bottom-bar').hasClass('bb-collapsed'));
+            });
+
+            /* ---------- Phone size: filters start collapsed ----------
+               The filter panel opens with the page (Bootstrap "collapse show"),
+               which on a phone buries the board. At phone size it now starts
+               closed; opening / closing it there is remembered. Desktop CSS
+               always shows it, so nothing changes there. */
+            const FILTERS_KEY = 'tp.filtersOpen.phone';
+            function applyFiltersForSize() {
+                if (!phoneQuery.matches) return;
+                let open = false;
+                try { open = localStorage.getItem(FILTERS_KEY) === '1'; } catch { /* default closed */ }
+                $('#filterCollapse').toggleClass('show', open);
+                $('#filterToggle').toggleClass('collapsed', !open).attr('aria-expanded', String(open));
+                setTimeout(() => $(window).trigger('resize'), 0);   // re-pad for the new top-bar height
+            }
+            $('#filterCollapse')
+                .on('shown.bs.collapse', function () {
+                    if (phoneQuery.matches) { try { localStorage.setItem(FILTERS_KEY, '1'); } catch { /* not kept */ } }
+                })
+                .on('hidden.bs.collapse', function () {
+                    if (phoneQuery.matches) { try { localStorage.setItem(FILTERS_KEY, '0'); } catch { /* not kept */ } }
+                });
+            applyFiltersForSize();
+
+            // Both phone-size defaults follow the window across the breakpoint.
+            // The media-query event alone can be late or missed (it is only
+            // delivered when the page draws, so not while it is hidden), so a
+            // resize or the page becoming visible re-checks too; it only acts
+            // when the size class actually changed.
+            let wasPhoneSize = phoneQuery.matches;
+            function onSizeClassMaybeChanged() {
+                if (phoneQuery.matches === wasPhoneSize) return;
+                wasPhoneSize = phoneQuery.matches;
+                applyDragForSize();
+                applyFiltersForSize();
+            }
+            phoneQuery.addEventListener('change', onSizeClassMaybeChanged);
+            $(window).on('resize', onSizeClassMaybeChanged);
+            document.addEventListener('visibilitychange', onSizeClassMaybeChanged);
+
             $('#btnDragToggle').on('click', function () {
                 setDragEnabled(!dragEnabled);
                 toast(dragEnabled ? 'Sürüklə-burax açıldı.' : 'Sürüklə-burax bağlandı.');
@@ -4109,6 +4720,7 @@
                 document.body.style.paddingTop = (top + 4) + 'px';
                 document.body.style.paddingBottom = (bottom + 4) + 'px';
                 document.getElementById('toastHost').style.top = (top + 10) + 'px';
+                document.getElementById('undoHost').style.bottom = (bottom + 10) + 'px';
             }
 
             syncBarOffsets();
@@ -4727,6 +5339,18 @@
             $('#btnOpenList').on('click', function () {
                 renderGuestList();
                 showModal('guestListModal');
+                preparePdf().catch(() => { /* retried on the PDF click */ });
+            });
+
+            // Column toggles in either list.
+            $(document).on('change', '.col-toggle', function () {
+                const list = $(this).data('list');
+                setListColumn(list, $(this).data('key'), this.checked);
+                if (list === 'guestList') renderGuestList(); else renderInviteList();
+            });
+
+            $('#btnPdfList').on('click', function () {
+                makeAndSendPdf($(this), guestListPdf());
             });
 
             $('#btnCloseList').on('click', function () { hideModal('guestListModal'); });
@@ -4753,6 +5377,11 @@
             $('#btnOpenInvites').on('click', function () {
                 renderInviteList();
                 showModal('inviteListModal');
+                preparePdf().catch(() => { /* retried on the PDF click */ });
+            });
+
+            $('#btnPdfInvites').on('click', function () {
+                makeAndSendPdf($(this), inviteListPdf());
             });
 
             $('input[name="inviteScope"]').on('change', renderInviteList);
