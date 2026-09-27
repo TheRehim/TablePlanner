@@ -235,6 +235,11 @@ Then confirm by hand, from a **logged-out** browser:
   phone it starts off. Needs `code.jquery.com` and `cdn.jsdelivr.net`
   reachable from the browser; without them, editing a guest can still change
   their masa.
+- **invitation list** (logged in): tick the box left of a guest's edit
+  button; the "Dəvətnamə siyahısı" badge counts it (e.g. `1/113`) and the list
+  shows that guest. Untick it in the list — the row's box clears too. Export
+  JSON and check the guest has `"invited": true`. A logged-out viewer of a
+  public list sees no ticks and no list button.
 
 ---
 

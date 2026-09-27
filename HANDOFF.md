@@ -6,8 +6,9 @@ As of writing, **nothing had been deployed to the server** — check
 `kubectl get deploy -A | grep tableplanner` before assuming either way; the
 steps differ (see "Do this").
 
-Last updated 2026-09-27, for the release with the drag-and-drop switch
-(move-only drag, 14px text, no bold).
+Last updated 2026-09-27, for the invitation-list release (invite tick per
+guest, "Dəvətnamə siyahısı", Arial, coloured masa title bars, quieter bottom
+bar).
 
 ---
 
@@ -48,22 +49,23 @@ single-document write needs no cross-row transaction.
 ## What is in this version
 
 Everything since the first handoff, newest first. "new" is this release;
-"prev" shipped in the previous image (`ff0a0af`); "earlier" before that.
+"prev" shipped in the previous image (`6496aab`); "earlier" before that.
 
 | | What | Where |
 |---|---|---|
-| **new** | **Drag-and-drop on/off switch** — purple button in the bottom bar, "Sürüklə: açıq / bağlı". Remembered per device (`localStorage` key `tp.dragEnabled`). With nothing saved, a **phone starts OFF** (screen under 768px or a phone browser), everything else ON. | `setDragEnabled()` |
-| **new** | **Drag only moves.** Drop a guest anywhere on another masa — its guests included — and they move there (green). There is **no switching by drag** any more. | `initDragDrop()` |
-| **new** | **The ⇄ Köçür / Dəyiş button is gone from the rows** (edit + delete remain). Its modal and `switchGuestsBetween()` are still in the code, unwired. | `guestActionsHtml()` |
-| **new** | **14px text, 15px masa names / counts / filter bar, 13px badges. No bold anywhere** (every weight normal; icons keep theirs). Type badge cap raised to **80px**. Card widths follow automatically. | `index.html` |
-| **new** | Bottom bar: account buttons moved into the button group so they are never cut; when space runs out the hint gives way first, then the title, the stats last (full text on hover). | `index.html` |
-| prev | **Dense board**: one-line card header `Masa 1 - 18/18`, no column-header row, plain badges, page title / hints / "Yeni Masa" in the bottom bar. | `index.html` |
-| prev | **Card sizing from the data**: longest name (cap 170px) + widest badge + widest count + the buttons; as many cards per row as fit, stretched to fill the row exactly, 4px apart; each grid row as tall as its tallest masa. | `sizeTableColumns()` |
-| prev | **Smoke / utf8check refuse to overwrite a board that has masas** unless `SMOKE_OVERWRITE=yes`. | `server/scripts/` |
+| **new** | **Invitation tick** on every guest row, left of edit (editors only). Saved as `invited: true/false` on the guest; carried through JSON export and import (older exports read as not invited). Moves with the guest when dragged. | `setGuestInvited()` |
+| **new** | **"Dəvətnamə siyahısı"** button (with a ticked/total badge) opens the invitation list: who has one / who has not / everyone, A→Z, tickable in place, printable. | `renderInviteList()` |
+| **new** | **Arial everywhere** (icons keep Font Awesome). Guest names 15px. | `index.html` |
+| **new** | **Masa title bar** is bold and solid capacity colour (blue free seats, dark exactly full, red over), white text; square corners; edit/delete sit on white with their own hover colours (they used to turn invisible on hover). | `index.html` |
+| **new** | **Quieter bottom bar**: no page title, no "Saxlanıldı" (the status badge now appears only when something is wrong), stats cut to `N masa \| seated / capacity nəfər \| boş yer or artıq \| aşan masa` with red only for over-capacity, buttons grouped with `\|`, only the add buttons and the drag toggle coloured. The "Sonuncu masa…" hint moved to the Yeni Masa button's tooltip. | `index.html` |
+| prev | Drag-and-drop on/off switch (phones start off, remembered per device); drag only moves; ⇄ button removed from rows (modal and `switchGuestsBetween()` kept, unwired); 13px badges capped at 80px; no bold. | `setDragEnabled()`, `initDragDrop()` |
+| prev | Dense board, data-driven card widths filling each row, drag-and-drop (jQuery UI), smoke/utf8check overwrite guard. | `sizeTableColumns()`, `server/scripts/` |
 | earlier | Favicon at `/favicon.ico`; **live updates** over Server-Sent Events. | `server.js`, `src/live.js` |
 
 No server behaviour, schema, migration, env var or manifest changed in this
-release. It is a front-end release.
+release. The new `invited` flag lives inside the existing JSONB document —
+the API stores guests as the page sends them, so nothing server-side needed
+to change, and existing data simply reads as "not invited".
 
 ---
 
@@ -75,25 +77,24 @@ release. It is a front-end release.
 - Migrations applied; data **and its version number** survive restarting
   **both** containers.
 - **32 smoke checks pass** on an empty board (`npm run smoke`), and
-  `npm run utf8check` passes.
-- The new guard: on a board with masas, smoke skipped its writes, ran its 14
-  read-only checks and left the data at the same version; utf8check refused
-  (exit 2) and changed nothing; with `SMOKE_OVERWRITE=yes` both ran in full.
-- In the browser against that stack: jQuery UI 1.14.1 loads; text 14px,
-  names 15px, badges 13px with the 80px cap, **zero** bold elements; rows have
-  two buttons; the switch starts ON on a desktop. Hovering a guest of another
-  masa lights that masa green (no orange anywhere); dropping saved exactly one
-  `moveGuest` to Postgres and the guest underneath stayed where it was.
-- In the dev preview with a real mouse: dropping onto a guest of another masa
-  moved the dragged guest in and left the other in place. The switch turned
-  dragging off and stayed off after a reload. In the phone view (375px,
-  Android browser) with nothing saved it started OFF.
-- From the previous release, still true: row buttons click rather than start a
-  drag; a live update arriving mid-drag waits for the drop; viewers get no
-  drag, no "Sürüklə" toggle and no row buttons.
-- Layout checked on the user's own 34-masa / 497-guest list: every type badge
-  shows in full at 80px; 4 cards per row at 1440 px, rows filled with 0 px
-  spare, nothing clipped.
+  `npm run utf8check` passes. On a board with masas smoke runs only its 14
+  read-only checks and skips the writes; utf8check refuses.
+- In the browser against that stack: Arial everywhere, names 15px, masa title
+  bold on the solid capacity colour with square corners, rows have tick + edit
+  + delete, "Saxlanıldı" not shown. Ticking a guest saved `invited: true` to
+  Postgres and the badge read 1/113; the invitation list showed that guest;
+  dragging the ticked guest to another masa saved one `moveGuest` and the tick
+  went with them.
+- In the dev preview: a real click on a tick saves it and does not start a
+  drag; the list's three views and ticking inside it work and update the
+  board; export → import keeps ticks and an older export imports as unticked;
+  a viewer of a public list sees no ticks, no row buttons, no drag toggle and
+  no invitation-list button; header edit/delete hover to light grey / light
+  red with dark icons; nothing clipped and the bottom bar stays on one line
+  at 1440 px.
+- From earlier releases, still true: the drag switch (phones start off,
+  remembered per device), move-only drops, a live update mid-drag waits for
+  the drop, row buttons click rather than drag.
 - Auth: one shared password (scrypt), signed httpOnly cookie.
 - Visibility `private` (default) / `public`, **enforced server-side** — private
   returns 401 from `GET /api/state` for anonymous callers.
@@ -108,8 +109,13 @@ release. It is a front-end release.
 - **Touch dragging never tried on a real phone or tablet.** It is off by
   default on phones; a user who switches it on gets Touch Punch's touch-to-mouse
   mapping, which nobody has tried with a finger.
-- **On a phone the bottom bar wraps to about four lines** and takes roughly a
-  third of the screen. Known, raised with the user, not changed yet.
+- **On a phone the bottom bar wraps to several lines** and takes a large part
+  of the screen. Known, raised with the user, not changed yet.
+- **Open choice — 3 or 4 masas per row at 1440 px.** Arial is wider, so the
+  narrowest card grew to ~367 px and a 1440 px window now fits 3 per row
+  (was 4). The cause is one long guest name. The user was offered lowering the
+  name cap from 170 to 150 px, or names back to 14px; no answer yet — ask
+  before changing either.
 - Excel import is still wrong on real files — see "Known broken".
 
 ---
@@ -158,8 +164,10 @@ Then verify **without touching the data**:
   tests** and runs only read-only checks. Do not set `SMOKE_OVERWRITE=yes`.
 - Do **not** run `npm run utf8check` here; it refuses anyway.
 - By hand: log in, check the board looks dense and cards fill the width, the
-  purple "Sürüklə" button is in the bottom bar, then drag a guest onto another
-  masa and back again (two revisions, net no change).
+  purple "Sürüklə" button and "Dəvətnamə siyahısı" are in the bottom bar, then
+  drag a guest onto another masa and back again (two revisions, net no
+  change). Tick one guest, open the list, untick it there (again net no
+  change).
 - Take a JSON export from the ⋮ menu before and after if in doubt — it is the
   cheapest backup there is.
 
@@ -244,6 +252,13 @@ When changing the image, change it in **both** containers.
 **Visibility fails closed, on purpose.** Default private; a write without
 `settings` keeps the current value; anything not exactly `"public"` is private.
 
+**Guests now carry `invited`.** Anything that builds guest objects must keep
+it: the JSON export writes it and the JSON import reads it (`g.invited ===
+true`), editing a guest changes the object in place so it survives, and
+moving keeps the same object. The Excel import creates guests without it,
+which correctly means "not invited". A new code path that rebuilds guests
+from name / type / amount only will silently untick everyone.
+
 **Front-end seams — keep them single:**
 
 - `commit(action)` is the only write path. Every mutation is
@@ -256,14 +271,18 @@ When changing the image, change it in **both** containers.
   both masas, never two.
 - The drag switch lives in `dragEnabled` / `setDragEnabled()`; `initDragDrop()`
   does nothing while it is off, for viewers, or if jQuery UI did not load.
+- `setGuestInvited()` is the only place the tick changes — the row checkbox
+  and the invitation list both call it, and it writes through `commit()`.
 - `sizeTableColumns()` measures from **all** guests, not the filtered ones, so
   filtering never makes cards jump. It runs on every render and again when the
   icon font finishes loading (button widths depend on it).
 
-**The look is what the user asked for.** 14px text, 15px titles, 13px badges
-capped at 80px, **no bold at all**, one-line headers, no column headers, 4px
-gaps, move-only drag, no switch button on rows, phones start with drag off.
-Do not "restore" defaults or bring the switch back without asking.
+**The look is what the user asked for.** Arial; 14px text, 15px guest names
+and titles, 13px badges capped at 80px; nothing bold except the masa title
+bar, which is solid capacity colour; one-line headers, no column headers, 4px
+gaps; move-only drag, no switch button on rows, phones start with drag off; a
+quiet bottom bar with "|" separators and no "Saxlanıldı". Do not "restore"
+defaults or bring removed things back without asking.
 
 ---
 

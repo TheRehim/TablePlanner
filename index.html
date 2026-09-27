@@ -21,6 +21,11 @@
 
     <style>
         :root {
+            /* Arial everywhere. Bootstrap reads this variable for its own text,
+               and forms / Select2 inherit from body. Icons keep Font Awesome. */
+            --bs-body-font-family: Arial, Helvetica, sans-serif;
+            --bs-font-sans-serif: Arial, Helvetica, sans-serif;
+
             /* Capacity state colors: below = blue, exactly full = dark, over = red */
             --cap-under-bg: #1d4ed8;
             --cap-under-tint: #eef3ff;
@@ -38,7 +43,7 @@
         body {
             background-color: #f4f5f7;
             color: #2b2f33;
-            font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+            font-family: Arial, Helvetica, sans-serif;
             /* Set at runtime from the real bar heights; these are fallbacks. */
             padding-top: 58px;
             padding-bottom: 54px;
@@ -139,6 +144,10 @@
             flex: 0 0 auto;
             padding: 2px 4px;
             border-bottom: 1px solid #e3e6ea;
+            /* Bootstrap rounds a card header's top corners; on a solid colour
+               bar that lets the white card show through. Square it off - the
+               card itself still clips its own corners. */
+            border-radius: 0;
         }
 
         .table-card .card-body {
@@ -169,8 +178,49 @@
         }
 
         .tc-cap {
-            font-weight: 700;
             white-space: nowrap;
+        }
+
+        /* The title bar is solid capacity colour (blue: free seats, dark:
+           exactly full, red: over), so its text is white and its buttons sit
+           on white to stay readable. */
+        .table-card .card-header,
+        .table-card .card-header .table-name,
+        .table-card .card-header .tc-cap {
+            color: #fff;
+        }
+
+        /* Edit / delete on the coloured bar: white buttons with dark icons.
+           Hover, focus and press get their own colours - Bootstrap's outline
+           hover turns the icon white, which on a white button is invisible. */
+        .table-card .card-header .tc-actions .edit-table-btn,
+        .table-card .card-header .tc-actions .delete-table-btn {
+            background: #fff;
+            border-color: #fff;
+        }
+
+        .table-card .card-header .tc-actions .edit-table-btn {
+            color: #495057;
+        }
+
+        .table-card .card-header .tc-actions .delete-table-btn {
+            color: #dc3545;
+        }
+
+        .table-card .card-header .tc-actions .edit-table-btn:hover,
+        .table-card .card-header .tc-actions .edit-table-btn:focus-visible,
+        .table-card .card-header .tc-actions .edit-table-btn:active {
+            background: #dee2e6;
+            border-color: #dee2e6;
+            color: #212529;
+        }
+
+        .table-card .card-header .tc-actions .delete-table-btn:hover,
+        .table-card .card-header .tc-actions .delete-table-btn:focus-visible,
+        .table-card .card-header .tc-actions .delete-table-btn:active {
+            background: #f8d7da;
+            border-color: #f8d7da;
+            color: #b02a37;
         }
 
         .tc-actions {
@@ -189,35 +239,26 @@
         /* below capacity -> blue */
         .cap-under .card-header,
         .card-header.cap-under {
-            background: var(--cap-under-tint);
-            border-bottom-color: var(--cap-under-line);
+            background: var(--cap-under-bg);
+            border-bottom-color: var(--cap-under-bg);
         }
 
-        .cap-under .tc-cap {
-            color: var(--cap-under-bg);
-        }
 
         /* exactly at capacity -> dark bg, white font */
         .cap-full .card-header,
         .card-header.cap-full {
-            background: var(--cap-full-tint);
-            border-bottom-color: var(--cap-full-line);
+            background: var(--cap-full-bg);
+            border-bottom-color: var(--cap-full-bg);
         }
 
-        .cap-full .tc-cap {
-            color: var(--cap-full-bg);
-        }
 
         /* over capacity -> red */
         .cap-over .card-header,
         .card-header.cap-over {
-            background: var(--cap-over-tint);
-            border-bottom-color: var(--cap-over-line);
+            background: var(--cap-over-bg);
+            border-bottom-color: var(--cap-over-bg);
         }
 
-        .cap-over .tc-cap {
-            color: var(--cap-over-bg);
-        }
 
         .table-card.cap-under {
             border-top: 3px solid var(--cap-under-bg);
@@ -808,19 +849,37 @@
                 font-size: 13px !important;
             }
 
+            /* Guest names one size up from the rest of the text. */
+            .guest-table .guest-name {
+                font-size: 15px !important;
+            }
+
+            /* The one exception to "nothing bold": the masa title bar. */
+            .tc-title,
+            .tc-title * {
+                font-weight: 700 !important;
+            }
+
             .select2-container--bootstrap-5 .select2-selection {
                 min-height: 24px;
             }
         }
 
-        .app-title {
-            font-weight: 700;
-            white-space: nowrap;
+        /* A thin "|" between groups in the bottom bar. */
+        .bb-sep {
+            color: #c3c8cf;
+            padding: 0 2px;
+            align-self: center;
+            user-select: none;
         }
 
-        /* Bottom bar stays ONE line on a desktop: the info side gives way
-           (the long "Sonuncu masa" hint ends in "…", full text on hover)
-           rather than pushing the buttons onto a second line. */
+        .bb-info {
+            color: #6c757d;
+        }
+
+        /* Bottom bar stays ONE line on a desktop: the stats give way (ending
+           in "…", full line on hover) rather than pushing the buttons onto a
+           second line. */
         @media (min-width: 992px) {
             .fixed-bottom-bar > .container-fluid {
                 flex-wrap: nowrap !important;
@@ -838,24 +897,11 @@
                 flex: 0 0 auto;
             }
 
-            /* These may end in "…" (full text on hover). Shrink factors set
-               who gives way first: the hint, then the page title, and the
-               stats - the numbers people actually read - last. */
-            .bb-info > #globalStatsSummary,
-            .bb-info > #masaHintInfo,
-            .bb-info > .app-title {
+            .bb-info > #globalStatsSummary {
                 flex: 0 1 auto;
                 min-width: 0;
                 overflow: hidden;
                 text-overflow: ellipsis;
-            }
-
-            .bb-info > #masaHintInfo {
-                flex-shrink: 100000;
-            }
-
-            .bb-info > .app-title {
-                flex-shrink: 1000;
             }
 
             .bb-actions {
@@ -893,7 +939,15 @@
         }
 
         .table-card.drop-move .card-header {
-            background: #cdebd9;
+            background: #2e8b57;
+            border-bottom-color: #2e8b57;
+        }
+
+        /* Invitation tick, left of the row's edit button. */
+        .invite-check {
+            margin: 0 4px 0 0 !important;
+            vertical-align: middle;
+            cursor: pointer;
         }
 
         /* The drag-and-drop switch in the bottom bar: purple, unlike anything
@@ -998,42 +1052,48 @@
     <div class="fixed-bottom-bar py-1 px-1">
         <div class="container-fluid d-flex justify-content-between align-items-center flex-wrap gap-2">
             <span class="small d-flex align-items-center flex-wrap gap-2 bb-info">
-                <span class="app-title" title="Toy Masa İdarəetməsi">Toy Masa İdarəetməsi</span>
                 <span class="badge bg-secondary view-badge"
                     title="Yalnız baxış — dəyişiklik etmək mümkün deyil"><i
                         class="fa-solid fa-eye me-1"></i>Baxış rejimi</span>
                 <span class="badge d-none" id="syncBadge"></span>
                 <span id="globalStatsSummary">—</span>
                 <span class="badge bg-light text-dark border" id="filterResultInfo"></span>
-                <!-- Last on purpose: when the bar is full, this is what gives way. -->
-                <span class="text-muted" id="masaHintInfo" title="">—</span>
             </span>
+            <!-- Groups, left to right: drag switch | add | lists | account + more.
+                 Only the add buttons and the drag switch carry colour. -->
             <div class="d-flex flex-wrap gap-1 bb-actions">
+                <button class="btn btn-sm btn-drag-on edit-only" id="btnDragToggle" type="button" aria-pressed="true">
+                    <i class="fa-solid fa-hand me-1"></i><span id="dragToggleLabel">Sürüklə: açıq</span>
+                </button>
+                <span class="bb-sep edit-only">|</span>
+                <button class="btn btn-primary btn-sm edit-only" id="btnOpenAddTable">
+                    <i class="fa-solid fa-circle-plus me-1"></i> Yeni Masa
+                </button>
+                <button class="btn btn-success btn-sm edit-only" id="btnOpenAddGuest">
+                    <i class="fa-solid fa-user-plus me-1"></i> Qonaq Əlavə Et
+                </button>
+                <span class="bb-sep edit-only">|</span>
+                <button class="btn btn-outline-secondary btn-sm" id="btnOpenList">
+                    <i class="fa-solid fa-list-ul me-1"></i> Siyahı
+                </button>
+                <button class="btn btn-outline-secondary btn-sm edit-only" id="btnOpenInvites">
+                    <i class="fa-solid fa-envelope me-1"></i> Dəvətnamə siyahısı
+                    <span class="badge bg-secondary ms-1" id="inviteCountBadge"></span>
+                </button>
+                <button class="btn btn-outline-secondary btn-sm edit-only" id="btnOpenNotes">
+                    <i class="fa-solid fa-note-sticky me-1"></i> Qeyd Masası
+                    <span class="badge bg-secondary ms-1 d-none" id="notesCountBadge">0</span>
+                </button>
+                <button class="btn btn-outline-secondary btn-sm edit-only" data-bs-toggle="modal" data-bs-target="#typesModal">
+                    <i class="fa-solid fa-tags me-1"></i> Tiplər
+                </button>
+                <span class="bb-sep">|</span>
                 <button class="btn btn-primary btn-sm d-none" id="btnLogin">
                     <i class="fa-solid fa-right-to-bracket me-1"></i> Daxil ol</button>
                 <button class="btn btn-outline-secondary btn-sm d-none" id="btnVisibility" type="button">
                     <i class="fa-solid fa-lock me-1"></i><span id="visibilityLabel">Bağlı</span></button>
                 <button class="btn btn-outline-secondary btn-sm d-none" id="btnLogout">
                     <i class="fa-solid fa-right-from-bracket me-1"></i> Çıxış</button>
-                <button class="btn btn-sm btn-drag-on edit-only" id="btnDragToggle" type="button" aria-pressed="true">
-                    <i class="fa-solid fa-hand me-1"></i><span id="dragToggleLabel">Sürüklə: açıq</span>
-                </button>
-                <button class="btn btn-primary btn-sm edit-only" id="btnOpenAddTable">
-                    <i class="fa-solid fa-circle-plus me-1"></i> Yeni Masa
-                </button>
-                <button class="btn btn-outline-primary btn-sm" id="btnOpenList">
-                    <i class="fa-solid fa-list-ul me-1"></i> Siyahı
-                </button>
-                <button class="btn btn-outline-warning btn-sm edit-only" id="btnOpenNotes">
-                    <i class="fa-solid fa-note-sticky me-1"></i> Qeyd Masası
-                    <span class="badge bg-secondary ms-1 d-none" id="notesCountBadge">0</span>
-                </button>
-                <button class="btn btn-outline-dark btn-sm edit-only" data-bs-toggle="modal" data-bs-target="#typesModal">
-                    <i class="fa-solid fa-tags me-1"></i> Tiplər
-                </button>
-                <button class="btn btn-success btn-sm edit-only" id="btnOpenAddGuest">
-                    <i class="fa-solid fa-user-plus me-1"></i> Qonaq Əlavə Et
-                </button>
                 <div class="dropup">
                     <button class="btn btn-outline-secondary btn-sm" type="button" id="btnMoreMenu"
                         data-bs-toggle="dropdown" data-bs-auto-close="true" aria-expanded="false"
@@ -1546,7 +1606,52 @@
         </div>
     </div>
 
-    <!-- Print target: filled from the list modal, hidden on screen. -->
+    <!-- Modal: invitation list. A guest is on it when their row's tick is on. -->
+    <div class="modal fade" id="inviteListModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fs-6"><i class="fa-solid fa-envelope me-1"></i> Dəvətnamə Siyahısı</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+                        <div class="btn-group btn-group-sm" role="group">
+                            <input type="radio" class="btn-check" name="inviteScope" id="inviteScopeYes" value="yes" checked>
+                            <label class="btn btn-outline-secondary" for="inviteScopeYes">Dəvətnaməsi olanlar</label>
+                            <input type="radio" class="btn-check" name="inviteScope" id="inviteScopeNo" value="no">
+                            <label class="btn btn-outline-secondary" for="inviteScopeNo">Olmayanlar</label>
+                            <input type="radio" class="btn-check" name="inviteScope" id="inviteScopeAll" value="all">
+                            <label class="btn btn-outline-secondary" for="inviteScopeAll">Hamısı</label>
+                        </div>
+                        <span class="small text-muted ms-auto" id="inviteCount"></span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width:36px;" class="text-center"><i class="fa-solid fa-envelope"></i></th>
+                                    <th>Qonaq</th>
+                                    <th style="width:140px;">Tip</th>
+                                    <th style="width:60px;" class="text-center">Say</th>
+                                    <th style="width:150px;">Masa</th>
+                                </tr>
+                            </thead>
+                            <tbody id="inviteListBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Bağla</button>
+                    <button type="button" class="btn btn-primary btn-sm" id="btnPrintInvites">
+                        <i class="fa-solid fa-print me-1"></i> Çap Et
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Print target: filled from the list modals, hidden on screen. -->
     <div id="printArea"></div>
 
     <!-- Modal: Confirmation -->
@@ -1900,8 +2005,6 @@
             }
             if (SERVER.failed) {
                 setSyncBadge('Yadda saxlanmadı', 'bg-danger', 'Serverə yazmaq alınmadı.');
-            } else if (SERVER.saving || SERVER.pending) {
-                setSyncBadge('Saxlanılır…', 'bg-info text-dark');
             } else if (SERVER.live === false) {
                 setSyncBadge('Canlı deyil', 'bg-warning text-dark',
                     'Serverlə canlı əlaqə kəsilib — yenidən qoşulur. Başqa yerdəki dəyişikliklər qoşulan kimi gələcək.');
@@ -1909,7 +2012,9 @@
                 setSyncBadge('Yeni dəyişiklik var', 'bg-warning text-dark',
                     'Başqa yerdə dəyişiklik edilib — açıq pəncərə bağlanan kimi yüklənəcək.');
             } else {
-                setSyncBadge('Saxlanıldı', 'bg-success', 'Bütün dəyişikliklər serverdədir.');
+                // All saved: say nothing. The badge only appears when something
+                // needs attention (not saved, not live, a newer version waiting).
+                setSyncBadge('');
             }
             $('#btnLogin').toggleClass('d-none', SERVER.canEdit);
             $('#btnLogout').toggleClass('d-none', !SERVER.canEdit);
@@ -2149,13 +2254,13 @@
 
         function updateTableHint() {
             if (weddingData.tables.length === 0) {
-                const empty = 'Hələ masa yoxdur. Tövsiyə olunan ad: Masa 1';
-                $('#masaHintInfo').text(empty).attr('title', empty);
+                $('#btnOpenAddTable').attr('title', 'Hələ masa yoxdur. Tövsiyə olunan ad: Masa 1');
                 return;
             }
             const last = weddingData.tables[weddingData.tables.length - 1];
-            const hint = `Sonuncu masa: "${last.name}" | Tövsiyə olunan ad: ${suggestNextTableName()}`;
-            $('#masaHintInfo').text(hint).attr('title', hint);
+            // Shown on hover of "Yeni Masa" - the bar itself stays quiet.
+            $('#btnOpenAddTable').attr('title',
+                `Sonuncu masa: "${last.name}" | Tövsiyə olunan ad: ${suggestNextTableName()}`);
         }
 
         // Pure: computes a name only, no DOM side effects.
@@ -2183,18 +2288,29 @@
                 else if (state === 'full') fullTables++;
             });
             const free = totalCapacity - totalSeated;
-            $('#globalStatsSummary').html(
-                `<strong>${weddingData.tables.length}</strong> masa &middot; ` +
-                `<strong>${guestRecords}</strong> qeyd &middot; ` +
-                `<strong>${totalSeated}</strong> / ${totalCapacity} nəfər &middot; ` +
-                (free >= 0
-                    ? `<span style="color:var(--cap-under-bg)"><strong>${free}</strong> boş yer</span>`
-                    : `<span style="color:var(--cap-over-bg)"><strong>${-free}</strong> nəfər artıq</span>`) +
-                ` &middot; tam dolu: <strong>${fullTables}</strong>` +
-                ` &middot; <span style="color:var(--cap-over-bg)">aşan masa: <strong>${overTables}</strong></span>`
-            );
-            // The bar may cut this short; the whole line is always on hover.
-            $('#globalStatsSummary').attr('title', $('#globalStatsSummary').text());
+            // Four numbers, muted, "|" between them. Colour only where it
+            // needs attention: seats over capacity, masas over capacity.
+            const sep = '<span class="bb-sep">|</span>';
+            const parts = [
+                `${weddingData.tables.length} masa`,
+                `${totalSeated} / ${totalCapacity} nəfər`,
+                free >= 0
+                    ? `${free} boş yer`
+                    : `<span style="color:var(--cap-over-bg)">${-free} nəfər artıq</span>`
+            ];
+            if (overTables > 0) {
+                parts.push(`<span style="color:var(--cap-over-bg)">aşan masa: ${overTables}</span>`);
+            }
+            $('#globalStatsSummary').html(parts.join(sep));
+            // The bar may cut this short; the full picture is always on hover.
+            $('#globalStatsSummary').attr('title',
+                `${weddingData.tables.length} masa · ${guestRecords} qeyd · ${totalSeated} / ${totalCapacity} nəfər · ` +
+                (free >= 0 ? `${free} boş yer` : `${-free} nəfər artıq`) +
+                ` · tam dolu: ${fullTables} · aşan masa: ${overTables}`);
+
+            // Invitation count on its button: ticked guests / all guests.
+            const allGuests = weddingData.tables.flatMap(t => t.guests);
+            $('#inviteCountBadge').text(`${allGuests.filter(g => g.invited).length}/${allGuests.length}`);
         }
 
         function updateDropdowns() {
@@ -2371,7 +2487,7 @@
                             <td class="guest-name">${highlightName(guest.name, f.name)}</td>
                             <td class="guest-meta"><span class="badge badge-type" style="background:${color.bg};color:${color.fg}" title="${escapeHtml(guest.type)}">${escapeHtml(guest.type)}</span></td>
                             <td class="guest-meta text-center"><span class="badge amount-badge">${Number(guest.amount) || 0}</span></td>
-                            <td class="guest-actions">${editable ? guestActionsHtml(table.id, guest.id) : ''}</td>
+                            <td class="guest-actions">${editable ? guestActionsHtml(table.id, guest.id, guest.invited) : ''}</td>
                         </tr>`;
                     }).join('');
                 }
@@ -2427,11 +2543,13 @@
             $('#activeFilterCount').text(active).toggleClass('d-none', active === 0);
         }
 
-        // Edit and delete. The Köçür / Dəyiş button is gone from the rows; its
-        // modal (openMoveSwitchModal) and switchGuestsBetween() are kept, only
-        // unwired - moving is done by dragging now.
-        function guestActionsHtml(tableId, guestId) {
-            return `<button type="button" class="btn btn-sm btn-outline-primary edit-guest-btn" data-table-id="${tableId}" data-guest-id="${guestId}" title="Redaktə et"><i class="fa-solid fa-pen"></i></button>` +
+        // Invitation tick, edit and delete. The Köçür / Dəyiş button is gone
+        // from the rows; its modal (openMoveSwitchModal) and
+        // switchGuestsBetween() are kept, only unwired - moving is done by
+        // dragging now.
+        function guestActionsHtml(tableId, guestId, invited) {
+            return `<input type="checkbox" class="form-check-input invite-check" data-table-id="${tableId}" data-guest-id="${guestId}" ${invited ? 'checked' : ''} title="Dəvətnamə siyahısında" aria-label="Dəvətnamə">` +
+                `<button type="button" class="btn btn-sm btn-outline-primary edit-guest-btn" data-table-id="${tableId}" data-guest-id="${guestId}" title="Redaktə et"><i class="fa-solid fa-pen"></i></button>` +
                 ` <button type="button" class="btn btn-sm btn-outline-danger delete-guest-btn" data-table-id="${tableId}" data-guest-id="${guestId}" title="Sil"><i class="fa-solid fa-xmark"></i></button>`;
         }
 
@@ -2462,7 +2580,7 @@
                 .map(t => `<span class="badge badge-type">${escapeHtml(t)}</span>`).join(''));
             const amt = widest(uniq(guests.map(g => String(Number(g.amount) || 0)))
                 .map(a => `<span class="badge amount-badge">${a}</span>`).join(''));
-            const act = canEdit() ? widest(`<span>${guestActionsHtml(0, 0)}</span>`) : 0;
+            const act = canEdit() ? widest(`<span>${guestActionsHtml(0, 0, true)}</span>`) : 0;
             $probe.remove();
 
             const cols = {
@@ -2643,7 +2761,7 @@
                 tables: weddingData.tables.map(t => ({
                     name: t.name,
                     capacity: t.capacity,
-                    guests: t.guests.map(g => ({ name: g.name, type: g.type, amount: g.amount }))
+                    guests: t.guests.map(g => ({ name: g.name, type: g.type, amount: g.amount, invited: !!g.invited }))
                 }))
             };
         }
@@ -2736,7 +2854,8 @@
                         gType = types[0] || addType('Dost');
                         warnings.push('"' + gName + '": tip boşdur, "' + gType + '" götürüldü.');
                     }
-                    guests.push({ id: ++idSeq, name: gName, type: gType, amount: amount });
+                    // Older exports have no "invited": they read as not invited.
+                    guests.push({ id: ++idSeq, name: gName, type: gType, amount: amount, invited: g.invited === true });
                 });
 
                 return { id: ++idSeq, name: name, capacity: capacity, guests: guests };
@@ -3653,6 +3772,74 @@
         }
 
         /* =====================================================================
+           INVITATION LIST
+           A guest is on it when the tick in their row is on (guest.invited).
+           The list shows who is on it, who is not, or everyone, and the tick
+           can be changed here too - the same commit('toggleInvite').
+           ===================================================================== */
+        function currentInviteScope() {
+            return $('input[name="inviteScope"]:checked').val() || 'yes';
+        }
+
+        function collectInviteList(scope) {
+            const rows = [];
+            weddingData.tables.forEach(table => table.guests.forEach(g => {
+                if (scope === 'yes' && !g.invited) return;
+                if (scope === 'no' && g.invited) return;
+                rows.push({ tableId: table.id, guestId: g.id, invited: !!g.invited,
+                            name: g.name, type: g.type, amount: Number(g.amount) || 0, table: table.name });
+            }));
+            return rows.sort((a, b) => collator.compare(a.name, b.name));
+        }
+
+        function renderInviteList() {
+            const rows = collectInviteList(currentInviteScope());
+            const all = weddingData.tables.flatMap(t => t.guests);
+            const invited = all.filter(g => g.invited);
+            $('#inviteListBody').html(rows.length === 0
+                ? `<tr><td colspan="5" class="text-center text-muted py-3">Qonaq yoxdur.</td></tr>`
+                : rows.map(r => `
+                    <tr>
+                        <td class="text-center"><input type="checkbox" class="form-check-input invite-list-check m-0"
+                            data-table-id="${r.tableId}" data-guest-id="${r.guestId}" ${r.invited ? 'checked' : ''}
+                            aria-label="Dəvətnamə"></td>
+                        <td>${escapeHtml(r.name)}</td>
+                        <td>${escapeHtml(r.type)}</td>
+                        <td class="text-center">${r.amount}</td>
+                        <td>${escapeHtml(r.table)}</td>
+                    </tr>`).join(''));
+            $('#inviteCount').text(
+                `${invited.length} / ${all.length} qonaq · ` +
+                `${invited.reduce((n, g) => n + (Number(g.amount) || 0), 0)} nəfər dəvətnamədə`);
+        }
+
+        function buildInvitePrintArea() {
+            const scope = currentInviteScope();
+            const rows = collectInviteList(scope);
+            const label = ({ yes: 'Dəvətnaməsi olanlar', no: 'Dəvətnaməsi olmayanlar', all: 'Bütün qonaqlar' })[scope];
+            $('#printArea').html(`
+                <h2>Dəvətnamə Siyahısı</h2>
+                <div class="meta">${escapeHtml(label)} &middot; ${rows.length} qonaq &middot;
+                    ${rows.reduce((n, r) => n + r.amount, 0)} nəfər &middot; ${escapeHtml(new Date().toLocaleString('az-AZ'))}</div>
+                <table>
+                    <thead><tr><th>✓</th><th>Qonaq</th><th>Tip</th><th>Say</th><th>Masa</th></tr></thead>
+                    <tbody>
+                        ${rows.map(r => `<tr><td>${r.invited ? '✓' : ''}</td><td>${escapeHtml(r.name)}</td><td>${escapeHtml(r.type)}</td><td>${r.amount}</td><td>${escapeHtml(r.table)}</td></tr>`).join('')}
+                    </tbody>
+                </table>
+            `);
+        }
+
+        // One place the tick changes, from the row or from the list.
+        function setGuestInvited(tableId, guestId, invited) {
+            const table = findTable(Number(tableId));
+            const guest = table && findGuest(table, Number(guestId));
+            if (!guest) return;
+            guest.invited = !!invited;
+            commit('toggleInvite');
+        }
+
+        /* =====================================================================
            MOVE / SWITCH MODAL
            These three functions deliberately never fire a plain 'change' on the
            selects they populate - the original code did, and since the same
@@ -4344,6 +4531,11 @@
                 showModal('editGuestModal');
             });
 
+            // Invitation tick in a row.
+            $cards.on('change', '.invite-check', function () {
+                setGuestInvited($(this).data('table-id'), $(this).data('guest-id'), this.checked);
+            });
+
             $cards.on('click', '.open-move-modal', function () {
                 openMoveSwitchModal(
                     parseInt($(this).data('table-id'), 10),
@@ -4554,6 +4746,24 @@
 
             $('#btnPrintList').on('click', function () {
                 buildPrintArea();
+                window.print();
+            });
+
+            /* ---------- Invitation list ---------- */
+            $('#btnOpenInvites').on('click', function () {
+                renderInviteList();
+                showModal('inviteListModal');
+            });
+
+            $('input[name="inviteScope"]').on('change', renderInviteList);
+
+            $('#inviteListBody').on('change', '.invite-list-check', function () {
+                setGuestInvited($(this).data('table-id'), $(this).data('guest-id'), this.checked);
+                renderInviteList();
+            });
+
+            $('#btnPrintInvites').on('click', function () {
+                buildInvitePrintArea();
                 window.print();
             });
 
