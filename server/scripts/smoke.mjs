@@ -133,84 +133,93 @@ if (DB) {
            Array.isArray(r.json?.data?.tables) && Array.isArray(r.json?.data?.guestTypes),
            JSON.stringify(r.json?.data)?.slice(0, 60));
 
-        const current = r.json;
-        const next = {
-            ...current.data,
-            tables: [{ id: 1, name: 'Smoke Masa', capacity: 8, guests: [] }]
-        };
-        // Keep whatever visibility the list already had.
-        next.settings = current.data.settings || { visibility: 'private' };
+        // Everything below REPLACES the whole board (it leaves one 'Smoke Masa').
+        // On a server that already holds a guest list, that would wipe it, so
+        // refuse unless told this is a scratch server.
+        const existing = r.json?.data?.tables?.length || 0;
+        if (existing > 0 && process.env.SMOKE_OVERWRITE !== 'yes') {
+            results.push(`SKIP  write tests: the board already has ${existing} masa(s) and they would ` +
+                'REPLACE it. Set SMOKE_OVERWRITE=yes only on a scratch server.');
+        } else {
+            const current = r.json;
+            const next = {
+                ...current.data,
+                tables: [{ id: 1, name: 'Smoke Masa', capacity: 8, guests: [] }]
+            };
+            // Keep whatever visibility the list already had.
+            next.settings = current.data.settings || { visibility: 'private' };
 
-        // Live updates: an anonymous page must hear about the write, and
-        // must hear only the version - never the guest data itself.
-        const live = await listen();
-        ok('live stream opens', live.res.status === 200 &&
-           /text\/event-stream/.test(live.res.headers.get('content-type') || ''),
-           'status ' + live.res.status);
-        await pause(200);
-        ok('live stream sends the current version on connect',
-           live.events[0]?.version === current.version, JSON.stringify(live.events[0]));
+            // Live updates: an anonymous page must hear about the write, and
+            // must hear only the version - never the guest data itself.
+            const live = await listen();
+            ok('live stream opens', live.res.status === 200 &&
+               /text\/event-stream/.test(live.res.headers.get('content-type') || ''),
+               'status ' + live.res.status);
+            await pause(200);
+            ok('live stream sends the current version on connect',
+               live.events[0]?.version === current.version, JSON.stringify(live.events[0]));
 
-        r = await call('PUT', '/api/state', { data: next, version: current.version, action: 'smoke' });
-        ok('editor PUT accepted', r.status === 200 && r.json?.ok === true, 'status ' + r.status);
-        const newVersion = r.json?.version;
-        ok('version incremented', newVersion === current.version + 1,
-           `${current.version} -> ${newVersion}`);
+            r = await call('PUT', '/api/state', { data: next, version: current.version, action: 'smoke' });
+            ok('editor PUT accepted', r.status === 200 && r.json?.ok === true, 'status ' + r.status);
+            const newVersion = r.json?.version;
+            ok('version incremented', newVersion === current.version + 1,
+               `${current.version} -> ${newVersion}`);
 
-        await pause(300);
-        const announced = live.events.find(e => e.version === newVersion);
-        ok('write is pushed live', !!announced, JSON.stringify(live.events));
-        ok('live event carries no guest data',
-           !!announced && Object.keys(announced).sort().join() === 'version,visibility',
-           JSON.stringify(announced));
-        live.close();
+            await pause(300);
+            const announced = live.events.find(e => e.version === newVersion);
+            ok('write is pushed live', !!announced, JSON.stringify(live.events));
+            ok('live event carries no guest data',
+               !!announced && Object.keys(announced).sort().join() === 'version,visibility',
+               JSON.stringify(announced));
+            live.close();
 
-        // Writing again with the OLD version must conflict, not clobber.
-        r = await call('PUT', '/api/state', { data: next, version: current.version, action: 'stale' });
-        ok('stale write gets 409', r.status === 409 && r.json?.error === 'conflict', 'status ' + r.status);
-        ok('409 reports the current version', r.json?.currentVersion === newVersion,
-           JSON.stringify(r.json));
+            // Writing again with the OLD version must conflict, not clobber.
+            r = await call('PUT', '/api/state', { data: next, version: current.version, action: 'stale' });
+            ok('stale write gets 409', r.status === 409 && r.json?.error === 'conflict', 'status ' + r.status);
+            ok('409 reports the current version', r.json?.currentVersion === newVersion,
+               JSON.stringify(r.json));
 
-        r = await call('GET', '/api/state');
-        ok('write persisted', r.json?.data?.tables?.[0]?.name === 'Smoke Masa',
-           JSON.stringify(r.json?.data?.tables?.[0]));
+            r = await call('GET', '/api/state');
+            ok('write persisted', r.json?.data?.tables?.[0]?.name === 'Smoke Masa',
+               JSON.stringify(r.json?.data?.tables?.[0]));
 
-        r = await call('PUT', '/api/state', { data: { nope: true }, version: r.json.version });
-        ok('malformed payload rejected', r.status === 400, 'status ' + r.status);
+            r = await call('PUT', '/api/state', { data: { nope: true }, version: r.json.version });
+            ok('malformed payload rejected', r.status === 400, 'status ' + r.status);
 
-        r = await call('GET', '/api/revisions');
-        ok('revision history recorded', r.status === 200 && r.json?.revisions?.length > 0,
-           (r.json?.revisions?.length || 0) + ' revisions');
+            r = await call('GET', '/api/revisions');
+            ok('revision history recorded', r.status === 200 && r.json?.revisions?.length > 0,
+               (r.json?.revisions?.length || 0) + ' revisions');
 
-        /* ---- visibility switching, both directions ---- */
-        let st = (await call('GET', '/api/state')).json;
+            /* ---- visibility switching, both directions ---- */
+            let st = (await call('GET', '/api/state')).json;
 
-        const goPublic = { ...st.data, settings: { visibility: 'public' } };
-        r = await call('PUT', '/api/state', { data: goPublic, version: st.version, action: 'public' });
-        ok('editor can open the list', r.status === 200, 'status ' + r.status);
-        r = await call('GET', '/api/state', undefined, false);
-        ok('public: anonymous CAN now read', r.status === 200, 'status ' + r.status);
+            const goPublic = { ...st.data, settings: { visibility: 'public' } };
+            r = await call('PUT', '/api/state', { data: goPublic, version: st.version, action: 'public' });
+            ok('editor can open the list', r.status === 200, 'status ' + r.status);
+            r = await call('GET', '/api/state', undefined, false);
+            ok('public: anonymous CAN now read', r.status === 200, 'status ' + r.status);
 
-        st = (await call('GET', '/api/state')).json;
-        const goPrivate = { ...st.data, settings: { visibility: 'private' } };
-        r = await call('PUT', '/api/state', { data: goPrivate, version: st.version, action: 'private' });
-        ok('editor can close the list', r.status === 200, 'status ' + r.status);
-        r = await call('GET', '/api/state', undefined, false);
-        ok('private: anonymous refused again', r.status === 401 && r.json?.error === 'private',
-           'status ' + r.status);
+            st = (await call('GET', '/api/state')).json;
+            const goPrivate = { ...st.data, settings: { visibility: 'private' } };
+            r = await call('PUT', '/api/state', { data: goPrivate, version: st.version, action: 'private' });
+            ok('editor can close the list', r.status === 200, 'status ' + r.status);
+            r = await call('GET', '/api/state', undefined, false);
+            ok('private: anonymous refused again', r.status === 401 && r.json?.error === 'private',
+               'status ' + r.status);
 
-        // A write that omits settings must not silently re-open the list.
-        st = (await call('GET', '/api/state')).json;
-        const noSettings = { guestTypes: st.data.guestTypes, tables: st.data.tables, notes: st.data.notes };
-        r = await call('PUT', '/api/state', { data: noSettings, version: st.version, action: 'no-settings' });
-        ok('settings-less write accepted', r.status === 200, 'status ' + r.status);
-        r = await call('GET', '/api/state', undefined, false);
-        ok('still private after settings-less write (fails closed)',
-           r.status === 401, 'status ' + r.status);
+            // A write that omits settings must not silently re-open the list.
+            st = (await call('GET', '/api/state')).json;
+            const noSettings = { guestTypes: st.data.guestTypes, tables: st.data.tables, notes: st.data.notes };
+            r = await call('PUT', '/api/state', { data: noSettings, version: st.version, action: 'no-settings' });
+            ok('settings-less write accepted', r.status === 200, 'status ' + r.status);
+            r = await call('GET', '/api/state', undefined, false);
+            ok('still private after settings-less write (fails closed)',
+               r.status === 401, 'status ' + r.status);
 
-        // Anonymous must never be able to write, in either mode.
-        r = await call('PUT', '/api/state', { data: noSettings, version: 999 }, false);
-        ok('anonymous write still refused', r.status === 401, 'status ' + r.status);
+            // Anonymous must never be able to write, in either mode.
+            r = await call('PUT', '/api/state', { data: noSettings, version: 999 }, false);
+            ok('anonymous write still refused', r.status === 401, 'status ' + r.status);
+        }
     }
 } else {
     results.push('SKIP  database tests (EXPECT_DB=false)');

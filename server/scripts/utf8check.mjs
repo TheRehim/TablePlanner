@@ -27,6 +27,14 @@ const login = await call('POST', '/api/login', { password: PASSWORD });
 if (login.status !== 200) { console.error('login failed:', login.status); process.exit(1); }
 
 const before = await call('GET', '/api/state');
+// This REPLACES the whole board with one sample masa. Refuse on a server that
+// already holds a guest list unless told it is a scratch server.
+const existing = before.json?.data?.tables?.length || 0;
+if (existing > 0 && process.env.SMOKE_OVERWRITE !== 'yes') {
+    console.error(`refused: the board already has ${existing} masa(s) and this would REPLACE it.`);
+    console.error('Set SMOKE_OVERWRITE=yes only on a scratch server.');
+    process.exit(2);
+}
 const payload = {
     guestTypes: ['Dost', SAMPLE.type],
     tables: [{ id: 1, name: SAMPLE.masa, capacity: 16,

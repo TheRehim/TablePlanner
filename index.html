@@ -102,53 +102,88 @@
             box-shadow: 0 0 0 .12rem rgba(29, 78, 216, .35) !important;
         }
 
-        /* ---- Table cards ---- */
+        /* ---- Table cards ----
+           --card-w (set by sizeTableColumns() from the data) is the narrowest a
+           card can be with its widest row intact. The grid fits as many cards
+           per row as that allows - if a 6th does not fit, it is 5 - and then
+           stretches those cards so the row fills the window exactly, 4px apart,
+           no empty room. auto-fill keeps empty tracks, so a short last row
+           keeps the same card width. Each grid row is as tall as its tallest
+           masa and the others stretch to match. */
         #tablesContainer {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 1rem;
-            align-items: flex-start;
-            justify-content: center;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(var(--card-w, 340px), 1fr));
+            grid-auto-rows: auto;
+            align-items: stretch;
+            gap: 4px;
+        }
+
+        /* A phone narrower than one card: one full-width column. */
+        @media (max-width: 575.98px) {
+            #tablesContainer {
+                grid-template-columns: minmax(0, 1fr);
+            }
         }
 
         .table-card {
-            width: 380px;
-            flex: 0 0 380px;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
             border: 1px solid #dcdfe4;
-            border-radius: .5rem;
+            border-radius: 3px;
             overflow: hidden;
             background: #fff;
         }
 
         .table-card .card-header {
-            padding: .6rem .75rem;
+            flex: 0 0 auto;
+            padding: 2px 4px;
             border-bottom: 1px solid #e3e6ea;
+        }
+
+        .table-card .card-body {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-y: auto;
+        }
+
+        /* "Masa 1 - 18/18" on one line, actions pushed to the right. */
+        .tc-head {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .tc-title {
+            flex: 1 1 auto;
+            min-width: 0;
+            line-height: 1.3;
         }
 
         /* Table name: readable, wraps, never truncated */
         .table-name {
-            font-size: 1.15rem;
             font-weight: 700;
-            line-height: 1.25;
             margin: 0;
             word-break: break-word;
             white-space: normal;
         }
 
-        /* Capacity pill: the "table info", big and readable */
-        .cap-pill {
-            display: inline-block;
-            font-size: 1rem;
+        .tc-cap {
             font-weight: 700;
-            line-height: 1.2;
-            padding: .3rem .6rem;
-            border-radius: .4rem;
-            color: #ffffff !important;
+            white-space: nowrap;
         }
 
-        .cap-note {
-            font-size: .875rem;
-            font-weight: 600;
+        .tc-actions {
+            flex: 0 0 auto;
+            display: flex;
+            gap: 2px;
+        }
+
+        .tc-actions .btn,
+        .guest-actions .btn {
+            padding: 0 4px;
+            line-height: 1.3;
+            border-radius: 2px;
         }
 
         /* below capacity -> blue */
@@ -158,13 +193,7 @@
             border-bottom-color: var(--cap-under-line);
         }
 
-        .cap-under .cap-pill,
-        .cap-pill.cap-under {
-            background: var(--cap-under-bg);
-        }
-
-        .cap-under .cap-note,
-        .cap-note.cap-under {
+        .cap-under .tc-cap {
             color: var(--cap-under-bg);
         }
 
@@ -175,13 +204,7 @@
             border-bottom-color: var(--cap-full-line);
         }
 
-        .cap-full .cap-pill,
-        .cap-pill.cap-full {
-            background: var(--cap-full-bg);
-        }
-
-        .cap-full .cap-note,
-        .cap-note.cap-full {
+        .cap-full .tc-cap {
             color: var(--cap-full-bg);
         }
 
@@ -192,36 +215,86 @@
             border-bottom-color: var(--cap-over-line);
         }
 
-        .cap-over .cap-pill,
-        .cap-pill.cap-over {
-            background: var(--cap-over-bg);
-        }
-
-        .cap-over .cap-note,
-        .cap-note.cap-over {
+        .cap-over .tc-cap {
             color: var(--cap-over-bg);
         }
 
         .table-card.cap-under {
-            border-top: 4px solid var(--cap-under-bg);
+            border-top: 3px solid var(--cap-under-bg);
         }
 
         .table-card.cap-full {
-            border-top: 4px solid var(--cap-full-bg);
+            border-top: 3px solid var(--cap-full-bg);
         }
 
         .table-card.cap-over {
-            border-top: 4px solid var(--cap-over-bg);
+            border-top: 3px solid var(--cap-over-bg);
         }
 
         /* Guest rows */
-        .guest-table {
-            font-size: .9rem;
+        .guest-table td {
+            vertical-align: middle;
+            padding: 1px 4px;
         }
 
-        .guest-table td,
-        .guest-table th {
+        /* Column widths come from sizeTableColumns(): the longest name (wraps
+           past 170px), the widest type badge (max 75px) and the widest count.
+           The button column has no fixed width: it takes whatever a stretched
+           card has spare, so type and count stay beside the name and the
+           buttons sit at the right edge. Its minimum is in --card-w. */
+        .guest-table {
+            table-layout: fixed;
+        }
+
+        .guest-table col.c-name { width: var(--col-name, 178px); }
+        .guest-table col.c-type { width: var(--col-type, 83px); }
+        .guest-table col.c-amt  { width: var(--col-amt, 28px); }
+        .guest-table col.c-act  { width: auto; }
+
+        .guest-table .guest-meta,
+        .guest-table .guest-actions {
+            white-space: nowrap;
+            overflow: hidden;
+        }
+
+        .guest-table .guest-actions {
+            text-align: right;
+        }
+
+        /* A viewer has no buttons, and no button column either. */
+        .guest-table td.guest-actions:empty {
+            padding: 0;
+        }
+
+        /* Off-screen copy of the row content, used only to measure it. */
+        .col-probe {
+            position: absolute;
+            left: -10000px;
+            top: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .col-probe > span {
+            display: inline-block;
+            white-space: nowrap !important;
+            word-break: normal;
+        }
+
+        /* Badges and buttons set the row height, so they are what gets tight.
+           Plain: background colour only, normal weight, at most 75px - a longer
+           type is cut with an ellipsis and shown whole on hover (title). */
+        .guest-table .badge {
+            display: inline-block;
+            max-width: 75px;
+            overflow: hidden;
+            text-overflow: ellipsis;
             vertical-align: middle;
+            padding: 0 3px;
+            line-height: 1.3;
+            font-weight: 400;
+            border: 0;
+            border-radius: 2px;
         }
 
         .guest-name {
@@ -230,17 +303,9 @@
             white-space: normal;
         }
 
-        .badge-type {
-            font-size: .72rem;
-            font-weight: 600;
-        }
-
         .amount-badge {
-            font-size: .85rem;
-            font-weight: 700;
             background: #eef0f3;
             color: #2b2f33;
-            border: 1px solid #d5d9df;
         }
 
         /* A row that matched the search, shown in place inside its full masa. */
@@ -709,13 +774,128 @@
             gap: .4rem;
             max-width: 340px;
         }
+
+        /* =====================================================================
+           DENSE BOARD
+           Text is 12px everywhere; masa names and the filter bar are 13px.
+           The root is 10px too, so every rem-based gap and padding in
+           Bootstrap shrinks with it. Screen only - the printed list keeps its
+           own pt sizes. Icons (<i>) are left alone so fa-2x etc. still work.
+           ===================================================================== */
+        @media screen {
+            html {
+                font-size: 10px;
+            }
+
+            body,
+            body *:not(i) {
+                font-size: 12px !important;
+            }
+
+            .fixed-top-bar,
+            .fixed-top-bar *:not(i),
+            .table-name,
+            .tc-cap {
+                font-size: 13px !important;
+            }
+
+            .select2-container--bootstrap-5 .select2-selection {
+                min-height: 24px;
+            }
+        }
+
+        .app-title {
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        /* Bottom bar stays ONE line on a desktop: the info side gives way
+           (the long "Sonuncu masa" hint ends in "…", full text on hover)
+           rather than pushing the buttons onto a second line. */
+        @media (min-width: 992px) {
+            .fixed-bottom-bar > .container-fluid {
+                flex-wrap: nowrap !important;
+            }
+
+            .bb-info {
+                flex: 1 1 auto;
+                min-width: 0;
+                flex-wrap: nowrap !important;
+                white-space: nowrap;
+                overflow: hidden;
+            }
+
+            .bb-info > * {
+                flex: 0 0 auto;
+            }
+
+            .bb-info > #masaHintInfo {
+                flex: 0 1 auto;
+                min-width: 0;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .bb-actions {
+                flex: 0 0 auto;
+                flex-wrap: nowrap !important;
+            }
+        }
+
+        /* ---- Drag and drop ----
+           Green: dropping here MOVES the guest to this masa.
+           Orange: dropping here SWITCHES the two guests - both masas and both
+           rows light up, so it is clear who goes where. */
+        tr.guest-row.ui-draggable {
+            cursor: grab;
+        }
+
+        tr.guest-row.drag-source-row td {
+            opacity: .45;
+        }
+
+        .drag-helper {
+            padding: 2px 6px;
+            border-radius: 3px;
+            background: #2b2f33;
+            color: #fff;
+            font-weight: 600;
+            white-space: nowrap;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, .25);
+            pointer-events: none;
+        }
+
+        .table-card.drop-move {
+            outline: 2px solid #2e8b57;
+            outline-offset: -2px;
+            background: #e8f6ee;
+        }
+
+        .table-card.drop-move .card-header {
+            background: #cdebd9;
+        }
+
+        .table-card.drop-swap {
+            outline: 2px solid #e27d3b;
+            outline-offset: -2px;
+            background: #fff4ea;
+        }
+
+        .table-card.drop-swap .card-header {
+            background: #ffe0c7;
+        }
+
+        tr.guest-row.drop-swap-row td {
+            background: #ffc999 !important;
+            opacity: 1;
+        }
     </style>
 </head>
 
 <body>
 
     <!-- FIXED TOP BAR: filters -->
-    <div class="fixed-top-bar py-2 px-2">
+    <div class="fixed-top-bar py-1 px-1">
         <div class="container-fluid">
             <button class="btn btn-sm btn-outline-secondary w-100 d-md-none mb-2" type="button" id="filterToggle"
                 data-bs-toggle="collapse" data-bs-target="#filterCollapse" aria-expanded="true"
@@ -776,33 +956,23 @@
 
     <div id="toastHost"></div>
 
-    <!-- MAIN CONTENT -->
-    <div class="container-fluid py-3 px-3">
-        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-            <div>
-                <h1 class="h5 mb-0 fw-bold">Toy Masa İdarəetməsi
-                    <span class="badge bg-secondary view-badge align-middle ms-1"
-                        title="Yalnız baxış — dəyişiklik etmək mümkün deyil"><i
-                            class="fa-solid fa-eye me-1"></i>Baxış rejimi</span>
-                </h1>
-                <span class="text-muted small" id="masaHintInfo">—</span>
-            </div>
-            <div class="d-flex gap-2">
-                <span class="badge bg-light text-dark border align-self-center" id="filterResultInfo"></span>
-                <button class="btn btn-primary btn-sm edit-only" id="btnOpenAddTable">
-                    <i class="fa-solid fa-circle-plus me-1"></i> Yeni Masa
-                </button>
-            </div>
-        </div>
-
+    <!-- MAIN CONTENT: nothing but the masas. The title, hints and "Yeni Masa"
+         live in the bottom bar so every pixel of height goes to the board. -->
+    <div class="container-fluid p-0 px-1">
         <div id="tablesContainer"></div>
     </div>
 
     <!-- FIXED BOTTOM BAR -->
-    <div class="fixed-bottom-bar py-2 px-3">
+    <div class="fixed-bottom-bar py-1 px-1">
         <div class="container-fluid d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <span class="small d-flex align-items-center gap-2">
+            <span class="small d-flex align-items-center flex-wrap gap-2 bb-info">
+                <span class="app-title">Toy Masa İdarəetməsi</span>
+                <span class="badge bg-secondary view-badge"
+                    title="Yalnız baxış — dəyişiklik etmək mümkün deyil"><i
+                        class="fa-solid fa-eye me-1"></i>Baxış rejimi</span>
                 <span id="globalStatsSummary">—</span>
+                <span class="text-muted" id="masaHintInfo" title="">—</span>
+                <span class="badge bg-light text-dark border" id="filterResultInfo"></span>
                 <span class="badge d-none" id="syncBadge"></span>
                 <button class="btn btn-primary btn-sm d-none" id="btnLogin">
                     <i class="fa-solid fa-right-to-bracket me-1"></i> Daxil ol</button>
@@ -811,7 +981,10 @@
                 <button class="btn btn-outline-secondary btn-sm d-none" id="btnLogout">
                     <i class="fa-solid fa-right-from-bracket me-1"></i> Çıxış</button>
             </span>
-            <div class="d-flex gap-2">
+            <div class="d-flex flex-wrap gap-1 bb-actions">
+                <button class="btn btn-primary btn-sm edit-only" id="btnOpenAddTable">
+                    <i class="fa-solid fa-circle-plus me-1"></i> Yeni Masa
+                </button>
                 <button class="btn btn-outline-primary btn-sm" id="btnOpenList">
                     <i class="fa-solid fa-list-ul me-1"></i> Siyahı
                 </button>
@@ -1360,6 +1533,8 @@
     </div>
 
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.14.1/jquery-ui.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@rwap/jquery-ui-touch-punch@1.0.11/jquery.ui.touch-punch.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
@@ -1879,9 +2054,11 @@
 
         // Would re-rendering right now throw away something the editor is
         // doing? Every inline input (types, notes) and every form lives in a
-        // modal, so an open modal is the signal. A viewer has nothing to lose.
+        // modal, so an open modal is the signal - and so is a drag in progress,
+        // whose row a re-render would pull out from under the pointer. A viewer
+        // has nothing to lose.
         function editorIsBusy() {
-            return SERVER.canEdit && !!document.querySelector('.modal.show');
+            return SERVER.canEdit && (!!document.querySelector('.modal.show') || !!dragRow);
         }
 
         async function applyRemote() {
@@ -1936,11 +2113,13 @@
 
         function updateTableHint() {
             if (weddingData.tables.length === 0) {
-                $('#masaHintInfo').text('Hələ masa yoxdur. Tövsiyə olunan ad: Masa 1');
+                const empty = 'Hələ masa yoxdur. Tövsiyə olunan ad: Masa 1';
+                $('#masaHintInfo').text(empty).attr('title', empty);
                 return;
             }
             const last = weddingData.tables[weddingData.tables.length - 1];
-            $('#masaHintInfo').text(`Sonuncu masa: "${last.name}" | Tövsiyə olunan ad: ${suggestNextTableName()}`);
+            const hint = `Sonuncu masa: "${last.name}" | Tövsiyə olunan ad: ${suggestNextTableName()}`;
+            $('#masaHintInfo').text(hint).attr('title', hint);
         }
 
         // Pure: computes a name only, no DOM side effects.
@@ -2089,7 +2268,7 @@
             const f = readFilters();
             const markHits = hasRowHighlight(f);
             const editable = canEdit();
-            const colCount = editable ? 4 : 3;
+            const colCount = 4;   // name, type, count, actions (or an empty filler)
 
             container.empty();
 
@@ -2145,20 +2324,16 @@
 
                 let guestRowsHtml;
                 if (table.guests.length === 0) {
-                    guestRowsHtml = `<tr><td colspan="${colCount}" class="text-center text-muted py-3 small">Hələ qonaq yoxdur.</td></tr>`;
+                    guestRowsHtml = `<tr><td colspan="${colCount}" class="text-center text-muted py-2">Hələ qonaq yoxdur.</td></tr>`;
                 } else {
                     guestRowsHtml = rows.map(guest => {
                         const color = typeColor(guest.type);
                         return `
-                        <tr class="${markHits && hitIds.has(guest.id) ? 'row-hit' : ''}">
+                        <tr class="guest-row ${markHits && hitIds.has(guest.id) ? 'row-hit' : ''}" data-table-id="${table.id}" data-guest-id="${guest.id}">
                             <td class="guest-name">${highlightName(guest.name, f.name)}</td>
-                            <td><span class="badge badge-type" style="background:${color.bg};color:${color.fg}">${escapeHtml(guest.type)}</span></td>
-                            <td class="text-center"><span class="badge amount-badge">${Number(guest.amount) || 0}</span></td>
-                            ${editable ? `<td class="text-end text-nowrap">
-                                <button type="button" class="btn btn-sm btn-orange open-move-modal px-1 py-0" data-table-id="${table.id}" data-guest-id="${guest.id}" title="Köçür / Dəyiş"><i class="fa-solid fa-right-left"></i></button>
-                                <button type="button" class="btn btn-sm btn-outline-primary edit-guest-btn px-1 py-0 ms-1" data-table-id="${table.id}" data-guest-id="${guest.id}" title="Redaktə et"><i class="fa-solid fa-pen"></i></button>
-                                <button type="button" class="btn btn-sm btn-outline-danger delete-guest-btn px-1 py-0 ms-1" data-table-id="${table.id}" data-guest-id="${guest.id}" title="Sil"><i class="fa-solid fa-xmark"></i></button>
-                            </td>` : ''}
+                            <td class="guest-meta"><span class="badge badge-type" style="background:${color.bg};color:${color.fg}" title="${escapeHtml(guest.type)}">${escapeHtml(guest.type)}</span></td>
+                            <td class="guest-meta text-center"><span class="badge amount-badge">${Number(guest.amount) || 0}</span></td>
+                            <td class="guest-actions">${editable ? guestActionsHtml(table.id, guest.id) : ''}</td>
                         </tr>`;
                     }).join('');
                 }
@@ -2166,37 +2341,25 @@
                 const stateClass = 'cap-' + state;
 
                 container.append(`
-                    <div class="card table-card shadow-sm ${stateClass}">
+                    <div class="card table-card ${stateClass}" data-table-id="${table.id}">
                         <div class="card-header ${stateClass}">
-                            <div class="d-flex justify-content-between align-items-start gap-2">
-                                <h5 class="table-name">${escapeHtml(table.name)}</h5>
-                                ${editable ? `<div class="d-flex gap-1 flex-shrink-0">
-                                    <button type="button" class="btn btn-sm btn-outline-secondary border edit-table-btn py-0 px-1" data-table-id="${table.id}" title="Masanı redaktə et"><i class="fa-solid fa-pen"></i></button>
-                                    <button type="button" class="btn btn-sm btn-outline-danger border delete-table-btn py-0 px-1" data-table-id="${table.id}" title="Masanı sil"><i class="fa-solid fa-trash"></i></button>
-                                </div>` : ''}
-                            </div>
-                            <div class="d-flex justify-content-between align-items-center mt-2 gap-2">
-                                <div>
-                                    <span class="cap-pill ${stateClass}">${occupied} / ${table.capacity}</span>
-                                    <span class="cap-note ${stateClass} ms-2">${escapeHtml(capacityLabel(table))}</span>
+                            <div class="tc-head">
+                                <div class="tc-title">
+                                    <span class="table-name">${escapeHtml(table.name)}</span>
+                                    <span class="tc-cap" title="${escapeHtml(capacityLabel(table))}">- ${occupied}/${table.capacity}</span>
                                 </div>
-                                ${editable ? `<button type="button" class="btn btn-sm btn-green-add py-1 px-2 quick-add-row flex-shrink-0" data-table-id="${table.id}" title="Bu masaya qonaq əlavə et"><i class="fa-solid fa-plus"></i></button>` : ''}
+                                ${editable ? `<div class="tc-actions">
+                                    <button type="button" class="btn btn-sm btn-green-add quick-add-row" data-table-id="${table.id}" title="Bu masaya qonaq əlavə et"><i class="fa-solid fa-plus"></i></button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary border edit-table-btn" data-table-id="${table.id}" title="Masanı redaktə et"><i class="fa-solid fa-pen"></i></button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger border delete-table-btn" data-table-id="${table.id}" title="Masanı sil"><i class="fa-solid fa-trash"></i></button>
+                                </div>` : ''}
                             </div>
                         </div>
                         <div class="card-body p-0">
-                            <div class="table-responsive">
-                                <table class="table table-hover mb-0 align-middle guest-table">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th>Ad</th>
-                                            <th style="width:110px;">Tip</th>
-                                            <th class="text-center" style="width:52px;">Say</th>
-                                            ${editable ? '<th class="text-end" style="width:96px;">Əməliyyat</th>' : ''}
-                                        </tr>
-                                    </thead>
-                                    <tbody>${guestRowsHtml}</tbody>
-                                </table>
-                            </div>
+                            <table class="table table-hover mb-0 align-middle guest-table">
+                                <colgroup><col class="c-name"><col class="c-type"><col class="c-amt"><col class="c-act"></colgroup>
+                                <tbody>${guestRowsHtml}</tbody>
+                            </table>
                         </div>
                     </div>
                 `);
@@ -2213,6 +2376,8 @@
             }
 
             lastVisibleTableIds = visibleIds;
+            sizeTableColumns();
+            initDragDrop();
 
             const active = activeFilterCount(f);
             $('#filterResultInfo').text(
@@ -2222,6 +2387,211 @@
             );
             // Keeps active filters visible even when the bar is collapsed on mobile.
             $('#activeFilterCount').text(active).toggleClass('d-none', active === 0);
+        }
+
+        function guestActionsHtml(tableId, guestId) {
+            return `<button type="button" class="btn btn-sm btn-orange open-move-modal" data-table-id="${tableId}" data-guest-id="${guestId}" title="Köçür / Dəyiş"><i class="fa-solid fa-right-left"></i></button>` +
+                ` <button type="button" class="btn btn-sm btn-outline-primary edit-guest-btn" data-table-id="${tableId}" data-guest-id="${guestId}" title="Redaktə et"><i class="fa-solid fa-pen"></i></button>` +
+                ` <button type="button" class="btn btn-sm btn-outline-danger delete-guest-btn" data-table-id="${tableId}" data-guest-id="${guestId}" title="Sil"><i class="fa-solid fa-xmark"></i></button>`;
+        }
+
+        /* ---------- Card width: exactly what the widest row needs ----------
+           Measured from ALL guests, not just the filtered ones, so filtering
+           never makes the cards jump. The content is laid out once in an
+           off-screen probe with the same classes, so fonts, badge padding and
+           the 75px badge cap are the real ones. */
+        const NAME_MAX = 170;   // a longer name wraps
+        const CELL_PAD = 8;     // td padding: 4px each side
+
+        function sizeTableColumns() {
+            const $board = $('#tablesContainer');
+            const guests = weddingData.tables.flatMap(t => t.guests);
+            const uniq = list => [...new Set(list)];
+
+            const $probe = $('<div class="guest-table col-probe"></div>').appendTo($board);
+            const widest = html => {
+                $probe.html(html);
+                let max = 0;
+                $probe.children().each(function () { max = Math.max(max, this.getBoundingClientRect().width); });
+                return Math.ceil(max);
+            };
+
+            const name = Math.min(NAME_MAX, widest(uniq(guests.map(g => g.name))
+                .map(n => `<span class="guest-name">${escapeHtml(n)}</span>`).join('')));
+            const type = widest(uniq(guests.map(g => g.type))
+                .map(t => `<span class="badge badge-type">${escapeHtml(t)}</span>`).join(''));
+            const amt = widest(uniq(guests.map(g => String(Number(g.amount) || 0)))
+                .map(a => `<span class="badge amount-badge">${a}</span>`).join(''));
+            const act = canEdit() ? widest(`<span>${guestActionsHtml(0, 0)}</span>`) : 0;
+            $probe.remove();
+
+            const cols = {
+                name: Math.max(name, 40) + CELL_PAD,
+                type: Math.max(type, 10) + CELL_PAD,
+                amt: Math.max(amt, 10) + CELL_PAD,
+                act: act ? act + CELL_PAD : 0
+            };
+            const style = document.documentElement.style;
+            style.setProperty('--col-name', cols.name + 'px');
+            style.setProperty('--col-type', cols.type + 'px');
+            style.setProperty('--col-amt', cols.amt + 'px');
+            // + 2 for the card's own 1px side borders.
+            style.setProperty('--card-w', (cols.name + cols.type + cols.amt + cols.act + 2) + 'px');
+        }
+
+        // Button widths depend on the icon font; measure again once it is in.
+        if (document.fonts && document.fonts.ready) {
+            document.fonts.ready.then(() => { if (weddingData.tables.length) sizeTableColumns(); });
+        }
+
+        /* =====================================================================
+           MOVE / SWITCH
+           The only two places a guest changes masa. The Köçür / Dəyiş modal and
+           drag-and-drop both land here, so both write through commit() the same
+           way - and a switch touches both masas in ONE commit, never two.
+           ===================================================================== */
+        function moveGuestTo(sourceTable, guestId, targetTable) {
+            const index = sourceTable.guests.findIndex(g => g.id === guestId);
+            if (index === -1 || sourceTable.id === targetTable.id) return false;
+            const guest = sourceTable.guests.splice(index, 1)[0];
+            targetTable.guests.push(guest);
+            commit('moveGuest');
+
+            const after = occupancyOf(targetTable);
+            if (after > targetTable.capacity) {
+                toast(`"${guest.name}" → ${targetTable.name}. Diqqət: tutum aşıldı (${after}/${targetTable.capacity}).`, 'warning');
+            } else {
+                toast(`"${guest.name}" → ${targetTable.name}`);
+            }
+            return true;
+        }
+
+        function switchGuestsBetween(tableA, guestIdA, tableB, guestIdB) {
+            const ia = tableA.guests.findIndex(g => g.id === guestIdA);
+            const ib = tableB.guests.findIndex(g => g.id === guestIdB);
+            if (ia === -1 || ib === -1 || tableA.id === tableB.id) return false;
+
+            // Swap in place so each guest lands in the other's row position.
+            const a = tableA.guests[ia];
+            const b = tableB.guests[ib];
+            tableA.guests[ia] = b;
+            tableB.guests[ib] = a;
+            commit('switchGuests');
+            toast(`Yer dəyişdi: "${a.name}" ⇄ "${b.name}"`);
+            return true;
+        }
+
+        /* =====================================================================
+           DRAG AND DROP (jQuery UI draggable / droppable)
+           Drag a guest row:
+             - onto another masa, anywhere        -> MOVE there   (that masa green)
+             - onto a guest of another masa       -> SWITCH them  (both masas and
+                                                     both rows orange)
+           Dropping on the guest's own masa does nothing.
+           ===================================================================== */
+        let dragRow = null;      // the row being dragged, while a drag is on
+        let swapTarget = null;   // the row it would switch with, if any
+
+        // A row is a switch target only while it is actually visible inside its
+        // masa. Cards scroll, and a row scrolled out of sight still has a
+        // position - one that can sit on top of the next card down.
+        function rowVisibleInCard(row) {
+            const body = row.closest('.card-body');
+            if (!body) return false;
+            const r = row.getBoundingClientRect();
+            const b = body.getBoundingClientRect();
+            return r.height > 0 && r.top >= b.top - 1 && r.bottom <= b.bottom + 1;
+        }
+
+        function fromOtherTable($drag, el) {
+            return $drag.is('tr.guest-row') &&
+                String($drag.data('tableId')) !== String($(el).data('tableId'));
+        }
+
+        // Repaint the orange state from scratch. jQuery UI may fire one row's
+        // "out" after the next row's "over", so marks are never added or removed
+        // piecemeal - only derived from swapTarget.
+        function paintSwap() {
+            const $board = $('#tablesContainer');
+            $board.find('.drop-swap').removeClass('drop-swap');
+            $board.find('.drop-swap-row').removeClass('drop-swap-row');
+            if (!swapTarget || !dragRow) return;
+            $(swapTarget).addClass('drop-swap-row').closest('.table-card').addClass('drop-swap');
+            $(dragRow).addClass('drop-swap-row').closest('.table-card').addClass('drop-swap');
+        }
+
+        function initDragDrop() {
+            // Viewers never drag. If jQuery UI failed to load, the modal remains.
+            if (!canEdit() || !$.fn.draggable) return;
+
+            const $board = $('#tablesContainer');
+            const $rows = $board.find('tr.guest-row');
+
+            $rows.draggable({
+                appendTo: 'body',
+                helper: function () {
+                    return $('<div class="drag-helper"></div>').text($(this).find('.guest-name').text());
+                },
+                cursorAt: { left: -12, top: -12 },   // label sits beside the pointer
+                cursor: 'grabbing',
+                distance: 4,                          // a plain click stays a click
+                cancel: 'button, .btn, a, input',
+                zIndex: 3000,
+                scroll: false,
+                refreshPositions: true,               // cards may be scrolled mid-drag
+                start: function () {
+                    dragRow = this;
+                    swapTarget = null;
+                    $(this).addClass('drag-source-row');
+                },
+                stop: function () {
+                    $(this).removeClass('drag-source-row');
+                    dragRow = null;
+                    swapTarget = null;
+                    paintSwap();
+                    $board.find('.drop-move').removeClass('drop-move');
+                    // A live update that arrived mid-drag was held back.
+                    if (SERVER.stream) setTimeout(applyRemote, 0);
+                }
+            });
+
+            $board.find('.table-card').droppable({
+                accept: function ($drag) { return fromOtherTable($drag, this); },
+                tolerance: 'pointer',
+                classes: { 'ui-droppable-hover': 'drop-move' },
+                drop: function (e, ui) {
+                    const from = findTable(Number(ui.draggable.data('tableId')));
+                    const to = findTable(Number($(this).data('tableId')));
+                    const guestId = Number(ui.draggable.data('guestId'));
+                    // Let jQuery UI finish the drag before the board is rebuilt.
+                    setTimeout(() => { if (from && to) moveGuestTo(from, guestId, to); }, 0);
+                }
+            });
+
+            $rows.droppable({
+                accept: function ($drag) {
+                    return fromOtherTable($drag, this) && rowVisibleInCard(this);
+                },
+                tolerance: 'pointer',
+                greedy: true,          // over a guest, the masa behind it is not the target
+                over: function () {
+                    swapTarget = this;
+                    paintSwap();
+                },
+                out: function () {
+                    if (swapTarget === this) swapTarget = null;
+                    paintSwap();
+                },
+                drop: function (e, ui) {
+                    const from = findTable(Number(ui.draggable.data('tableId')));
+                    const to = findTable(Number($(this).data('tableId')));
+                    const guestId = Number(ui.draggable.data('guestId'));
+                    const targetGuestId = Number($(this).data('guestId'));
+                    setTimeout(() => {
+                        if (from && to) switchGuestsBetween(from, guestId, to, targetGuestId);
+                    }, 0);
+                }
+            });
         }
 
         /* =====================================================================
@@ -3516,9 +3886,11 @@
             const bottomBar = document.querySelector('.fixed-bottom-bar');
 
             function syncBarOffsets() {
-                document.body.style.paddingTop = (topBar.offsetHeight + 10) + 'px';
-                document.body.style.paddingBottom = (bottomBar.offsetHeight + 10) + 'px';
-                document.getElementById('toastHost').style.top = (topBar.offsetHeight + 10) + 'px';
+                const top = topBar.offsetHeight;
+                const bottom = bottomBar.offsetHeight;
+                document.body.style.paddingTop = (top + 4) + 'px';
+                document.body.style.paddingBottom = (bottom + 4) + 'px';
+                document.getElementById('toastHost').style.top = (top + 10) + 'px';
             }
 
             syncBarOffsets();
@@ -3860,41 +4232,25 @@
                 if (!sourceTable || !targetTable) return showError($err, 'Masa tapılmadı.');
                 if (sourceTable.id === targetTable.id) return showError($err, 'Hədəf masa cari masadan fərqli olmalıdır.');
 
-                const sourceIndex = sourceTable.guests.findIndex(g => g.id === sourceGuestId);
-                if (sourceIndex === -1) return showError($err, 'Köçürülən qonaq tapılmadı.');
-                const guestToMove = sourceTable.guests[sourceIndex];
+                if (!sourceTable.guests.some(g => g.id === sourceGuestId)) {
+                    return showError($err, 'Köçürülən qonaq tapılmadı.');
+                }
 
                 if (mode === 'switch') {
                     const targetGuestId = parseInt($('#msTargetGuestId').val(), 10);
                     if (!Number.isFinite(targetGuestId)) {
                         return showError($err, 'Yer dəyişmək üçün hədəf masadan qonaq seçin.');
                     }
-                    const targetIndex = targetTable.guests.findIndex(g => g.id === targetGuestId);
-                    if (targetIndex === -1) return showError($err, 'Hədəf qonaq tapılmadı.');
-
-                    // Swap in place so each guest lands in the other's row position.
-                    const targetGuest = targetTable.guests[targetIndex];
-                    sourceTable.guests[sourceIndex] = targetGuest;
-                    targetTable.guests[targetIndex] = guestToMove;
-
-                    clearError($err);
-                    hideModal('moveSwitchModal');
-                    commit('switchGuests');
-                    toast(`Yer dəyişdi: "${guestToMove.name}" ⇄ "${targetGuest.name}"`);
-                } else {
-                    sourceTable.guests.splice(sourceIndex, 1);
-                    targetTable.guests.push(guestToMove);
-
-                    clearError($err);
-                    hideModal('moveSwitchModal');
-                    commit('moveGuest');
-
-                    const after = occupancyOf(targetTable);
-                    if (after > targetTable.capacity) {
-                        toast(`"${guestToMove.name}" → ${targetTable.name}. Diqqət: tutum aşıldı (${after}/${targetTable.capacity}).`, 'warning');
-                    } else {
-                        toast(`"${guestToMove.name}" → ${targetTable.name}`);
+                    if (!targetTable.guests.some(g => g.id === targetGuestId)) {
+                        return showError($err, 'Hədəf qonaq tapılmadı.');
                     }
+                    clearError($err);
+                    hideModal('moveSwitchModal');
+                    switchGuestsBetween(sourceTable, sourceGuestId, targetTable, targetGuestId);
+                } else {
+                    clearError($err);
+                    hideModal('moveSwitchModal');
+                    moveGuestTo(sourceTable, sourceGuestId, targetTable);
                 }
             });
 

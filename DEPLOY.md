@@ -210,6 +210,13 @@ BASE=http://localhost:3000 PASSWORD='<the password>' npm run smoke
 concurrency, visibility in both directions, that a settings-less write fails
 closed, and that live updates are pushed and never carry guest data.
 
+> **The write tests REPLACE the whole board** (they leave one "Smoke Masa"),
+> and so does `npm run utf8check`. Both now refuse when the board already has
+> masas: smoke runs only its read-only checks and says `SKIP write tests`,
+> utf8check exits 2. Set `SMOKE_OVERWRITE=yes` only on an empty or scratch
+> database — never on one holding the real guest list. If it happens anyway,
+> the previous board is the revision just before `smoke` in `wedding_revision`.
+
 Then confirm by hand, from a **logged-out** browser:
 
 - private → the login card, and `GET /api/state` returns 401
@@ -220,6 +227,11 @@ Then confirm by hand, from a **logged-out** browser:
 - **live through the proxy** (once there is an Ingress): repeat that over the
   real domain. If the change only shows after a refresh, something in front is
   buffering `GET /api/events`.
+- **drag and drop** (logged in): drag a guest onto another masa's empty area —
+  that masa goes green and the guest moves there. Drag a guest onto a guest of
+  another masa — both masas and both rows go orange and the two switch places.
+  Needs `code.jquery.com` and `cdn.jsdelivr.net` reachable from the browser;
+  without them the Köçür / Dəyiş button still does both.
 
 ---
 

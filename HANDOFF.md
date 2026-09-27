@@ -2,9 +2,11 @@
 
 For the next agent, working **on the Linux host** (single-node k3s, Tailscale-only
 admin). Everything below was verified on a developer machine, not on the box.
-**Nothing has been deployed to the server yet.**
+As of writing, **nothing had been deployed to the server** — check
+`kubectl get deploy -A | grep tableplanner` before assuming either way; the
+steps differ (see "Do this").
 
-Last updated 2026-09-27, after adding live updates.
+Last updated 2026-09-27, for the dense-board / drag-and-drop release.
 
 ---
 
@@ -21,63 +23,87 @@ Last updated 2026-09-27, after adding live updates.
 
 A wedding seating planner. One page (`index.html`, Azerbaijani UI, with its
 icon `favicon.ico` beside it) plus a small Express API in `server/`. Those two
-files are all the server serves statically; the repo is not exposed. The whole dataset is a **single JSONB document** —
-deliberately, because there is one editor and `moveGuest`/`switchGuests` each
-touch two masas at once, which as a single-document write needs no cross-row
-transaction.
-
-Every open page is **live**: when anyone saves, every other open page shows the
-change within about a second, with no refresh. See "Live updates" below.
+files are all the server serves statically; the repo is not exposed. The whole
+dataset is a **single JSONB document** — deliberately, because there is one
+editor and moving or switching a guest touches two masas at once, which as a
+single-document write needs no cross-row transaction.
 
 - Repo: <https://github.com/TheRehim/TablePlanner> (**public**)
 - Image: `ghcr.io/therehim/tableplanner` — **public**, no pull secret needed
 - CI: pushing to `main` rebuilds and publishes.
 - **Do not trust the digest committed in `deployment.yaml`.** Image labels
   embed the commit SHA, so every push publishes a new digest and the committed
-  value is stale immediately. Resolve the real one first:
+  value is stale immediately. Resolve the real one, and check it is the build
+  you expect:
 
   ```bash
   sh server/scripts/current-digest.sh          # or: ... v1.0.0 for a tag
+  # the commit it was built from:
+  docker buildx imagetools inspect <digest> --format '{{json .Image.Config.Labels}}' | grep revision
   ```
 
-  The image you want contains `src/live.js`. Anything older has no live
-  updates — pages would only see other people's changes after a refresh.
+---
+
+## What is in this version
+
+Everything since the first handoff, newest first. Only the last item is new
+for this release; the rest shipped in images already published.
+
+| | What | Where |
+|---|---|---|
+| **new** | **Dense board.** 12px text, 13px masa names / counts / filter bar. Card header is one line, `Masa 1 - 18/18` (state colour on the count; the "Tam doludur / N boş yer" text is its hover title). No column-header row. Plain small badges, type badge max 75px. Page title, hints and "Yeni Masa" moved into the bottom bar. | `index.html` |
+| **new** | **Card sizing from the data.** Columns = longest name (cap 170px, then wraps) + widest type badge + widest count + the three buttons. As many cards per row as fit at that width, stretched to fill the row exactly, 4px apart. Each grid row is as tall as its tallest masa. | `sizeTableColumns()` |
+| **new** | **Drag and drop** (jQuery UI 1.14.1 + Touch Punch). Drop a guest on another masa → **move** (that masa green). Drop a guest on a guest of another masa → **switch** (both masas and both rows orange). Editors only. | `initDragDrop()` |
+| **new** | **Smoke / utf8check refuse to overwrite a board that has masas** unless `SMOKE_OVERWRITE=yes`. | `server/scripts/` |
+| earlier | Favicon at `/favicon.ico`. | `server.js` |
+| earlier | **Live updates** over Server-Sent Events — no refresh needed. | `src/live.js` |
+
+No server behaviour, schema, migration, env var or manifest changed in this
+release. It is a front-end release plus a safety guard in the test scripts.
 
 ---
 
 ## State
 
-**Works, verified locally (2026-09-27, real image + Postgres 16 via compose):**
+**Verified locally (2026-09-27, the real image + Postgres 16 via compose):**
 
 - Image builds, runs non-root, no secrets baked in.
-- `docker compose up --build` → Postgres + app, migrations applied, data **and
-  its version number** survive restarting **both** containers.
-- **32 smoke checks pass** (`cd server && BASE=... PASSWORD=... npm run smoke`),
-  including the 4 live-update checks and the favicon.
-- Azerbaijani text round-trips through API and Postgres (`npm run utf8check`).
+- Migrations applied; data **and its version number** survive restarting
+  **both** containers.
+- **32 smoke checks pass** on an empty board (`npm run smoke`), and
+  `npm run utf8check` passes.
+- The new guard: on a board with masas, smoke skipped its writes, ran its 14
+  read-only checks and left the data at the same version; utf8check refused
+  (exit 2) and changed nothing; with `SMOKE_OVERWRITE=yes` both ran in full.
+- In the browser against that stack: jQuery UI 1.14.1 and Touch Punch load,
+  favicon loads, live stream connects, fonts 12/13px, a drag-and-drop move was
+  saved to Postgres as one revision.
+- Earlier in the same session, with a real mouse: move and switch both worked
+  and saved; the Köçür / Dəyiş modal still works (it now calls the same two
+  functions); row buttons still click rather than start a drag; a live update
+  arriving mid-drag waits until the drop; viewers get no drag and no buttons.
+- Layout checked on the user's own 34-masa / 497-guest list: rows fill edge to
+  edge with 0 px spare at 1024, 1280, 1440 and 1920 px windows; nothing clipped.
 - Auth: one shared password (scrypt), signed httpOnly cookie.
-- Visibility: `private` (default) or `public`, stored in the document,
-  **enforced server-side** — private returns 401 from `GET /api/state` for
-  anonymous callers, so the guest names are refused, not merely hidden.
-- Live updates, driven in a real browser: a table added through the UI in one
-  tab appeared in a second tab with no reload; closing the list put an
-  anonymous viewer behind the lock screen live and dropped the data from the
-  page; opening it again unlocked them; a server restart showed "Canlı deyil"
-  and the page reconnected and caught up on its own.
-- SIGTERM with live streams open exits cleanly (code 0), not via the 10s kill.
-- Idles at **~20 MiB**; the 192Mi limit is generous.
+- Visibility `private` (default) / `public`, **enforced server-side** — private
+  returns 401 from `GET /api/state` for anonymous callers.
+- SIGTERM with live streams open exits cleanly (code 0). Idles at ~20 MiB.
 
-**Not done:**
+**Not done / not verified:**
 
-- Never deployed to the box. No namespace, no database, no secret exists there.
+- Never deployed to the box (as of writing).
 - Real password not chosen (`npm run hash-password`).
 - No Ingress, no TLS, no domain.
-- Live updates never tested through Traefik (only direct and via Docker).
-- Excel import is still wrong on real files — see "Known broken" below.
+- Live updates never tested through Traefik.
+- **Touch dragging never tried on a real phone or tablet** — Touch Punch maps
+  touch to mouse events; it loads, but nobody has dragged with a finger.
+- Excel import is still wrong on real files — see "Known broken".
 
 ---
 
 ## Do this
+
+### A. First deploy (nothing on the box yet)
 
 Follow `DEPLOY.md`. Condensed:
 
@@ -88,127 +114,161 @@ Follow `DEPLOY.md`. Condensed:
    migration fails with a permission error.
 3. **Secrets** → Sealed Secret named `tableplanner-secrets`, keys
    `DATABASE_URL`, `SESSION_SECRET`, `EDITOR_PASSWORD_HASH`.
-4. Resolve the digest (above), put it in `deployment.yaml` (app **and**
-   initContainer), `kubectl apply --dry-run=server -f server/deploy/` first,
-   then apply into **`lab/`**. Promote to `apps/` only once it has proven itself.
+4. Resolve the digest (above), put it in `deployment.yaml` — **both** the
+   `migrate` initContainer and the `app` container —
+   `kubectl apply --dry-run=server -f server/deploy/` first, then apply into
+   **`lab/`**. Promote to `apps/` only once it has proven itself.
 5. Reach it with `kubectl -n lab port-forward svc/tableplanner 3000:80`.
-   **No Ingress yet** — see "Before going public".
-6. Verify with the smoke suite, then by hand from a logged-out browser, then
-   the live check: two windows, change something in one, watch the other.
+6. Verify: the board is empty at this point, so the full smoke suite is safe
+   (`BASE=http://localhost:3000 PASSWORD=... npm run smoke`, 32 checks). Then by
+   hand from a logged-out browser, then the live and drag checks in `DEPLOY.md`
+   §5. Run smoke **before** the real guest list goes in, not after.
+
+### B. Upgrade (an earlier version is already running)
+
+Nothing but the image changes. Preflight first, as always.
+
+```bash
+IMG=$(sh server/scripts/current-digest.sh)          # confirm the revision label (above)
+kubectl -n lab set image deploy/tableplanner migrate=$IMG app=$IMG
+kubectl -n lab rollout status deploy/tableplanner
+kubectl -n lab logs deploy/tableplanner -c migrate  # "done, 1 migration(s) applied." every time - it is idempotent
+```
+
+Or update both image lines in `deployment.yaml` and `kubectl apply`, so the
+repo and the cluster agree. `Recreate` means a few seconds of downtime; open
+pages show "Canlı deyil", then reconnect by themselves.
+
+Then verify **without touching the data**:
+
+- `npm run smoke` against it — with a real guest list it now **skips its write
+  tests** and runs only read-only checks. Do not set `SMOKE_OVERWRITE=yes`.
+- Do **not** run `npm run utf8check` here; it refuses anyway.
+- By hand: log in, check the board looks dense and cards fill the width, drag a
+  guest onto another masa and back again (two revisions, net no change).
+- Take a JSON export from the ⋮ menu before and after if in doubt — it is the
+  cheapest backup there is.
+
+Rollback: `kubectl -n lab rollout undo deploy/tableplanner`. The data is not
+touched; the old image serves the old page.
 
 ---
 
 ## Live updates
 
-How it works: each open page holds one `GET /api/events` stream
-(Server-Sent Events). After a successful `PUT /api/state` the server pushes
-`{version, visibility}` — **never the data** — and each page re-reads
-`/api/state` itself. So the private/public check still lives in exactly one
-place; the stream is open to anonymous callers on purpose (a locked page has
-to learn that the list was opened), and all it tells them is a version number
-and a visibility that `/api/me` already hands out.
+Each open page holds one `GET /api/events` stream (Server-Sent Events). After a
+successful `PUT /api/state` the server pushes `{version, visibility}` — **never
+the data** — and each page re-reads `/api/state` itself. So the private/public
+check still lives in exactly one place; the stream is open to anonymous
+callers on purpose (a locked page has to learn that the list was opened).
 
 Client rules, in `index.html` (search for "Live updates"):
 
 - A viewer applies a remote change immediately.
-- An editor with a modal open (every form and inline input lives in one)
-  waits; the badge says "Yeni dəyişiklik var" and it applies on close.
+- An editor with a modal open, **or mid-drag**, waits; the badge says
+  "Yeni dəyişiklik var" and it applies on close / on drop.
 - A local save in flight, or a failed one, is never overwritten by a remote
   change — it lands, or it hits the existing 409 conflict prompt.
-- The page's own save is not re-fetched (its version already matches).
-- On reconnect the server sends the current version, so a page that slept or
-  lost the network catches up. A version *lower* than the page's means the
-  database was reset or restored; the page takes the server's copy.
+- On reconnect the server sends the current version, so a page that slept
+  catches up. A *lower* version than the page's means the database was reset
+  or restored; the page takes the server's copy.
 
 ---
 
 ## Things that will bite you
 
+**The test scripts REPLACE the whole board.** `npm run smoke` leaves a single
+"Smoke Masa"; `npm run utf8check` leaves one sample masa. Both now refuse when
+the board already has masas, but `SMOKE_OVERWRITE=yes` removes that guard.
+Never set it against the real database. If it happens anyway: the board from
+just before is the previous row in `wedding_revision`
+(`SELECT id, action, created_at FROM wedding_revision ORDER BY id DESC LIMIT 5`),
+and `PUT` it back — or re-import the user's JSON export.
+
+**The login rate limit is 10 attempts a minute per IP**, and every smoke /
+utf8check run logs in. Several runs back to back get `429`. Wait a minute —
+restarting the pod also clears it, but that is not a reason to restart it.
+
+**The page loads its libraries from CDNs**: jQuery and jQuery UI from
+`code.jquery.com`; Bootstrap, Select2, Touch Punch from `cdn.jsdelivr.net`;
+Font Awesome from `cdnjs.cloudflare.com`. That was already true for jQuery,
+Bootstrap and Select2 — the new ones use the same hosts. If jQuery UI fails
+to load, drag-and-drop is simply off and the Köçür / Dəyiş button still moves
+and switches. Browsers need those hosts; the pod does not.
+
 **Live updates assume one replica.** The broadcast is in-process
-(`server/src/live.js`). That is correct with `replicas: 1` + `Recreate`, as
-deployed. Scale out and pages connected to one pod miss writes made through
-another — switch `live.js` to Postgres `LISTEN/NOTIFY` first. Likewise, a
-change made straight in the database (psql, a restore) is not announced; pages
-pick it up on their next reconnect or the next write.
+(`server/src/live.js`) — correct with `replicas: 1` + `Recreate`, as deployed.
+Scale out and pages on one pod miss writes made through another; switch
+`live.js` to Postgres `LISTEN/NOTIFY` first. A change made straight in the
+database (psql, a restore) is not announced either.
 
 **Nothing in front may buffer `/api/events`.** Traefik streams by default, and
 the response sets `x-accel-buffering: no` and `cache-control: no-transform`.
 If changes only appear after a refresh once an Ingress exists, a middleware
-(compression, buffering) is holding the stream. A 25s heartbeat keeps idle
-timeouts from cutting it.
+(compression, buffering) is holding the stream.
 
-**`TRUST_PROXY_HOPS` also governs the live-stream cap.** Streams are capped at
-500 total and 20 per client IP (`LIVE_MAX_CLIENTS`, `LIVE_MAX_PER_IP`). If the
-hop count is wrong, every visitor looks like Traefik's IP and the whole site
-shares 20 streams — pages past that show "Canlı deyil". It is the same setting
-the login rate limiter already depends on. Via `port-forward` everyone is
-127.0.0.1, which is fine for a lab.
+**`TRUST_PROXY_HOPS` also governs the live-stream cap** (500 total, 20 per
+client IP). Wrong hop count → every visitor looks like Traefik's IP → the
+whole site shares 20 streams, and the login rate limit is shared too.
 
 **The Service type is the firewall decision.** NodePort and LoadBalancer bypass
-the host firewall on this box — traffic is DNAT'd in PREROUTING and traverses
-FORWARD, not INPUT, so `ufw`/`nftables` INPUT rules do not block it. Leave it
-`ClusterIP`.
+the host firewall on this box (DNAT in PREROUTING, then FORWARD, not INPUT).
+Leave it `ClusterIP`.
 
-**Migrations do not run from the image's CMD.** Compose runs them in its
-`command:`; the k8s path uses an `initContainer`. If you replace the
-Deployment, keep that initContainer or the app starts against an empty
-database. Readiness catches this (`503 — schema missing`) rather than
-reporting Ready while every read 500s, but the initContainer is what prevents
-it happening.
+**Migrations do not run from the image's CMD.** The k8s path uses the
+`migrate` initContainer. Replace the Deployment without it and the app starts
+against an empty database (readiness then reports `503 — schema missing`).
+When changing the image, change it in **both** containers.
 
-**`readOnlyRootFilesystem` needs a writable `/tmp`.** There is an `emptyDir`
-mounted there. Remove it and the pod builds fine, then crashes at runtime.
+**`readOnlyRootFilesystem` needs a writable `/tmp`** (the `emptyDir`).
 
-**Liveness must not touch the database.** `/healthz` deliberately does not;
-`/readyz` does. Wiring liveness to the DB means a DB blip restarts the pod in a
-loop, which is worse than the blip.
+**Liveness must not touch the database.** `/healthz` does not; `/readyz` does.
 
-**The password hash is `:`-separated, not `$`.** That is deliberate — `$` is
-variable interpolation to Docker Compose, the shell and `envsubst`, all of
-which this value passes through. Do not "normalise" it back to `$`.
+**The password hash is `:`-separated, not `$`**, so Compose, the shell and
+`envsubst` cannot mangle it. Do not "normalise" it.
 
-**Visibility fails closed, on purpose.** Default private; a write that omits
-`settings` inherits the current value rather than reverting to public; any
-value that is not exactly `"public"` is stored as private. Do not add a
-convenience path that skips this.
+**Visibility fails closed, on purpose.** Default private; a write without
+`settings` keeps the current value; anything not exactly `"public"` is private.
 
-**`commit()` is the single write seam in the front end.** Every mutation goes
-`<mutate weddingData>; commit(action)`. `renderApp()` is a read-only re-render
-and must never be used as a write hook, or that change silently never persists
-— and a live update calls `renderApp()` too.
+**Front-end seams — keep them single:**
+
+- `commit(action)` is the only write path. Every mutation is
+  `<mutate weddingData>; commit(action)`. `renderApp()` only re-renders — live
+  updates call it too — so it must never be used as a write hook.
+- `moveGuestTo()` and `switchGuestsBetween()` are the only places a guest
+  changes masa. The modal and drag-and-drop both call them; a switch is one
+  commit touching both masas, never two.
+- `sizeTableColumns()` measures from **all** guests, not the filtered ones, so
+  filtering never makes cards jump. It runs on every render and again when the
+  icon font finishes loading (button widths depend on it).
+
+**The density is what the user asked for.** 12px / 13px, one-line headers, no
+column headers, 4px gaps. Do not "restore" roomier defaults.
 
 ---
 
 ## Unverified — check before trusting
 
 **Does the backup job run `pg_dumpall`, or a named list of databases?**
-This is the one that matters. The entire argument for Postgres over a JSON file
-was "the database is already backed up". If it is a named list, a new
-`tableplanner` database is backed up by **nobody** until you add it. Check the
-job before putting real guest data in.
+The whole argument for Postgres over a JSON file was "the database is already
+backed up". If it is a named list, the `tableplanner` database is backed up by
+**nobody** until it is added. Check before real guest data goes in.
 
-**The box is XE4; its `CLAUDE.md` documents XE7** (12 vCore / 16 GB). Every
-memory number assumes that. Run `free -m` and `nproc`, and correct the file —
-it is what future sessions size against.
+**The box is XE4; its `CLAUDE.md` documents XE7** (12 vCore / 16 GB). Run
+`free -m` and `nproc`, and correct the file.
 
 ---
 
 ## Known broken
 
 **Excel import puts values in the wrong fields on real files.** Two rounds of
-fixes (caption rows; then per-masa column mapping derived from the caption
-strip, with inference as a fallback) both verified against synthetic layouts,
-and neither fixed the user's actual file. The cause is something the synthetic
-tests and the empty `Masa_numune` template do not contain.
+fixes verified against synthetic layouts did not fix the user's actual file.
+Do not guess at a third fix. What will settle it: a **filled** copy of the
+workbook, 3–4 real rows pasted as text, or the **"Sütunlar:"** line the import
+preview prints. Workaround: an explicit `Ad | Haradan | Say` header row.
 
-Do not guess at a third fix. What will settle it:
-
-- a **filled** copy of the workbook, or 3–4 real rows pasted as text; or
-- the **"Sütunlar:"** line the import preview prints — it names the chosen
-  offsets and whether they came from the caption row or a guess.
-
-Workaround: an explicit `Ad | Haradan | Say` header row in the sheet makes the
-mapping exact instead of inferred.
+(JSON import — ⋮ → "Məlumatları idxal et (JSON)" — works; the user loaded a
+34-masa / 497-guest list that way during testing.)
 
 ---
 
@@ -219,16 +279,15 @@ mapping exact instead of inferred.
 3. `COOKIE_SECURE=true` — otherwise the session cookie is never stored over
    HTTPS and login silently fails.
 4. Ingress + cert-manager (`server/deploy/ingress.yaml.example`). Then repeat
-   the live check over the real domain — see "Nothing in front may buffer".
+   the live check over the real domain.
 5. **Decide visibility deliberately.** It defaults to private. The guest list
-   holds real names. `noindex` is set, but that only asks search engines nicely.
+   holds real names. `noindex` only asks search engines nicely.
 6. Restore test: dump → restore into a scratch database → confirm the data is
    real. Never assume a backup is good.
 
-Also worth raising with the user: **GitHub Pages is enabled on the repo**, so
-`index.html` is served at `therehim.github.io/TablePlanner`. It runs with no
-API and therefore no data (and no live stream), so nothing leaks today — but it
-is a second copy of the app with no auth in front of it.
+Also worth raising: **GitHub Pages is enabled on the repo**, so `index.html` is
+served at `therehim.github.io/TablePlanner` with no API and no data. Nothing
+leaks today, but it is a second copy of the app with no auth in front of it.
 
 ---
 
@@ -241,9 +300,10 @@ cd server && docker compose up --build
 # local, no Postgres at all (state dies with the process)
 DATABASE_URL=memory: SESSION_SECRET=... EDITOR_PASSWORD_HASH=... node server/src/server.js
 
-# tests (against anything)
+# tests — full suite only on an EMPTY board
 BASE=http://localhost:3000 PASSWORD='...' npm run smoke
 BASE=http://localhost:3000 PASSWORD='...' npm run utf8check
+SMOKE_OVERWRITE=yes ...   # scratch databases only
 
 # watch the live stream by hand
 curl -N http://localhost:3000/api/events
@@ -257,7 +317,5 @@ kubectl -n lab rollout undo deploy/tableplanner
 ```
 
 Rollback does not touch the data: it lives in Postgres, and every write also
-appends to `wedding_revision`, so a bad import is recoverable from there rather
-than from a backup. Rolling back to an image without `live.js` just turns live
-updates off: the old image serves the old page, which works on refresh as
-before. Tabs still open from the new page show "Canlı deyil" until reloaded.
+appends to `wedding_revision`, so a bad import or a bad drag is recoverable
+from there rather than from a backup.
