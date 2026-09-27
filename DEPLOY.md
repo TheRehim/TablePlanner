@@ -250,6 +250,8 @@ Then confirm by hand, from a **logged-out** browser:
   the columns in the list, print and PDF alike; default is Qonaq + Masa.
 - **phone** (or a window under 768 px): filters start collapsed, drag starts
   off, the bottom bar is one stats line + one row of icons, and ▼ folds it.
+  Tap ⋮: the menu (export / import / Excel import) opens fully visible above
+  the bar.
 
 ---
 

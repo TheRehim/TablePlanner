@@ -936,11 +936,13 @@
                 text-overflow: ellipsis;
             }
 
+            /* No overflow here: a scrolling container clips everything that
+               pops out of it - the ⋮ menu opened hidden behind the board.
+               The buttons share the row instead and shrink to fit. */
             .bb-actions {
                 flex-wrap: nowrap !important;
                 justify-content: space-between;
                 gap: 3px !important;
-                overflow-x: auto;
             }
 
             .bb-actions .bb-label,
@@ -952,7 +954,7 @@
 
             .bb-actions .btn {
                 flex: 1 1 0;
-                min-width: 32px;
+                min-width: 26px;
                 padding: 5px 0;
             }
 

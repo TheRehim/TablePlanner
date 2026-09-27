@@ -7,7 +7,9 @@ As of writing, **nothing had been deployed to the server** — check
 steps differ (see "Do this").
 
 Last updated 2026-09-27, for the release with PDF sharing, drag undo and
-edge auto-scroll, list column choice and the phone layout.
+edge auto-scroll, list column choice and the phone layout - plus a follow-up
+fix for the ⋮ menu on phones (`99328f6` has the bug; deploy what
+`current-digest.sh` returns now, not that one).
 
 ---
 
@@ -58,6 +60,7 @@ Everything since the first handoff, newest first. "new" is this release;
 | **new** | **Auto-scroll while dragging** near the top/bottom bars: time-based, eases in, max ~450 px/s at the bar, keeps going while the pointer is still. | `autoScrollStep()` |
 | **new** | **Fix: a drop over the top/bottom bar no longer lands in the masa hidden behind it** (existed since drag-and-drop shipped). Nothing lights green over a bar. | `pointerOverBars()` |
 | **new** | Fix: the hovered masa's 3px capacity-coloured top border turns green with the rest (a red/blue strip stayed above the green header). | CSS `.drop-move` |
+| **new** | **Fix: the ⋮ menu (export / import / Excel import) opened hidden behind the board at phone width.** The phone button row had `overflow: auto`, which clips anything that pops out of it; removed — the buttons share the row and shrink to fit (26 px min, all 10 fit a 320 px phone). | CSS `.bb-actions` |
 | **new** | **Phone layout**: bottom bar = one stats line with a ▼ toggle that folds the buttons away (remembered), plus one row of icon-only buttons (65 px open, 29 px folded). **Filters start collapsed at phone size**; **drag starts off at phone size**. Phone and desktop sizes keep separate settings and switch live when the window crosses 768 px. | `index.html` |
 | prev | Invitation tick + "Dəvətnamə siyahısı", Arial, coloured masa title bars, quieter bottom bar. | `setGuestInvited()` |
 | prev | Drag on/off switch, move-only drag, ⇄ removed from rows, dense board, data-driven card widths, smoke/utf8check overwrite guard. | `initDragDrop()`, `sizeTableColumns()` |
