@@ -6,7 +6,8 @@ As of writing, **nothing had been deployed to the server** — check
 `kubectl get deploy -A | grep tableplanner` before assuming either way; the
 steps differ (see "Do this").
 
-Last updated 2026-09-27, for the dense-board / drag-and-drop release.
+Last updated 2026-09-27, for the release with the drag-and-drop switch
+(move-only drag, 14px text, no bold).
 
 ---
 
@@ -46,20 +47,23 @@ single-document write needs no cross-row transaction.
 
 ## What is in this version
 
-Everything since the first handoff, newest first. Only the last item is new
-for this release; the rest shipped in images already published.
+Everything since the first handoff, newest first. "new" is this release;
+"prev" shipped in the previous image (`ff0a0af`); "earlier" before that.
 
 | | What | Where |
 |---|---|---|
-| **new** | **Dense board.** 12px text, 13px masa names / counts / filter bar. Card header is one line, `Masa 1 - 18/18` (state colour on the count; the "Tam doludur / N boş yer" text is its hover title). No column-header row. Plain small badges, type badge max 75px. Page title, hints and "Yeni Masa" moved into the bottom bar. | `index.html` |
-| **new** | **Card sizing from the data.** Columns = longest name (cap 170px, then wraps) + widest type badge + widest count + the three buttons. As many cards per row as fit at that width, stretched to fill the row exactly, 4px apart. Each grid row is as tall as its tallest masa. | `sizeTableColumns()` |
-| **new** | **Drag and drop** (jQuery UI 1.14.1 + Touch Punch). Drop a guest on another masa → **move** (that masa green). Drop a guest on a guest of another masa → **switch** (both masas and both rows orange). Editors only. | `initDragDrop()` |
-| **new** | **Smoke / utf8check refuse to overwrite a board that has masas** unless `SMOKE_OVERWRITE=yes`. | `server/scripts/` |
-| earlier | Favicon at `/favicon.ico`. | `server.js` |
-| earlier | **Live updates** over Server-Sent Events — no refresh needed. | `src/live.js` |
+| **new** | **Drag-and-drop on/off switch** — purple button in the bottom bar, "Sürüklə: açıq / bağlı". Remembered per device (`localStorage` key `tp.dragEnabled`). With nothing saved, a **phone starts OFF** (screen under 768px or a phone browser), everything else ON. | `setDragEnabled()` |
+| **new** | **Drag only moves.** Drop a guest anywhere on another masa — its guests included — and they move there (green). There is **no switching by drag** any more. | `initDragDrop()` |
+| **new** | **The ⇄ Köçür / Dəyiş button is gone from the rows** (edit + delete remain). Its modal and `switchGuestsBetween()` are still in the code, unwired. | `guestActionsHtml()` |
+| **new** | **14px text, 15px masa names / counts / filter bar, 13px badges. No bold anywhere** (every weight normal; icons keep theirs). Type badge cap raised to **80px**. Card widths follow automatically. | `index.html` |
+| **new** | Bottom bar: account buttons moved into the button group so they are never cut; when space runs out the hint gives way first, then the title, the stats last (full text on hover). | `index.html` |
+| prev | **Dense board**: one-line card header `Masa 1 - 18/18`, no column-header row, plain badges, page title / hints / "Yeni Masa" in the bottom bar. | `index.html` |
+| prev | **Card sizing from the data**: longest name (cap 170px) + widest badge + widest count + the buttons; as many cards per row as fit, stretched to fill the row exactly, 4px apart; each grid row as tall as its tallest masa. | `sizeTableColumns()` |
+| prev | **Smoke / utf8check refuse to overwrite a board that has masas** unless `SMOKE_OVERWRITE=yes`. | `server/scripts/` |
+| earlier | Favicon at `/favicon.ico`; **live updates** over Server-Sent Events. | `server.js`, `src/live.js` |
 
 No server behaviour, schema, migration, env var or manifest changed in this
-release. It is a front-end release plus a safety guard in the test scripts.
+release. It is a front-end release.
 
 ---
 
@@ -75,15 +79,21 @@ release. It is a front-end release plus a safety guard in the test scripts.
 - The new guard: on a board with masas, smoke skipped its writes, ran its 14
   read-only checks and left the data at the same version; utf8check refused
   (exit 2) and changed nothing; with `SMOKE_OVERWRITE=yes` both ran in full.
-- In the browser against that stack: jQuery UI 1.14.1 and Touch Punch load,
-  favicon loads, live stream connects, fonts 12/13px, a drag-and-drop move was
-  saved to Postgres as one revision.
-- Earlier in the same session, with a real mouse: move and switch both worked
-  and saved; the Köçür / Dəyiş modal still works (it now calls the same two
-  functions); row buttons still click rather than start a drag; a live update
-  arriving mid-drag waits until the drop; viewers get no drag and no buttons.
-- Layout checked on the user's own 34-masa / 497-guest list: rows fill edge to
-  edge with 0 px spare at 1024, 1280, 1440 and 1920 px windows; nothing clipped.
+- In the browser against that stack: jQuery UI 1.14.1 loads; text 14px,
+  names 15px, badges 13px with the 80px cap, **zero** bold elements; rows have
+  two buttons; the switch starts ON on a desktop. Hovering a guest of another
+  masa lights that masa green (no orange anywhere); dropping saved exactly one
+  `moveGuest` to Postgres and the guest underneath stayed where it was.
+- In the dev preview with a real mouse: dropping onto a guest of another masa
+  moved the dragged guest in and left the other in place. The switch turned
+  dragging off and stayed off after a reload. In the phone view (375px,
+  Android browser) with nothing saved it started OFF.
+- From the previous release, still true: row buttons click rather than start a
+  drag; a live update arriving mid-drag waits for the drop; viewers get no
+  drag, no "Sürüklə" toggle and no row buttons.
+- Layout checked on the user's own 34-masa / 497-guest list: every type badge
+  shows in full at 80px; 4 cards per row at 1440 px, rows filled with 0 px
+  spare, nothing clipped.
 - Auth: one shared password (scrypt), signed httpOnly cookie.
 - Visibility `private` (default) / `public`, **enforced server-side** — private
   returns 401 from `GET /api/state` for anonymous callers.
@@ -95,8 +105,11 @@ release. It is a front-end release plus a safety guard in the test scripts.
 - Real password not chosen (`npm run hash-password`).
 - No Ingress, no TLS, no domain.
 - Live updates never tested through Traefik.
-- **Touch dragging never tried on a real phone or tablet** — Touch Punch maps
-  touch to mouse events; it loads, but nobody has dragged with a finger.
+- **Touch dragging never tried on a real phone or tablet.** It is off by
+  default on phones; a user who switches it on gets Touch Punch's touch-to-mouse
+  mapping, which nobody has tried with a finger.
+- **On a phone the bottom bar wraps to about four lines** and takes roughly a
+  third of the screen. Known, raised with the user, not changed yet.
 - Excel import is still wrong on real files — see "Known broken".
 
 ---
@@ -144,8 +157,9 @@ Then verify **without touching the data**:
 - `npm run smoke` against it — with a real guest list it now **skips its write
   tests** and runs only read-only checks. Do not set `SMOKE_OVERWRITE=yes`.
 - Do **not** run `npm run utf8check` here; it refuses anyway.
-- By hand: log in, check the board looks dense and cards fill the width, drag a
-  guest onto another masa and back again (two revisions, net no change).
+- By hand: log in, check the board looks dense and cards fill the width, the
+  purple "Sürüklə" button is in the bottom bar, then drag a guest onto another
+  masa and back again (two revisions, net no change).
 - Take a JSON export from the ⋮ menu before and after if in doubt — it is the
   cheapest backup there is.
 
@@ -193,8 +207,8 @@ restarting the pod also clears it, but that is not a reason to restart it.
 `code.jquery.com`; Bootstrap, Select2, Touch Punch from `cdn.jsdelivr.net`;
 Font Awesome from `cdnjs.cloudflare.com`. That was already true for jQuery,
 Bootstrap and Select2 — the new ones use the same hosts. If jQuery UI fails
-to load, drag-and-drop is simply off and the Köçür / Dəyiş button still moves
-and switches. Browsers need those hosts; the pod does not.
+to load, drag-and-drop is simply off; editing a guest can still change their
+masa. Browsers need those hosts; the pod does not.
 
 **Live updates assume one replica.** The broadcast is in-process
 (`server/src/live.js`) — correct with `replicas: 1` + `Recreate`, as deployed.
@@ -236,14 +250,20 @@ When changing the image, change it in **both** containers.
   `<mutate weddingData>; commit(action)`. `renderApp()` only re-renders — live
   updates call it too — so it must never be used as a write hook.
 - `moveGuestTo()` and `switchGuestsBetween()` are the only places a guest
-  changes masa. The modal and drag-and-drop both call them; a switch is one
-  commit touching both masas, never two.
+  changes masa. Drag-and-drop calls `moveGuestTo()` only. The Köçür / Dəyiş
+  modal calls both, but has no button any more — the user asked for the
+  switch button gone and the function kept. A switch is one commit touching
+  both masas, never two.
+- The drag switch lives in `dragEnabled` / `setDragEnabled()`; `initDragDrop()`
+  does nothing while it is off, for viewers, or if jQuery UI did not load.
 - `sizeTableColumns()` measures from **all** guests, not the filtered ones, so
   filtering never makes cards jump. It runs on every render and again when the
   icon font finishes loading (button widths depend on it).
 
-**The density is what the user asked for.** 12px / 13px, one-line headers, no
-column headers, 4px gaps. Do not "restore" roomier defaults.
+**The look is what the user asked for.** 14px text, 15px titles, 13px badges
+capped at 80px, **no bold at all**, one-line headers, no column headers, 4px
+gaps, move-only drag, no switch button on rows, phones start with drag off.
+Do not "restore" defaults or bring the switch back without asking.
 
 ---
 

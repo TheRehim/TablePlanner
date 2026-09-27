@@ -238,7 +238,7 @@
         }
 
         /* Column widths come from sizeTableColumns(): the longest name (wraps
-           past 170px), the widest type badge (max 75px) and the widest count.
+           past 170px), the widest type badge (max 80px) and the widest count.
            The button column has no fixed width: it takes whatever a stretched
            card has spare, so type and count stay beside the name and the
            buttons sit at the right edge. Its minimum is in --card-w. */
@@ -282,11 +282,11 @@
         }
 
         /* Badges and buttons set the row height, so they are what gets tight.
-           Plain: background colour only, normal weight, at most 75px - a longer
+           Plain: background colour only, normal weight, at most 80px - a longer
            type is cut with an ellipsis and shown whole on hover (title). */
         .guest-table .badge {
             display: inline-block;
-            max-width: 75px;
+            max-width: 80px;
             overflow: hidden;
             text-overflow: ellipsis;
             vertical-align: middle;
@@ -777,10 +777,13 @@
 
         /* =====================================================================
            DENSE BOARD
-           Text is 12px everywhere; masa names and the filter bar are 13px.
-           The root is 10px too, so every rem-based gap and padding in
-           Bootstrap shrinks with it. Screen only - the printed list keeps its
-           own pt sizes. Icons (<i>) are left alone so fa-2x etc. still work.
+           Text is 14px everywhere; masa names, counts and the filter bar are
+           15px. Nothing is bold - every weight is normal. The root is 10px, so
+           every rem-based gap and padding in Bootstrap stays tight. Screen
+           only - the printed list keeps its own sizes. Icons (<i>) are left
+           alone: Font Awesome's solid icons NEED their 900 weight, and fa-2x
+           etc. still work. sizeTableColumns() measures with these same rules,
+           so card widths follow any change here.
            ===================================================================== */
         @media screen {
             html {
@@ -789,13 +792,19 @@
 
             body,
             body *:not(i) {
-                font-size: 12px !important;
+                font-size: 14px !important;
+                font-weight: 400 !important;
             }
 
             .fixed-top-bar,
             .fixed-top-bar *:not(i),
             .table-name,
             .tc-cap {
+                font-size: 15px !important;
+            }
+
+            /* Type and count badges: one size under the text. */
+            .guest-table .badge {
                 font-size: 13px !important;
             }
 
@@ -829,11 +838,24 @@
                 flex: 0 0 auto;
             }
 
-            .bb-info > #masaHintInfo {
+            /* These may end in "…" (full text on hover). Shrink factors set
+               who gives way first: the hint, then the page title, and the
+               stats - the numbers people actually read - last. */
+            .bb-info > #globalStatsSummary,
+            .bb-info > #masaHintInfo,
+            .bb-info > .app-title {
                 flex: 0 1 auto;
                 min-width: 0;
                 overflow: hidden;
                 text-overflow: ellipsis;
+            }
+
+            .bb-info > #masaHintInfo {
+                flex-shrink: 100000;
+            }
+
+            .bb-info > .app-title {
+                flex-shrink: 1000;
             }
 
             .bb-actions {
@@ -843,9 +865,8 @@
         }
 
         /* ---- Drag and drop ----
-           Green: dropping here MOVES the guest to this masa.
-           Orange: dropping here SWITCHES the two guests - both masas and both
-           rows light up, so it is clear who goes where. */
+           Green: dropping here MOVES the guest to this masa. That is the only
+           thing a drop does - switching two guests is not done by dragging. */
         tr.guest-row.ui-draggable {
             cursor: grab;
         }
@@ -875,19 +896,30 @@
             background: #cdebd9;
         }
 
-        .table-card.drop-swap {
-            outline: 2px solid #e27d3b;
-            outline-offset: -2px;
-            background: #fff4ea;
+        /* The drag-and-drop switch in the bottom bar: purple, unlike anything
+           else there. Filled = on, outlined = off. */
+        .btn-drag-on {
+            background: #6f42c1;
+            border-color: #6f42c1;
+            color: #fff;
         }
 
-        .table-card.drop-swap .card-header {
-            background: #ffe0c7;
+        .btn-drag-on:hover {
+            background: #5b34a3;
+            border-color: #5b34a3;
+            color: #fff;
         }
 
-        tr.guest-row.drop-swap-row td {
-            background: #ffc999 !important;
-            opacity: 1;
+        .btn-drag-off {
+            background: #fff;
+            border-color: #6f42c1;
+            color: #6f42c1;
+        }
+
+        .btn-drag-off:hover {
+            background: #f1ebfb;
+            border-color: #6f42c1;
+            color: #6f42c1;
         }
     </style>
 </head>
@@ -966,22 +998,26 @@
     <div class="fixed-bottom-bar py-1 px-1">
         <div class="container-fluid d-flex justify-content-between align-items-center flex-wrap gap-2">
             <span class="small d-flex align-items-center flex-wrap gap-2 bb-info">
-                <span class="app-title">Toy Masa İdarəetməsi</span>
+                <span class="app-title" title="Toy Masa İdarəetməsi">Toy Masa İdarəetməsi</span>
                 <span class="badge bg-secondary view-badge"
                     title="Yalnız baxış — dəyişiklik etmək mümkün deyil"><i
                         class="fa-solid fa-eye me-1"></i>Baxış rejimi</span>
-                <span id="globalStatsSummary">—</span>
-                <span class="text-muted" id="masaHintInfo" title="">—</span>
-                <span class="badge bg-light text-dark border" id="filterResultInfo"></span>
                 <span class="badge d-none" id="syncBadge"></span>
+                <span id="globalStatsSummary">—</span>
+                <span class="badge bg-light text-dark border" id="filterResultInfo"></span>
+                <!-- Last on purpose: when the bar is full, this is what gives way. -->
+                <span class="text-muted" id="masaHintInfo" title="">—</span>
+            </span>
+            <div class="d-flex flex-wrap gap-1 bb-actions">
                 <button class="btn btn-primary btn-sm d-none" id="btnLogin">
                     <i class="fa-solid fa-right-to-bracket me-1"></i> Daxil ol</button>
                 <button class="btn btn-outline-secondary btn-sm d-none" id="btnVisibility" type="button">
                     <i class="fa-solid fa-lock me-1"></i><span id="visibilityLabel">Bağlı</span></button>
                 <button class="btn btn-outline-secondary btn-sm d-none" id="btnLogout">
                     <i class="fa-solid fa-right-from-bracket me-1"></i> Çıxış</button>
-            </span>
-            <div class="d-flex flex-wrap gap-1 bb-actions">
+                <button class="btn btn-sm btn-drag-on edit-only" id="btnDragToggle" type="button" aria-pressed="true">
+                    <i class="fa-solid fa-hand me-1"></i><span id="dragToggleLabel">Sürüklə: açıq</span>
+                </button>
                 <button class="btn btn-primary btn-sm edit-only" id="btnOpenAddTable">
                     <i class="fa-solid fa-circle-plus me-1"></i> Yeni Masa
                 </button>
@@ -2157,6 +2193,8 @@
                 ` &middot; tam dolu: <strong>${fullTables}</strong>` +
                 ` &middot; <span style="color:var(--cap-over-bg)">aşan masa: <strong>${overTables}</strong></span>`
             );
+            // The bar may cut this short; the whole line is always on hover.
+            $('#globalStatsSummary').attr('title', $('#globalStatsSummary').text());
         }
 
         function updateDropdowns() {
@@ -2389,9 +2427,11 @@
             $('#activeFilterCount').text(active).toggleClass('d-none', active === 0);
         }
 
+        // Edit and delete. The Köçür / Dəyiş button is gone from the rows; its
+        // modal (openMoveSwitchModal) and switchGuestsBetween() are kept, only
+        // unwired - moving is done by dragging now.
         function guestActionsHtml(tableId, guestId) {
-            return `<button type="button" class="btn btn-sm btn-orange open-move-modal" data-table-id="${tableId}" data-guest-id="${guestId}" title="Köçür / Dəyiş"><i class="fa-solid fa-right-left"></i></button>` +
-                ` <button type="button" class="btn btn-sm btn-outline-primary edit-guest-btn" data-table-id="${tableId}" data-guest-id="${guestId}" title="Redaktə et"><i class="fa-solid fa-pen"></i></button>` +
+            return `<button type="button" class="btn btn-sm btn-outline-primary edit-guest-btn" data-table-id="${tableId}" data-guest-id="${guestId}" title="Redaktə et"><i class="fa-solid fa-pen"></i></button>` +
                 ` <button type="button" class="btn btn-sm btn-outline-danger delete-guest-btn" data-table-id="${tableId}" data-guest-id="${guestId}" title="Sil"><i class="fa-solid fa-xmark"></i></button>`;
         }
 
@@ -2399,7 +2439,7 @@
            Measured from ALL guests, not just the filtered ones, so filtering
            never makes the cards jump. The content is laid out once in an
            off-screen probe with the same classes, so fonts, badge padding and
-           the 75px badge cap are the real ones. */
+           the 80px badge cap are the real ones. */
         const NAME_MAX = 170;   // a longer name wraps
         const CELL_PAD = 8;     // td padding: 4px each side
 
@@ -2446,9 +2486,10 @@
 
         /* =====================================================================
            MOVE / SWITCH
-           The only two places a guest changes masa. The Köçür / Dəyiş modal and
-           drag-and-drop both land here, so both write through commit() the same
-           way - and a switch touches both masas in ONE commit, never two.
+           The only two places a guest changes masa. Drag-and-drop uses
+           moveGuestTo(); the Köçür / Dəyiş modal (no longer on the rows, kept
+           for reuse) uses both. Each writes through commit() once - a switch
+           touches both masas in ONE commit, never two.
            ===================================================================== */
         function moveGuestTo(sourceTable, guestId, targetTable) {
             const index = sourceTable.guests.findIndex(g => g.id === guestId);
@@ -2483,24 +2524,49 @@
 
         /* =====================================================================
            DRAG AND DROP (jQuery UI draggable / droppable)
-           Drag a guest row:
-             - onto another masa, anywhere        -> MOVE there   (that masa green)
-             - onto a guest of another masa       -> SWITCH them  (both masas and
-                                                     both rows orange)
-           Dropping on the guest's own masa does nothing.
-           ===================================================================== */
-        let dragRow = null;      // the row being dragged, while a drag is on
-        let swapTarget = null;   // the row it would switch with, if any
+           Drag a guest row onto another masa - anywhere on it, its guests
+           included - and the guest MOVES there (that masa lights green). That
+           is all a drop does; there is no switching by drag. Dropping on the
+           guest's own masa does nothing.
 
-        // A row is a switch target only while it is actually visible inside its
-        // masa. Cards scroll, and a row scrolled out of sight still has a
-        // position - one that can sit on top of the next card down.
-        function rowVisibleInCard(row) {
-            const body = row.closest('.card-body');
-            if (!body) return false;
-            const r = row.getBoundingClientRect();
-            const b = body.getBoundingClientRect();
-            return r.height > 0 && r.top >= b.top - 1 && r.bottom <= b.bottom + 1;
+           A switch in the bottom bar turns it on and off. The choice is kept
+           per device; with none saved, a phone starts with it OFF (rows must
+           scroll under a finger) and everything else starts ON.
+           ===================================================================== */
+        const DRAG_KEY = 'tp.dragEnabled';
+        let dragRow = null;      // the row being dragged, while a drag is on
+
+        // Narrow screen or a phone browser. A width of 0 (a page laid out while
+        // hidden) says nothing about the device, so only the browser counts then.
+        function isPhone() {
+            const narrow = window.innerWidth > 0 && window.matchMedia('(max-width: 767.98px)').matches;
+            return narrow || /Mobi|Android|iPhone|iPod/i.test(navigator.userAgent);
+        }
+
+        let dragEnabled = (function () {
+            try {
+                const saved = localStorage.getItem(DRAG_KEY);
+                if (saved === '1' || saved === '0') return saved === '1';
+            } catch { /* storage blocked: fall back to the device default */ }
+            return !isPhone();
+        })();
+
+        function setDragEnabled(on) {
+            dragEnabled = !!on;
+            try { localStorage.setItem(DRAG_KEY, dragEnabled ? '1' : '0'); } catch { /* not remembered, still works */ }
+            refreshDragToggle();
+            renderTables();
+        }
+
+        function refreshDragToggle() {
+            $('#btnDragToggle')
+                .toggleClass('btn-drag-on', dragEnabled)
+                .toggleClass('btn-drag-off', !dragEnabled)
+                .attr('aria-pressed', String(dragEnabled))
+                .attr('title', dragEnabled
+                    ? 'Sürüklə-burax açıqdır: qonağı başqa masaya sürükləyin. Bağlamaq üçün klikləyin.'
+                    : 'Sürüklə-burax bağlıdır. Açmaq üçün klikləyin.');
+            $('#dragToggleLabel').text(dragEnabled ? 'Sürüklə: açıq' : 'Sürüklə: bağlı');
         }
 
         function fromOtherTable($drag, el) {
@@ -2508,26 +2574,14 @@
                 String($drag.data('tableId')) !== String($(el).data('tableId'));
         }
 
-        // Repaint the orange state from scratch. jQuery UI may fire one row's
-        // "out" after the next row's "over", so marks are never added or removed
-        // piecemeal - only derived from swapTarget.
-        function paintSwap() {
-            const $board = $('#tablesContainer');
-            $board.find('.drop-swap').removeClass('drop-swap');
-            $board.find('.drop-swap-row').removeClass('drop-swap-row');
-            if (!swapTarget || !dragRow) return;
-            $(swapTarget).addClass('drop-swap-row').closest('.table-card').addClass('drop-swap');
-            $(dragRow).addClass('drop-swap-row').closest('.table-card').addClass('drop-swap');
-        }
-
         function initDragDrop() {
-            // Viewers never drag. If jQuery UI failed to load, the modal remains.
-            if (!canEdit() || !$.fn.draggable) return;
+            // Viewers never drag; nor does anyone with the switch off. If jQuery
+            // UI failed to load, editing a guest can still change their masa.
+            if (!canEdit() || !dragEnabled || !$.fn.draggable) return;
 
             const $board = $('#tablesContainer');
-            const $rows = $board.find('tr.guest-row');
 
-            $rows.draggable({
+            $board.find('tr.guest-row').draggable({
                 appendTo: 'body',
                 helper: function () {
                     return $('<div class="drag-helper"></div>').text($(this).find('.guest-name').text());
@@ -2538,17 +2592,13 @@
                 cancel: 'button, .btn, a, input',
                 zIndex: 3000,
                 scroll: false,
-                refreshPositions: true,               // cards may be scrolled mid-drag
                 start: function () {
                     dragRow = this;
-                    swapTarget = null;
                     $(this).addClass('drag-source-row');
                 },
                 stop: function () {
                     $(this).removeClass('drag-source-row');
                     dragRow = null;
-                    swapTarget = null;
-                    paintSwap();
                     $board.find('.drop-move').removeClass('drop-move');
                     // A live update that arrived mid-drag was held back.
                     if (SERVER.stream) setTimeout(applyRemote, 0);
@@ -2565,31 +2615,6 @@
                     const guestId = Number(ui.draggable.data('guestId'));
                     // Let jQuery UI finish the drag before the board is rebuilt.
                     setTimeout(() => { if (from && to) moveGuestTo(from, guestId, to); }, 0);
-                }
-            });
-
-            $rows.droppable({
-                accept: function ($drag) {
-                    return fromOtherTable($drag, this) && rowVisibleInCard(this);
-                },
-                tolerance: 'pointer',
-                greedy: true,          // over a guest, the masa behind it is not the target
-                over: function () {
-                    swapTarget = this;
-                    paintSwap();
-                },
-                out: function () {
-                    if (swapTarget === this) swapTarget = null;
-                    paintSwap();
-                },
-                drop: function (e, ui) {
-                    const from = findTable(Number(ui.draggable.data('tableId')));
-                    const to = findTable(Number($(this).data('tableId')));
-                    const guestId = Number(ui.draggable.data('guestId'));
-                    const targetGuestId = Number($(this).data('guestId'));
-                    setTimeout(() => {
-                        if (from && to) switchGuestsBetween(from, guestId, to, targetGuestId);
-                    }, 0);
                 }
             });
         }
@@ -3785,9 +3810,15 @@
             $('#msTargetTableId, #msTargetGuestId').select2({ theme: 'bootstrap-5', width: '100%', dropdownParent: $('#moveSwitchModal') });
 
             applyReadOnlyMode();
+            refreshDragToggle();
             renderApp();
             // Async: if no API answers, the app simply stays local-only.
             bootFromServer();
+
+            $('#btnDragToggle').on('click', function () {
+                setDragEnabled(!dragEnabled);
+                toast(dragEnabled ? 'Sürüklə-burax açıldı.' : 'Sürüklə-burax bağlandı.');
+            });
             // A change that arrived while a modal was open is applied on close.
             $(document).on('hidden.bs.modal', '.modal', function () {
                 if (SERVER.stream) applyRemote();
