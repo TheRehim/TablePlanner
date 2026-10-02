@@ -6,10 +6,9 @@ As of writing, **nothing had been deployed to the server** — check
 `kubectl get deploy -A | grep tableplanner` before assuming either way; the
 steps differ (see "Do this").
 
-Last updated 2026-09-27, for the release with PDF sharing, drag undo and
-edge auto-scroll, list column choice and the phone layout - plus a follow-up
-fix for the ⋮ menu on phones (`99328f6` has the bug; deploy what
-`current-digest.sh` returns now, not that one).
+Last updated 2026-10-02, for the masa ↔ Qeyd Masası release (move a guest
+into a notes block and a note row onto a masa; rows / people totals per notes
+block). Deploy what `current-digest.sh` returns now.
 
 ---
 
@@ -50,18 +49,22 @@ single-document write needs no cross-row transaction.
 ## What is in this version
 
 Everything since the first handoff, newest first. "new" is this release;
-"prev" shipped in the previous image (`73b6bb6`); "earlier" before that.
+"prev" shipped in the previous images (`9473c2b` and before); "earlier"
+before that.
 
 | | What | Where |
 |---|---|---|
-| **new** | **"PDF göndər"** in both lists (Siyahı, Dəvətnamə siyahısı): a real text PDF built in the browser (jsPDF + autotable, DejaVu Sans embedded for ə/ı/ş/ğ), then the device's **share sheet** (WhatsApp, Telegram, mail…) via Web Share; where that is unavailable it **downloads**. ~115 KB, ~0.2 s. Libraries + font (~1.8 MB) load only when a list opens. | `buildPdf()`, `shareOrDownload()` |
-| **new** | **List columns**: "Sütunlar: Tip / Say / Masa" toggles in both lists; Qonaq always shown; **default only Qonaq + Masa**. Siyahı gained a Say column (off by default). Screen, print and PDF follow the same choice; kept per device per list (`tp.cols.*`). | `visibleListColumns()` |
-| **new** | **Undo after drag-and-drop**: a notice bottom-right for 5 s, `"Name" → Masa N [Geri al]`, red if the drop went over capacity. Undo puts the guest back in the same masa and row; refuses (with a message) if the guest or masa changed meanwhile. Only the latest drop is undoable. | `showUndo()`, `undoMove()` |
-| **new** | **Auto-scroll while dragging** near the top/bottom bars: time-based, eases in, max ~450 px/s at the bar, keeps going while the pointer is still. | `autoScrollStep()` |
-| **new** | **Fix: a drop over the top/bottom bar no longer lands in the masa hidden behind it** (existed since drag-and-drop shipped). Nothing lights green over a bar. | `pointerOverBars()` |
-| **new** | Fix: the hovered masa's 3px capacity-coloured top border turns green with the rest (a red/blue strip stayed above the green header). | CSS `.drop-move` |
-| **new** | **Fix: the ⋮ menu (export / import / Excel import) opened hidden behind the board at phone width.** The phone button row had `overflow: auto`, which clips anything that pops out of it; removed — the buttons share the row and shrink to fit (26 px min, all 10 fit a 320 px phone). | CSS `.bb-actions` |
-| **new** | **Phone layout**: bottom bar = one stats line with a ▼ toggle that folds the buttons away (remembered), plus one row of icon-only buttons (65 px open, 29 px folded). **Filters start collapsed at phone size**; **drag starts off at phone size**. Phone and desktop sizes keep separate settings and switch live when the window crosses 768 px. | `index.html` |
+| **new** | **Masa → Qeyd Masası**: a 📝 button on every guest row (between the tick and edit) parks the guest in a notes block. A small "Köçür" dialog asks which block, **last block preselected**; "+ Yeni blok" is always offered (and preselected when there are none). Name, type and count go across; the invitation tick does not (notes have none). One commit. | `openGuestToNotes()`, `doTransfer()` |
+| **new** | **Qeyd Masası → masa**: a 🪑 button on every note row seats the note at a masa. The dialog lists masas as `Masa 7 (18/18)`, **last masa preselected**, warns before going over capacity, and asks for a type when the note has none (every guest needs one). Opens on top of the Qeyd Masası window. One commit. | `openNoteToTable()`, `doTransfer()` |
+| **new** | **Notes totals**: each block header shows `N sətr \| N nəfər`; the window's top line is `N blok \| N sətr \| N nəfər` in the bottom bar's quiet style. Totals count every row, even while a search narrows what is shown. | `noteBlockHtml()` |
+| prev | **"PDF göndər"** in both lists (Siyahı, Dəvətnamə siyahısı): a real text PDF built in the browser (jsPDF + autotable, DejaVu Sans embedded for ə/ı/ş/ğ), then the device's **share sheet** (WhatsApp, Telegram, mail…) via Web Share; where that is unavailable it **downloads**. ~115 KB, ~0.2 s. Libraries + font (~1.8 MB) load only when a list opens. | `buildPdf()`, `shareOrDownload()` |
+| prev | **List columns**: "Sütunlar: Tip / Say / Masa" toggles in both lists; Qonaq always shown; **default only Qonaq + Masa**. Siyahı gained a Say column (off by default). Screen, print and PDF follow the same choice; kept per device per list (`tp.cols.*`). | `visibleListColumns()` |
+| prev | **Undo after drag-and-drop**: a notice bottom-right for 5 s, `"Name" → Masa N [Geri al]`, red if the drop went over capacity. Undo puts the guest back in the same masa and row; refuses (with a message) if the guest or masa changed meanwhile. Only the latest drop is undoable. | `showUndo()`, `undoMove()` |
+| prev | **Auto-scroll while dragging** near the top/bottom bars: time-based, eases in, max ~450 px/s at the bar, keeps going while the pointer is still. | `autoScrollStep()` |
+| prev | **Fix: a drop over the top/bottom bar no longer lands in the masa hidden behind it** (existed since drag-and-drop shipped). Nothing lights green over a bar. | `pointerOverBars()` |
+| prev | Fix: the hovered masa's 3px capacity-coloured top border turns green with the rest (a red/blue strip stayed above the green header). | CSS `.drop-move` |
+| prev | **Fix: the ⋮ menu (export / import / Excel import) opened hidden behind the board at phone width.** The phone button row had `overflow: auto`, which clips anything that pops out of it; removed — the buttons share the row and shrink to fit (26 px min, all 10 fit a 320 px phone). | CSS `.bb-actions` |
+| prev | **Phone layout**: bottom bar = one stats line with a ▼ toggle that folds the buttons away (remembered), plus one row of icon-only buttons (65 px open, 29 px folded). **Filters start collapsed at phone size**; **drag starts off at phone size**. Phone and desktop sizes keep separate settings and switch live when the window crosses 768 px. | `index.html` |
 | prev | Invitation tick + "Dəvətnamə siyahısı", Arial, coloured masa title bars, quieter bottom bar. | `setGuestInvited()` |
 | prev | Drag on/off switch, move-only drag, ⇄ removed from rows, dense board, data-driven card widths, smoke/utf8check overwrite guard. | `initDragDrop()`, `sizeTableColumns()` |
 | earlier | Favicon; **live updates** over Server-Sent Events. | `server.js`, `src/live.js` |
@@ -259,6 +262,14 @@ When changing the image, change it in **both** containers.
 
 **Visibility fails closed, on purpose.** Default private; a write without
 `settings` keeps the current value; anything not exactly `"public"` is private.
+
+**Guests and note rows trade places.** A guest moved to notes becomes
+`{ id, name, type, amount }` in the block (same id; `invited` is dropped); a
+note seated at a masa becomes a guest with the same id and `invited: false`.
+Guest and note ids come from the same counter, so they never collide. Both
+moves go through `doTransfer()` and one `commit()` each (`guestToNotes`,
+`noteToGuest`). Seated totals count masas only - people parked in notes are
+in the notes totals, not "seated".
 
 **Guests now carry `invited`.** Anything that builds guest objects must keep
 it: the JSON export writes it and the JSON import reads it (`g.invited ===

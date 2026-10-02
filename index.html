@@ -461,13 +461,11 @@
             background: #f4f5f7;
         }
 
+        /* "3 blok | 12 sətr | 30 nəfər" - one quiet line, like the board's
+           bottom bar. */
         .notes-stat {
-            font-size: .8rem;
-            padding: .15rem .55rem;
-            border-radius: 999px;
-            background: #fff;
-            border: 1px solid #e3e6ea;
-            color: #495057;
+            color: #6c757d;
+            white-space: nowrap;
         }
 
         /* As wide as the window allows. */
@@ -531,14 +529,18 @@
             color: #adb5bd;
         }
 
+        /* Block header total: "5 sətr | 12 nəfər". */
         .note-block-total {
-            font-size: .8rem;
-            font-weight: 700;
             padding: .1rem .5rem;
             border-radius: 999px;
             background: #fde68a;
             color: #7c5a00;
             white-space: nowrap;
+        }
+
+        .note-block-total .nbt-sep {
+            color: #c9a227;
+            padding: 0 2px;
         }
 
         .note-block table {
@@ -663,7 +665,8 @@
 
         /* The confirm dialog can open on top of another modal (Tiplər,
            Qeyd Masası): lift it and its backdrop above the first one. */
-        #confirmModal {
+        #confirmModal,
+        #transferModal {
             z-index: 1065;
         }
 
@@ -1671,7 +1674,9 @@
                     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
                         <div class="d-flex gap-2 align-items-center flex-wrap">
                             <span class="notes-stat" id="notesStatBlocks"><strong>0</strong> blok</span>
+                            <span class="bb-sep">|</span>
                             <span class="notes-stat" id="notesStatRows"><strong>0</strong> sətr</span>
+                            <span class="bb-sep">|</span>
                             <span class="notes-stat" id="notesStatPeople"><strong>0</strong> nəfər</span>
                         </div>
                         <div class="d-flex gap-2 align-items-center flex-wrap">
@@ -1742,6 +1747,36 @@
                     <button type="button" class="btn btn-primary btn-sm" id="btnPrintList">
                         <i class="fa-solid fa-print me-1"></i> Çap Et
                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: move one person between a masa and Qeyd Masası (either way). -->
+    <div class="modal fade" id="transferModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fs-6" id="transferTitle">Köçür</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="transferForm" novalidate>
+                        <div class="mb-2"><strong id="transferWho"></strong></div>
+                        <label class="form-label small" for="transferTarget" id="transferTargetLabel">Hara?</label>
+                        <select class="form-select form-select-sm mb-2" id="transferTarget"></select>
+                        <div class="d-none" id="transferTypeWrap">
+                            <label class="form-label small" for="transferType">Qonaq tipi (qeyddə tip yoxdur)</label>
+                            <select class="form-select form-select-sm mb-2" id="transferType"></select>
+                        </div>
+                        <div class="small" id="transferHint"></div>
+                        <div class="text-danger small mt-1 d-none" id="transferError"></div>
+                    </form>
+                </div>
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">İmtina</button>
+                    <button type="button" class="btn btn-primary btn-sm" id="btnDoTransfer">
+                        <i class="fa-solid fa-right-left me-1"></i> Köçür</button>
                 </div>
             </div>
         </div>
@@ -2689,7 +2724,8 @@
         // dragging now.
         function guestActionsHtml(tableId, guestId, invited) {
             return `<input type="checkbox" class="form-check-input invite-check" data-table-id="${tableId}" data-guest-id="${guestId}" ${invited ? 'checked' : ''} title="Dəvətnamə siyahısında" aria-label="Dəvətnamə">` +
-                `<button type="button" class="btn btn-sm btn-outline-primary edit-guest-btn" data-table-id="${tableId}" data-guest-id="${guestId}" title="Redaktə et"><i class="fa-solid fa-pen"></i></button>` +
+                `<button type="button" class="btn btn-sm btn-outline-secondary to-notes-btn" data-table-id="${tableId}" data-guest-id="${guestId}" title="Qeyd masasına köçür"><i class="fa-solid fa-note-sticky"></i></button>` +
+                ` <button type="button" class="btn btn-sm btn-outline-primary edit-guest-btn" data-table-id="${tableId}" data-guest-id="${guestId}" title="Redaktə et"><i class="fa-solid fa-pen"></i></button>` +
                 ` <button type="button" class="btn btn-sm btn-outline-danger delete-guest-btn" data-table-id="${tableId}" data-guest-id="${guestId}" title="Sil"><i class="fa-solid fa-xmark"></i></button>`;
         }
 
@@ -2768,6 +2804,117 @@
                 }
             }
             return { guest: guest, fromIndex: index, over: over };
+        }
+
+        /* ---------- Masa <-> Qeyd Masası ----------
+           A guest can be parked in a notes block, and a note row can be seated
+           at a masa. The person keeps id, name, type and count; each move is
+           one commit. Which block / masa is asked in a small dialog with the
+           LAST one preselected. A note with no type (notes allow that) must
+           get one, because every guest at a masa has a type. The invitation
+           tick is not kept in notes: it is about who is seated. */
+        let pendingTransfer = null;   // { dir: 'toNotes' | 'toTable', ... }
+
+        function noteBlockLabel(b, i) {
+            return (b.title ? b.title : `Başlıqsız blok ${i + 1}`) + ` (${b.items.length} sətr)`;
+        }
+
+        function openGuestToNotes(tableId, guestId) {
+            const table = findTable(tableId);
+            const guest = findGuest(table, guestId);
+            if (!guest) return;
+            const blocks = ensureNotes();
+            pendingTransfer = { dir: 'toNotes', tableId: table.id, guestId: guest.id };
+            $('#transferTitle').html('<i class="fa-solid fa-note-sticky me-1"></i> Qeyd masasına köçür');
+            $('#transferWho').text(`${guest.name} (${guest.amount} nəfər) — ${table.name}`);
+            $('#transferTargetLabel').text('Hansı bloka?');
+            $('#transferTarget').html(
+                blocks.map((b, i) => `<option value="${b.id}">${escapeHtml(noteBlockLabel(b, i))}</option>`).join('') +
+                `<option value="new">+ Yeni blok</option>`);
+            // Default: the last block - or a new one if there are none yet.
+            $('#transferTarget').val(blocks.length ? String(blocks[blocks.length - 1].id) : 'new');
+            $('#transferTypeWrap').addClass('d-none');
+            $('#transferHint').text('Qonaq masadan çıxarılıb qeydə əlavə olunacaq.');
+            clearError($('#transferError'));
+            showModal('transferModal');
+        }
+
+        function openNoteToTable(noteId) {
+            const hit = findNote(noteId);
+            if (!hit) return;
+            if (weddingData.tables.length === 0) { toast('Hələ masa yoxdur.', 'warning'); return; }
+            const note = hit.note;
+            pendingTransfer = { dir: 'toTable', noteId: note.id };
+            $('#transferTitle').html('<i class="fa-solid fa-chair me-1"></i> Masaya köçür');
+            $('#transferWho').text(`${note.name} (${Number(note.amount) || 1} nəfər) — Qeyd Masası`);
+            $('#transferTargetLabel').text('Hansı masaya?');
+            $('#transferTarget').html(weddingData.tables.map(t =>
+                `<option value="${t.id}">${escapeHtml(t.name)} (${occupancyOf(t)}/${t.capacity})</option>`).join(''));
+            $('#transferTarget').val(String(weddingData.tables[weddingData.tables.length - 1].id));
+            const needsType = !note.type || !weddingData.guestTypes.includes(note.type);
+            $('#transferTypeWrap').toggleClass('d-none', !needsType);
+            $('#transferType').html(weddingData.guestTypes.map(t =>
+                `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join(''));
+            refreshTransferHint();
+            clearError($('#transferError'));
+            showModal('transferModal');
+        }
+
+        // For a note going to a masa: say if it would go over capacity.
+        function refreshTransferHint() {
+            if (!pendingTransfer || pendingTransfer.dir !== 'toTable') return;
+            const hit = findNote(pendingTransfer.noteId);
+            const table = findTable(Number($('#transferTarget').val()));
+            if (!hit || !table) return;
+            const after = occupancyOf(table) + (Number(hit.note.amount) || 1);
+            $('#transferHint').html(after > table.capacity
+                ? `<span class="text-danger">Diqqət: ${escapeHtml(table.name)} tutumu aşılacaq (${after}/${table.capacity}).</span>`
+                : `${escapeHtml(table.name)}: köçürmədən sonra ${after}/${table.capacity}.`);
+        }
+
+        function doTransfer() {
+            const t = pendingTransfer;
+            if (!t) return;
+            const $err = $('#transferError');
+            if (t.dir === 'toNotes') {
+                const table = findTable(t.tableId);
+                const index = table ? table.guests.findIndex(g => g.id === t.guestId) : -1;
+                if (index === -1) return showError($err, 'Qonaq artıq bu masada deyil.');
+                let block;
+                if ($('#transferTarget').val() === 'new') {
+                    block = { id: newId(), title: '', items: [] };
+                    ensureNotes().push(block);
+                } else {
+                    block = findNoteBlock(Number($('#transferTarget').val()));
+                    if (!block) return showError($err, 'Blok tapılmadı.');
+                }
+                const guest = table.guests.splice(index, 1)[0];
+                block.items.push({ id: guest.id, name: guest.name, type: guest.type, amount: Number(guest.amount) || 1 });
+                pendingTransfer = null;
+                hideModal('transferModal');
+                commit('guestToNotes');
+                toast(`"${guest.name}" qeyd masasına köçdü${block.title ? ` (${block.title})` : ''}.`);
+            } else {
+                const hit = findNote(t.noteId);
+                if (!hit) return showError($err, 'Qeyd artıq yoxdur.');
+                const table = findTable(Number($('#transferTarget').val()));
+                if (!table) return showError($err, 'Masa seçin.');
+                const note = hit.note;
+                const type = (note.type && weddingData.guestTypes.includes(note.type)) ? note.type : $('#transferType').val();
+                if (!type) return showError($err, 'Qonaq tipi seçin.');
+                hit.block.items = hit.block.items.filter(r => r.id !== note.id);
+                if (noteEditId === note.id) noteEditId = null;
+                table.guests.push({ id: note.id, name: note.name, type: type, amount: Number(note.amount) || 1, invited: false });
+                pendingTransfer = null;
+                hideModal('transferModal');
+                commit('noteToGuest');
+                const after = occupancyOf(table);
+                if (after > table.capacity) {
+                    toast(`"${note.name}" → ${table.name}. Diqqət: tutum aşıldı (${after}/${table.capacity}).`, 'warning');
+                } else {
+                    toast(`"${note.name}" → ${table.name}`);
+                }
+            }
         }
 
         /* ---------- Undo a drag-and-drop move ----------
@@ -3947,6 +4094,7 @@
                 <td>${typeBadge(r.type)}</td>
                 <td class="text-center"><span class="note-amount">${Number(r.amount) || 1}</span></td>
                 <td class="note-actions">
+                    <button type="button" class="${NOTE_BTN} btn-outline-primary note-to-table-btn" data-note-id="${r.id}" title="Masaya köçür"><i class="fa-solid fa-chair"></i></button>
                     <button type="button" class="${NOTE_BTN} btn-outline-secondary edit-note-btn" data-note-id="${r.id}" title="Dəyiş"><i class="fa-solid fa-pen"></i></button>
                     <button type="button" class="${NOTE_BTN} btn-outline-danger delete-note-btn" data-note-id="${r.id}" title="Sil"><i class="fa-solid fa-xmark"></i></button>
                 </td>
@@ -3962,7 +4110,7 @@
             return `<div class="note-block" data-block-id="${b.id}">
                 <div class="note-block-head">
                     ${title}
-                    <span class="note-block-total" title="Cəmi nəfər">${blockTotal(b)}</span>
+                    <span class="note-block-total" title="Bu blokda: sətr sayı | cəmi nəfər (axtarışdan asılı deyil)">${b.items.length} sətr <span class="nbt-sep">|</span> ${blockTotal(b)} nəfər</span>
                     <button type="button" class="${NOTE_BTN} btn-link text-danger p-0 px-1 delete-block-btn" data-block-id="${b.id}" title="Bloku sil"><i class="fa-solid fa-trash"></i></button>
                 </div>
                 <table class="table table-sm align-middle">
@@ -5144,6 +5292,17 @@
                 updateEditGuestCapWarn();
                 showModal('editGuestModal');
             });
+
+            // Guest -> Qeyd Masası; note row -> masa; the shared dialog.
+            $cards.on('click', '.to-notes-btn', function () {
+                openGuestToNotes(parseInt($(this).data('table-id'), 10), parseInt($(this).data('guest-id'), 10));
+            });
+            $('#noteBlocks').on('click', '.note-to-table-btn', function () {
+                openNoteToTable(parseInt($(this).data('note-id'), 10));
+            });
+            $('#transferTarget').on('change', refreshTransferHint);
+            $('#btnDoTransfer').on('click', doTransfer);
+            $('#transferForm').on('submit', function (e) { e.preventDefault(); doTransfer(); });
 
             // Invitation tick in a row.
             $cards.on('change', '.invite-check', function () {

@@ -252,6 +252,12 @@ Then confirm by hand, from a **logged-out** browser:
   off, the bottom bar is one stats line + one row of icons, and ▼ folds it.
   Tap ⋮: the menu (export / import / Excel import) opens fully visible above
   the bar.
+- **masa ↔ Qeyd Masası** (logged in): on a guest row press 📝 — the dialog
+  preselects the last notes block; Köçür moves the guest there, the masa's
+  count and the bottom bar drop by their count, and the block header shows
+  `N sətr | N nəfər` one row / their count higher. In Qeyd Masası press 🪑 on a
+  row — the last masa is preselected (with a capacity warning if it would go
+  over); Köçür seats them and the totals move back.
 
 ---
 
