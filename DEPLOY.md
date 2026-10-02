@@ -258,6 +258,10 @@ Then confirm by hand, from a **logged-out** browser:
   `N sətr | N nəfər` one row / their count higher. In Qeyd Masası press 🪑 on a
   row — the last masa is preselected (with a capacity warning if it would go
   over); Köçür seats them and the totals move back.
+- **A→Z**: every masa and every Qeyd Masası block reads alphabetically by
+  name (ə after e, ı before i). Add a guest whose name starts with "A" to any
+  masa, or drag someone in: they appear in their alphabetical place, not at
+  the bottom. Qeyd Masası's sort dropdown shows "Ad A→Z" when it opens.
 
 ---
 

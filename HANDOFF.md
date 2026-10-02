@@ -6,9 +6,9 @@ As of writing, **nothing had been deployed to the server** — check
 `kubectl get deploy -A | grep tableplanner` before assuming either way; the
 steps differ (see "Do this").
 
-Last updated 2026-10-02, for the masa ↔ Qeyd Masası release (move a guest
-into a notes block and a note row onto a masa; rows / people totals per notes
-block). Deploy what `current-digest.sh` returns now.
+Last updated 2026-10-02, for the A→Z release: every masa and every Qeyd
+Masası block lists its people alphabetically by name. Deploy what
+`current-digest.sh` returns now.
 
 ---
 
@@ -49,14 +49,15 @@ single-document write needs no cross-row transaction.
 ## What is in this version
 
 Everything since the first handoff, newest first. "new" is this release;
-"prev" shipped in the previous images (`9473c2b` and before); "earlier"
+"prev" shipped in the previous images (`6308837` and before); "earlier"
 before that.
 
 | | What | Where |
 |---|---|---|
-| **new** | **Masa → Qeyd Masası**: a 📝 button on every guest row (between the tick and edit) parks the guest in a notes block. A small "Köçür" dialog asks which block, **last block preselected**; "+ Yeni blok" is always offered (and preselected when there are none). Name, type and count go across; the invitation tick does not (notes have none). One commit. | `openGuestToNotes()`, `doTransfer()` |
-| **new** | **Qeyd Masası → masa**: a 🪑 button on every note row seats the note at a masa. The dialog lists masas as `Masa 7 (18/18)`, **last masa preselected**, warns before going over capacity, and asks for a type when the note has none (every guest needs one). Opens on top of the Qeyd Masası window. One commit. | `openNoteToTable()`, `doTransfer()` |
-| **new** | **Notes totals**: each block header shows `N sətr \| N nəfər`; the window's top line is `N blok \| N sətr \| N nəfər` in the bottom bar's quiet style. Totals count every row, even while a search narrows what is shown. | `noteBlockHtml()` |
+| **new** | **A→Z by name everywhere.** Every masa card lists its guests alphabetically by name (Azerbaijani collation: ə after e, ı before i, ş after s …), so anyone who arrives — added, renamed, dragged in, moved with the edit form, undone, moved from Qeyd Masası, or added from another device — shows in their alphabetical place, not at the bottom. Qeyd Masası blocks start on "Ad A→Z" too (its sort dropdown is kept and can switch for the session). **Display only**: the saved order is untouched, so exports and the data are not reshuffled. Same id breaks a tie so equal names never jump. | `byGuestName()`, `notesSort` |
+| prev | **Masa → Qeyd Masası**: a 📝 button on every guest row (between the tick and edit) parks the guest in a notes block. A small "Köçür" dialog asks which block, **last block preselected**; "+ Yeni blok" is always offered (and preselected when there are none). Name, type and count go across; the invitation tick does not (notes have none). One commit. | `openGuestToNotes()`, `doTransfer()` |
+| prev | **Qeyd Masası → masa**: a 🪑 button on every note row seats the note at a masa. The dialog lists masas as `Masa 7 (18/18)`, **last masa preselected**, warns before going over capacity, and asks for a type when the note has none (every guest needs one). Opens on top of the Qeyd Masası window. One commit. | `openNoteToTable()`, `doTransfer()` |
+| prev | **Notes totals**: each block header shows `N sətr \| N nəfər`; the window's top line is `N blok \| N sətr \| N nəfər` in the bottom bar's quiet style. Totals count every row, even while a search narrows what is shown. | `noteBlockHtml()` |
 | prev | **"PDF göndər"** in both lists (Siyahı, Dəvətnamə siyahısı): a real text PDF built in the browser (jsPDF + autotable, DejaVu Sans embedded for ə/ı/ş/ğ), then the device's **share sheet** (WhatsApp, Telegram, mail…) via Web Share; where that is unavailable it **downloads**. ~115 KB, ~0.2 s. Libraries + font (~1.8 MB) load only when a list opens. | `buildPdf()`, `shareOrDownload()` |
 | prev | **List columns**: "Sütunlar: Tip / Say / Masa" toggles in both lists; Qonaq always shown; **default only Qonaq + Masa**. Siyahı gained a Say column (off by default). Screen, print and PDF follow the same choice; kept per device per list (`tp.cols.*`). | `visibleListColumns()` |
 | prev | **Undo after drag-and-drop**: a notice bottom-right for 5 s, `"Name" → Masa N [Geri al]`, red if the drop went over capacity. Undo puts the guest back in the same masa and row; refuses (with a message) if the guest or masa changed meanwhile. Only the latest drop is undoable. | `showUndo()`, `undoMove()` |
@@ -308,8 +309,9 @@ and titles, 13px badges capped at 80px; nothing bold except the masa title
 bar, which is solid capacity colour; one-line headers, no column headers, 4px
 gaps; move-only drag, no switch button on rows, phones start with drag off and
 filters collapsed; a quiet bottom bar with "|" separators and no
-"Saxlanıldı"; lists default to Qonaq + Masa. Do not "restore" defaults or
-bring removed things back without asking.
+"Saxlanıldı"; lists default to Qonaq + Masa; masas and notes blocks always
+A→Z by name. Do not "restore" defaults or bring removed things back without
+asking.
 
 ---
 

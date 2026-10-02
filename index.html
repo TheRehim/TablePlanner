@@ -1687,7 +1687,7 @@
                             <div class="notes-sort-wrap">
                                 <select id="notesSortSelect" class="form-select form-select-sm">
                                     <option value="">Əlavə sırası</option>
-                                    <option value="name:asc">Ad A→Z</option>
+                                    <option value="name:asc" selected>Ad A→Z</option>
                                     <option value="name:desc">Ad Z→A</option>
                                     <option value="type:asc">Tip A→Z</option>
                                     <option value="type:desc">Tip Z→A</option>
@@ -2644,7 +2644,12 @@
 
                 // The whole masa is always shown, so the counts are the masa's own.
                 const hitIds = new Set(matchingGuests.map(g => g.id));
-                const rows = table.guests;
+                // Shown A→Z by name (Azerbaijani order), whatever order they were
+                // added or moved in - a guest dragged, moved from Qeyd Masası or
+                // renamed lands in their alphabetical place. Display only: the
+                // saved order is untouched. Same id breaks a tie, so equal names
+                // never swap places between renders.
+                const rows = table.guests.slice().sort(byGuestName);
 
                 visibleTables++;
                 visibleIds.push(table.id);
@@ -3931,7 +3936,9 @@
            never summed into occupancy, capacity, the guest list or printout.
            ===================================================================== */
         // key null = insertion order, so a new row always lands at the bottom.
-        let notesSort = { key: null, dir: 'asc' };
+        // Qeyd Masası starts A→Z by name, like the masas; the dropdown can still
+        // switch it for the session.
+        let notesSort = { key: 'name', dir: 'asc' };
         let noteEditId = null;        // row being edited inline
         let noteTitleEditId = null;   // block whose title is being edited
         let notesSearch = '';         // lower-cased name search, '' = show all
@@ -4236,6 +4243,11 @@
         // Azerbaijani collation, so ə/ı/ş/ç/ğ/ö/ü sort where they belong
         // rather than by code point.
         const collator = new Intl.Collator('az', { sensitivity: 'base', numeric: true });
+
+        // Masa rows: by name A→Z, id as a stable tie-break.
+        function byGuestName(a, b) {
+            return collator.compare(String(a.name || ''), String(b.name || '')) || ((a.id || 0) - (b.id || 0));
+        }
 
         function sortGuestList(rows) {
             const dir = listSort.dir === 'desc' ? -1 : 1;
