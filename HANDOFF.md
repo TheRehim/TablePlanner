@@ -6,9 +6,10 @@ As of writing, **nothing had been deployed to the server** — check
 `kubectl get deploy -A | grep tableplanner` before assuming either way; the
 steps differ (see "Do this").
 
-Last updated 2026-10-02, for the A→Z release: every masa and every Qeyd
-Masası block lists its people alphabetically by name. Deploy what
-`current-digest.sh` returns now.
+Last updated 2026-10-02, for the drag-to-reorder release: the order of
+guests in a masa (and of rows in a Qeyd Masası block) is set by hand by
+dragging, and the automatic A→Z from `2c6ce49` is reverted. Deploy what
+`current-digest.sh` returns now - **not** `2c6ce49`, which still sorts A→Z.
 
 ---
 
@@ -49,12 +50,15 @@ single-document write needs no cross-row transaction.
 ## What is in this version
 
 Everything since the first handoff, newest first. "new" is this release;
-"prev" shipped in the previous images (`6308837` and before); "earlier"
+"prev" shipped in the previous images (`6308837` and before; `2c6ce49`'s
+A→Z is withdrawn, see below); "earlier"
 before that.
 
 | | What | Where |
 |---|---|---|
-| **new** | **A→Z by name everywhere.** Every masa card lists its guests alphabetically by name (Azerbaijani collation: ə after e, ı before i, ş after s …), so anyone who arrives — added, renamed, dragged in, moved with the edit form, undone, moved from Qeyd Masası, or added from another device — shows in their alphabetical place, not at the bottom. Qeyd Masası blocks start on "Ad A→Z" too (its sort dropdown is kept and can switch for the session). **Display only**: the saved order is untouched, so exports and the data are not reshuffled. Same id breaks a tie so equal names never jump. | `byGuestName()`, `notesSort` |
+| **new** | **Order by hand, by dragging the row.** One drag does both jobs: drop a guest inside their own masa and they are **reordered**; drop them on another masa and they **move** there. Either way they land where a **green line** shows (above / below a row), not at the bottom. The target masa turns green only when it is a different masa. Hovering a draggable row lights it light-blue with a grab cursor. Buttons and the invite tick inside a row still just click. Undo (5 s "Geri al") covers reorders too. Dropping a row back on its own place does nothing. | `reorderGuest()`, `paintDropSlot()`, `moveGuestTo(…, beforeId)` |
+| **new** | **Qeyd Masası rows reorder the same way** (whole row, inside its block, with undo) while the block is shown in its saved order ("Əlavə sırası", now the default again). With a sorted view chosen in the dropdown, reordering is off. | `initNoteSorting()` |
+| **new** | **Automatic A→Z withdrawn.** It was display-only, so reverting it changed no data: every masa shows its saved order again, which is now the order arranged by hand. No timestamps exist or were needed. | `renderTables()` |
 | prev | **Masa → Qeyd Masası**: a 📝 button on every guest row (between the tick and edit) parks the guest in a notes block. A small "Köçür" dialog asks which block, **last block preselected**; "+ Yeni blok" is always offered (and preselected when there are none). Name, type and count go across; the invitation tick does not (notes have none). One commit. | `openGuestToNotes()`, `doTransfer()` |
 | prev | **Qeyd Masası → masa**: a 🪑 button on every note row seats the note at a masa. The dialog lists masas as `Masa 7 (18/18)`, **last masa preselected**, warns before going over capacity, and asks for a type when the note has none (every guest needs one). Opens on top of the Qeyd Masası window. One commit. | `openNoteToTable()`, `doTransfer()` |
 | prev | **Notes totals**: each block header shows `N sətr \| N nəfər`; the window's top line is `N blok \| N sətr \| N nəfər` in the bottom bar's quiet style. Totals count every row, even while a search narrows what is shown. | `noteBlockHtml()` |
@@ -284,6 +288,11 @@ from name / type / amount only will silently untick everyone.
 - `commit(action)` is the only write path. Every mutation is
   `<mutate weddingData>; commit(action)`. `renderApp()` only re-renders — live
   updates call it too — so it must never be used as a write hook.
+- `reorderGuest()` is the only place a guest changes position inside a masa
+  (one commit, `reorderGuest`); `moveGuestTo(..., beforeId)` lands a moved
+  guest at a given spot. The board shows `table.guests` in saved order -
+  there is no sort at render time any more, so do not add one back without
+  asking: the user arranges the order by hand.
 - `moveGuestTo()` and `switchGuestsBetween()` are the only places a guest
   changes masa. Drag-and-drop calls `moveGuestTo()` only. The Köçür / Dəyiş
   modal calls both, but has no button any more — the user asked for the
@@ -309,9 +318,10 @@ and titles, 13px badges capped at 80px; nothing bold except the masa title
 bar, which is solid capacity colour; one-line headers, no column headers, 4px
 gaps; move-only drag, no switch button on rows, phones start with drag off and
 filters collapsed; a quiet bottom bar with "|" separators and no
-"Saxlanıldı"; lists default to Qonaq + Masa; masas and notes blocks always
-A→Z by name. Do not "restore" defaults or bring removed things back without
-asking.
+"Saxlanıldı"; lists default to Qonaq + Masa; the order inside masas and
+notes blocks is the user's own, set by dragging (no automatic sort, no grip
+icon - the whole row drags). Do not "restore" defaults or bring removed
+things back without asking.
 
 ---
 

@@ -988,8 +988,32 @@
         /* ---- Drag and drop ----
            Green: dropping here MOVES the guest to this masa. That is the only
            thing a drop does - switching two guests is not done by dragging. */
-        tr.guest-row.ui-draggable {
+        /* The whole row is the handle. Hovering a row that can be dragged lights
+           it up, so it is clear who you are about to pick up. */
+        tr.guest-row.ui-draggable,
+        .note-block tbody.ui-sortable tr.note-row {
             cursor: grab;
+        }
+
+        tr.guest-row.ui-draggable:hover td,
+        .note-block tbody.ui-sortable tr.note-row:hover td {
+            background: #e7f1ff !important;
+        }
+
+        /* Where the guest will land: a green line above / below a row. */
+        tr.guest-row.drop-before td {
+            box-shadow: inset 0 3px 0 #2e8b57;
+        }
+
+        tr.guest-row.drop-after td {
+            box-shadow: inset 0 -3px 0 #2e8b57;
+        }
+
+        /* Qeyd Masası: the gap a dragged note row will drop into. */
+        tr.note-sort-placeholder td {
+            background: #e8f6ee;
+            box-shadow: inset 0 0 0 1px #2e8b57;
+            height: 26px;
         }
 
         tr.guest-row.drag-source-row td {
@@ -1686,8 +1710,8 @@
                             </div>
                             <div class="notes-sort-wrap">
                                 <select id="notesSortSelect" class="form-select form-select-sm">
-                                    <option value="">Əlavə sırası</option>
-                                    <option value="name:asc" selected>Ad A→Z</option>
+                                    <option value="" selected>Əlavə sırası</option>
+                                    <option value="name:asc">Ad A→Z</option>
                                     <option value="name:desc">Ad Z→A</option>
                                     <option value="type:asc">Tip A→Z</option>
                                     <option value="type:desc">Tip Z→A</option>
@@ -2644,12 +2668,9 @@
 
                 // The whole masa is always shown, so the counts are the masa's own.
                 const hitIds = new Set(matchingGuests.map(g => g.id));
-                // Shown A→Z by name (Azerbaijani order), whatever order they were
-                // added or moved in - a guest dragged, moved from Qeyd Masası or
-                // renamed lands in their alphabetical place. Display only: the
-                // saved order is untouched. Same id breaks a tie, so equal names
-                // never swap places between renders.
-                const rows = table.guests.slice().sort(byGuestName);
+                // Rows are shown in their saved order - the order you arranged by
+                // hand with the ⋮⋮ grip (see DRAG AND DROP).
+                const rows = table.guests;
 
                 visibleTables++;
                 visibleIds.push(table.id);
@@ -2792,11 +2813,15 @@
            ===================================================================== */
         // Returns { guest, fromIndex, over } - what an undo needs - or null.
         // `quiet` skips the toast, for callers that show their own message.
-        function moveGuestTo(sourceTable, guestId, targetTable, quiet) {
+        // `beforeId`: land in front of that guest (a drag pointing at a spot);
+        // otherwise at the end.
+        function moveGuestTo(sourceTable, guestId, targetTable, quiet, beforeId) {
             const index = sourceTable.guests.findIndex(g => g.id === guestId);
             if (index === -1 || sourceTable.id === targetTable.id) return null;
             const guest = sourceTable.guests.splice(index, 1)[0];
-            targetTable.guests.push(guest);
+            const at = beforeId == null ? -1 : targetTable.guests.findIndex(g => g.id === beforeId);
+            if (at === -1) targetTable.guests.push(guest);
+            else targetTable.guests.splice(at, 0, guest);
             commit('moveGuest');
 
             const after = occupancyOf(targetTable);
@@ -2937,7 +2962,9 @@
             const $host = $('#undoHost');
             $host.html(`
                 <div class="undo-toast ${move.over ? 'undo-warn' : ''}" role="status">
-                    <div class="undo-text">"${escapeHtml(move.guestName)}" → ${escapeHtml(move.toName)}${move.over
+                    <div class="undo-text">${move.kind === 'reorder' || move.kind === 'noteOrder'
+                        ? `"${escapeHtml(move.guestName)}" — ${escapeHtml(move.toName)}: sıra dəyişdi`
+                        : `"${escapeHtml(move.guestName)}" → ${escapeHtml(move.toName)}`}${move.over
                         ? ` <span class="undo-over">tutum aşıldı (${escapeHtml(move.over)})</span>` : ''}</div>
                     <button type="button" class="btn btn-light btn-sm undo-btn">
                         <i class="fa-solid fa-rotate-left me-1"></i>Geri al</button>
@@ -2957,6 +2984,25 @@
         }
 
         function undoMove(move) {
+            if (move.kind === 'reorder') {
+                const table = findTable(move.tableId);
+                const index = table ? table.guests.findIndex(g => g.id === move.guestId) : -1;
+                if (index === -1) { toast('Geri almaq olmadı: qonaq və ya masa artıq dəyişib.', 'warning'); return; }
+                const guest = table.guests.splice(index, 1)[0];
+                table.guests.splice(Math.min(move.fromIndex, table.guests.length), 0, guest);
+                commit('undoReorder');
+                toast(`Geri alındı: "${guest.name}" əvvəlki yerinə qayıtdı`);
+                return;
+            }
+            if (move.kind === 'noteOrder') {
+                const block = findNoteBlock(move.blockId);
+                if (!block) { toast('Geri almaq olmadı: blok artıq yoxdur.', 'warning'); return; }
+                const rank = id => { const i = move.oldOrder.indexOf(id); return i === -1 ? Infinity : i; };
+                block.items.sort((a, b) => rank(a.id) - rank(b.id));
+                commit('undoReorderNote');
+                toast('Geri alındı: əvvəlki sıra');
+                return;
+            }
             const from = findTable(move.fromTableId);
             const to = findTable(move.toTableId);
             const index = to ? to.guests.findIndex(g => g.id === move.guestId) : -1;
@@ -3096,8 +3142,12 @@
 
         function paintDropTarget() {
             const target = hoverCard && dragPointer && !pointerOverBars(dragPointer.y) ? hoverCard : null;
-            $('#tablesContainer .table-card.drop-move').not(target).removeClass('drop-move');
-            if (target) $(target).addClass('drop-move');
+            // Green card = moving to ANOTHER masa. In its own masa the row is
+            // only reordered, so just the line shows.
+            const other = target && dragRow && !target.contains(dragRow) ? target : null;
+            $('#tablesContainer .table-card.drop-move').not(other).removeClass('drop-move');
+            if (other) $(other).addClass('drop-move');
+            paintDropSlot(target);
         }
 
         // Narrow screen or a phone browser. A width of 0 (a page laid out while
@@ -3148,14 +3198,46 @@
                 .toggleClass('btn-drag-off', !dragEnabled)
                 .attr('aria-pressed', String(dragEnabled))
                 .attr('title', dragEnabled
-                    ? 'Sürüklə-burax açıqdır: qonağı başqa masaya sürükləyin. Bağlamaq üçün klikləyin.'
+                    ? 'Sürüklə-burax açıqdır: qonağı tutub sürükləyin - masa daxilində sıranı dəyişin və ya başqa masaya köçürün. Bağlamaq üçün klikləyin.'
                     : 'Sürüklə-burax bağlıdır. Açmaq üçün klikləyin.');
             $('#dragToggleLabel').text(dragEnabled ? 'Sürüklə: açıq' : 'Sürüklə: bağlı');
         }
 
-        function fromOtherTable($drag, el) {
-            return $drag.is('tr.guest-row') &&
-                String($drag.data('tableId')) !== String($(el).data('tableId'));
+        // Where a drop would land: { tableId, beforeId } - before that guest,
+        // or at the end when beforeId is null. Null when the drop would change
+        // nothing (a row dropped back on its own place).
+        let dropSlot = null;
+
+        function paintDropSlot(target) {
+            const $board = $('#tablesContainer');
+            $board.find('.drop-before, .drop-after').removeClass('drop-before drop-after');
+            dropSlot = null;
+            if (!target || !dragRow || !dragPointer) return;
+            const all = [...target.querySelectorAll('tr.guest-row')];
+            const rows = all.filter(r => r !== dragRow);
+            const before = rows.find(r => {
+                const b = r.getBoundingClientRect();
+                return dragPointer.y < b.top + b.height / 2;
+            });
+            const slotIndex = before ? rows.indexOf(before) : rows.length;
+            const sameTable = all.includes(dragRow);
+            if (sameTable && slotIndex === all.indexOf(dragRow)) return;   // no change
+            if (before) before.classList.add('drop-before');
+            else if (rows.length) rows[rows.length - 1].classList.add('drop-after');
+            dropSlot = { tableId: Number($(target).data('tableId')), beforeId: before ? Number(before.dataset.guestId) : null };
+        }
+
+        // Same masa, new place. Returns { guest, fromIndex } or null if nothing moved.
+        function reorderGuest(table, guestId, beforeId) {
+            const from = table.guests.findIndex(g => g.id === guestId);
+            if (from === -1) return null;
+            const guest = table.guests.splice(from, 1)[0];
+            let to = beforeId == null ? table.guests.length : table.guests.findIndex(g => g.id === beforeId);
+            if (to === -1) to = table.guests.length;
+            table.guests.splice(to, 0, guest);
+            if (to === from) return null;
+            commit('reorderGuest');
+            return { guest: guest, fromIndex: from };
         }
 
         function initDragDrop() {
@@ -3165,6 +3247,10 @@
 
             const $board = $('#tablesContainer');
 
+            // The whole row is the handle. One drag does both jobs: dropped in
+            // its own masa it is reordered, dropped on another it moves there -
+            // either way to the spot the green line shows. Buttons and the
+            // invitation tick inside the row still just click (`cancel`).
             $board.find('tr.guest-row').draggable({
                 appendTo: 'body',
                 helper: function () {
@@ -3190,27 +3276,43 @@
                     hoverCard = null;
                     $(this).removeClass('drag-source-row');
                     dragRow = null;
+                    dropSlot = null;
                     $board.find('.drop-move').removeClass('drop-move');
+                    $board.find('.drop-before, .drop-after').removeClass('drop-before drop-after');
                     // A live update that arrived mid-drag was held back.
                     if (SERVER.stream) setTimeout(applyRemote, 0);
                 }
             });
 
             $board.find('.table-card').droppable({
-                accept: function ($drag) { return fromOtherTable($drag, this); },
+                // Any guest row - its own masa included, for reordering.
+                accept: function ($drag) { return $drag.is('tr.guest-row'); },
                 tolerance: 'pointer',
                 over: function () { hoverCard = this; paintDropTarget(); },
                 out: function () { if (hoverCard === this) hoverCard = null; paintDropTarget(); },
                 drop: function (e, ui) {
                     // Released over a bar: the masa underneath is hidden, not a target.
                     if (pointerOverBars(e.clientY)) return;
-                    const from = findTable(Number(ui.draggable.data('tableId')));
-                    const to = findTable(Number($(this).data('tableId')));
+                    const slot = dropSlot;
+                    const fromId = Number(ui.draggable.data('tableId'));
+                    const toId = Number($(this).data('tableId'));
                     const guestId = Number(ui.draggable.data('guestId'));
                     // Let jQuery UI finish the drag before the board is rebuilt.
                     setTimeout(() => {
+                        const from = findTable(fromId);
+                        const to = findTable(toId);
                         if (!from || !to) return;
-                        const moved = moveGuestTo(from, guestId, to, true);
+                        if (from.id === to.id) {
+                            if (!slot) return;                       // dropped on its own place
+                            const r = reorderGuest(to, guestId, slot.beforeId);
+                            if (r) {
+                                showUndo({ kind: 'reorder', guestId: guestId, guestName: r.guest.name,
+                                           tableId: to.id, fromIndex: r.fromIndex, toName: to.name });
+                            }
+                            return;
+                        }
+                        const beforeId = slot && slot.tableId === to.id ? slot.beforeId : null;
+                        const moved = moveGuestTo(from, guestId, to, true, beforeId);
                         if (moved) {
                             showUndo({
                                 guestId: guestId, guestName: moved.guest.name,
@@ -3936,9 +4038,9 @@
            never summed into occupancy, capacity, the guest list or printout.
            ===================================================================== */
         // key null = insertion order, so a new row always lands at the bottom.
-        // Qeyd Masası starts A→Z by name, like the masas; the dropdown can still
-        // switch it for the session.
-        let notesSort = { key: 'name', dir: 'asc' };
+        // Qeyd Masası starts in its saved order ("Əlavə sırası"), which the ⋮⋮
+        // grip rearranges; the dropdown can sort a view for the session.
+        let notesSort = { key: null, dir: 'asc' };
         let noteEditId = null;        // row being edited inline
         let noteTitleEditId = null;   // block whose title is being edited
         let notesSearch = '';         // lower-cased name search, '' = show all
@@ -4084,6 +4186,48 @@
 
         const NOTE_BTN = 'btn btn-sm';
 
+        // Note rows can be rearranged by hand only while they are shown in
+        // their saved order: no sort chosen, no search narrowing the rows.
+        function notesReorderable() {
+            return canEdit() && dragEnabled && !notesSort.key && !notesSearch && !!$.fn.sortable;
+        }
+
+        function initNoteSorting($host) {
+            if (!notesReorderable()) return;
+            $host.find('.note-block > table > tbody').sortable({
+                items: '> tr.note-row',
+                // The whole row drags; its buttons and the edit fields still click.
+                cancel: 'button, .btn, input, select, textarea, a, .note-editing',
+                distance: 4,
+                axis: 'y',
+                tolerance: 'pointer',
+                placeholder: 'note-sort-placeholder',
+                helper: function (e, tr) {
+                    // Keep cell widths while the row is lifted out of the table.
+                    const $cells = tr.children();
+                    const $h = tr.clone();
+                    $h.children().each(function (i) { $(this).width($cells.eq(i).width()); });
+                    return $h;
+                },
+                start: function () { dragRow = this; },
+                stop: function () { dragRow = null; if (SERVER.stream) setTimeout(applyRemote, 0); },
+                update: function (e, ui) {
+                    const block = findNoteBlock(Number($(this).closest('.note-block').data('block-id')));
+                    if (!block) return;
+                    const oldOrder = block.items.map(r => r.id);
+                    const order = $(this).children('tr.note-row').map(function () { return Number($(this).data('note-id')); }).get();
+                    const rank = id => { const i = order.indexOf(id); return i === -1 ? Infinity : i; };
+                    block.items.sort((a, b) => rank(a.id) - rank(b.id));
+                    const moved = findNote(Number(ui.item.data('note-id')));
+                    setTimeout(() => {
+                        commit('reorderNote');
+                        showUndo({ kind: 'noteOrder', blockId: block.id, oldOrder: oldOrder,
+                                   guestName: moved ? moved.note.name : '', toName: block.title || 'Qeyd Masası' });
+                    }, 0);
+                }
+            });
+        }
+
         function noteRowHtml(r) {
             if (r.id === noteEditId) {
                 return `<tr class="note-row note-editing" data-note-id="${r.id}">
@@ -4168,6 +4312,7 @@
                         <i class="fa-solid fa-magnifying-glass fa-2x d-block mb-2 opacity-50"></i>
                         "${escapeHtml(notesSearch)}" adlı qeyd tapılmadı.</div>`);
                 $host.find('select').each(function () { initTypeSelect2($(this), $('#notesModal')); });
+                initNoteSorting($host);
             }
 
             let rows = 0, people = 0;
@@ -4243,11 +4388,6 @@
         // Azerbaijani collation, so ə/ı/ş/ç/ğ/ö/ü sort where they belong
         // rather than by code point.
         const collator = new Intl.Collator('az', { sensitivity: 'base', numeric: true });
-
-        // Masa rows: by name A→Z, id as a stable tie-break.
-        function byGuestName(a, b) {
-            return collator.compare(String(a.name || ''), String(b.name || '')) || ((a.id || 0) - (b.id || 0));
-        }
 
         function sortGuestList(rows) {
             const dir = listSort.dir === 'desc' ? -1 : 1;
