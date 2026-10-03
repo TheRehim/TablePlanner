@@ -272,6 +272,32 @@
             border-top: 3px solid var(--cap-over-bg);
         }
 
+        /* The body of the card - the guest rows AND the empty space below them -
+           carries the state as a soft, faded colour, so it shows at a glance:
+           free seats faded blue, over capacity faded red, exactly full plain
+           (no background). The title bar above stays solid. */
+        .table-card .guest-table {
+            --bs-table-bg: transparent;
+            background: transparent;
+        }
+
+        .table-card.cap-under .card-body {
+            background: #d3e2ff;
+        }
+
+        .table-card.cap-over .card-body {
+            background: #f9d3d3;
+        }
+
+        .table-card.cap-full .card-body {
+            background: transparent;
+        }
+
+        /* A hairline between rows that reads on every tint. */
+        .table-card .guest-table td {
+            border-bottom-color: rgba(0, 0, 0, .08);
+        }
+
         /* Guest rows */
         .guest-table td {
             vertical-align: middle;
@@ -1044,6 +1070,10 @@
         .table-card.drop-move .card-header {
             background: #2e8b57;
             border-bottom-color: #2e8b57;
+        }
+
+        .table-card.drop-move .card-body {
+            background: #e8f6ee;
         }
 
         /* Undo notice after a drag-and-drop: bottom right, above the bar. A

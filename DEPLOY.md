@@ -258,6 +258,10 @@ Then confirm by hand, from a **logged-out** browser:
   `N sətr | N nəfər` one row / their count higher. In Qeyd Masası press 🪑 on a
   row — the last masa is preselected (with a capacity warning if it would go
   over); Köçür seats them and the totals move back.
+- **card colours**: every title bar is solid (blue free seats / dark full /
+  red over, white text); the body below it is light blue, light red, or white
+  for the same states. Move a guest to fill a masa exactly - its body turns
+  white; one more - light red.
 - **order by hand** (logged in, drag on): hover a guest row — it lights up.
   Drag it up within its masa: a green line shows where it will go; drop and
   the order changes (Geri al undoes it). Drag it onto another masa between
