@@ -941,6 +941,18 @@
             }
         }
 
+        /* "Dəvətnamə dizaynı" has no room for its label until the screen is
+           wide; between phone and wide it is the ✨ icon alone (title says
+           what it is), and below 1200px the "|" separators make way for it
+           so the row still ends inside the screen. */
+        @media (min-width: 768px) and (max-width: 1399.98px) {
+            #btnOpenInviteDesign .bb-label { display: none; }
+            #btnOpenInviteDesign i { margin-right: 0 !important; }
+        }
+        @media (min-width: 768px) and (max-width: 1199.98px) {
+            .bb-actions .bb-sep { display: none; }
+        }
+
         /* ---- Bottom bar on a phone ----
            Two thin lines at most: the stats (one line, ends in "…"), and one
            row of icon-only buttons - labels, separators and count badges are
