@@ -1298,6 +1298,9 @@
                     <i class="fa-solid fa-envelope me-1"></i><span class="bb-label">Dəvətnamə siyahısı</span>
                     <span class="badge bg-secondary ms-1" id="inviteCountBadge"></span>
                 </button>
+                <button class="btn btn-outline-secondary btn-sm edit-only" id="btnOpenInviteDesign" title="Dəvətnamə dizaynı: bəy, gəlin, tarix, saat, məkan" aria-label="Dəvətnamə dizaynı">
+                    <i class="fa-solid fa-wand-magic-sparkles me-1"></i><span class="bb-label">Dəvətnamə dizaynı</span>
+                </button>
                 <button class="btn btn-outline-secondary btn-sm edit-only" id="btnOpenNotes" title="Qeyd Masası" aria-label="Qeyd Masası">
                     <i class="fa-solid fa-note-sticky me-1"></i><span class="bb-label">Qeyd Masası</span>
                     <span class="badge bg-secondary ms-1 d-none" id="notesCountBadge">0</span>
@@ -1928,11 +1931,11 @@
                                 <div class="row g-2">
                                     <div class="col-6">
                                         <label class="form-label small mb-1" for="invName1">Bəyin adı</label>
-                                        <input type="text" class="form-control form-control-sm" id="invName1" data-f="name1" maxlength="40" placeholder="Tural">
+                                        <input type="text" class="form-control form-control-sm" id="invName1" data-f="name1" maxlength="40" placeholder="Məs: Tural">
                                     </div>
                                     <div class="col-6">
                                         <label class="form-label small mb-1" for="invName2">Gəlinin adı</label>
-                                        <input type="text" class="form-control form-control-sm" id="invName2" data-f="name2" maxlength="40" placeholder="Camalə">
+                                        <input type="text" class="form-control form-control-sm" id="invName2" data-f="name2" maxlength="40" placeholder="Məs: Camalə">
                                     </div>
                                     <div class="col-6">
                                         <label class="form-label small mb-1" for="invDate">Tarix</label>
@@ -1944,7 +1947,7 @@
                                     </div>
                                     <div class="col-6">
                                         <label class="form-label small mb-1" for="invVenue">Məkan</label>
-                                        <input type="text" class="form-control form-control-sm" id="invVenue" data-f="venue" maxlength="80" placeholder="Bağçalı Saray">
+                                        <input type="text" class="form-control form-control-sm" id="invVenue" data-f="venue" maxlength="80" placeholder="Məs: Bağçalı Saray">
                                     </div>
                                     <div class="col-6">
                                         <label class="form-label small mb-1" for="invAddress">Ünvan <span class="text-muted">(istəyə görə)</span></label>
@@ -1952,7 +1955,7 @@
                                     </div>
                                     <div class="col-12">
                                         <label class="form-label small mb-1" for="invMapUrl">Xəritə linki <span class="text-muted">(boş qalsa, məkanın adı ilə axtarılır)</span></label>
-                                        <input type="url" class="form-control form-control-sm" id="invMapUrl" data-f="mapUrl" placeholder="https://maps.app.goo.gl/…">
+                                        <input type="url" class="form-control form-control-sm" id="invMapUrl" data-f="mapUrl" placeholder="Məs: https://maps.app.goo.gl/…">
                                     </div>
                                     <div class="col-12">
                                         <label class="form-label small mb-1" for="invMessage">Mətn</label>
@@ -1960,7 +1963,7 @@
                                     </div>
                                     <div class="col-12">
                                         <label class="form-label small mb-1" for="invHost">İmza <span class="text-muted">(istəyə görə; altda "Hörmətlə, …" kimi yazılır)</span></label>
-                                        <input type="text" class="form-control form-control-sm" id="invHost" data-f="host" maxlength="80" placeholder="Vəliyev ailəsi">
+                                        <input type="text" class="form-control form-control-sm" id="invHost" data-f="host" maxlength="80" placeholder="Məs: Vəliyev ailəsi">
                                     </div>
                                     <div class="col-12">
                                         <div class="form-label small mb-1">Dizayn</div>
@@ -5085,7 +5088,8 @@
                         resolve();
                     };
                     window.addEventListener('message', onMessage);
-                    frame.src = (location.protocol === 'file:' ? 'invite.html' : '/invite.html') + '#preview';
+                    // Relative: the app may live below the site root (GitHub Pages).
+                    frame.src = 'invite.html#preview';
                 }));
             }
             return inviteFrameReady.get(frame);
@@ -6317,7 +6321,7 @@
                 if (act === 'link' || act === 'wa') setTimeout(renderInviteList, 0);
             });
 
-            $('#btnInviteDesign').on('click', openInviteDesign);
+            $('#btnInviteDesign, #btnOpenInviteDesign').on('click', openInviteDesign);
             $('#btnCopyInviteLinks').on('click', copyAllInviteLinks);
             $('#btnZipInvites').on('click', function () { zipInviteImages($(this)); });
 
