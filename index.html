@@ -692,7 +692,9 @@
         /* The confirm dialog can open on top of another modal (Tiplər,
            Qeyd Masası): lift it and its backdrop above the first one. */
         #confirmModal,
-        #transferModal {
+        #transferModal,
+        #inviteDesignModal,
+        #invitePreviewModal {
             z-index: 1065;
         }
 
@@ -1133,6 +1135,25 @@
             from { width: 100%; }
             to { width: 0; }
         }
+
+        /* Personal invitations: the row's buttons and the phone-shaped preview. */
+        .inv-actions { white-space: nowrap; }
+        .inv-actions .btn { padding: 1px 6px; font-size: .78rem; }
+        .fa-whatsapp.wa { color: #1fa855; }
+        .inv-sent { color: #1fa855; font-size: .75rem; margin-left: 2px; }
+        .invite-title { width: auto; min-width: 74px; padding: 1px 22px 1px 6px; font-size: .8rem; }
+        .inv-phone {
+            width: 100%;
+            max-width: 300px;
+            aspect-ratio: 9 / 16;
+            margin: 0 auto;
+            border-radius: 22px;
+            overflow: hidden;
+            box-shadow: 0 0 0 7px #222, 0 14px 40px rgba(0, 0, 0, .3);
+            background: #efe7dc;
+        }
+        .inv-phone iframe { width: 100%; height: 100%; border: 0; display: block; }
+        .tpl-pick .btn { flex: 1; }
 
         /* Invitation tick, left of the row's edit button. */
         .invite-check {
@@ -1855,6 +1876,10 @@
                             <label class="btn btn-outline-secondary" for="inviteScopeAll">Hamısı</label>
                         </div>
                         <div class="btn-group btn-group-sm col-toggles" data-list="inviteList" role="group" aria-label="Sütunlar"></div>
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="btnInviteDesign"
+                            title="Bəy və gəlinin adı, tarix, saat, məkan və dizayn">
+                            <i class="fa-solid fa-wand-magic-sparkles me-1"></i> Dəvətnamə dizaynı
+                        </button>
                         <span class="small text-muted ms-auto" id="inviteCount"></span>
                     </div>
                     <div class="table-responsive">
@@ -1867,6 +1892,14 @@
                     </div>
                 </div>
                 <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-outline-secondary btn-sm me-auto" id="btnCopyInviteLinks"
+                        title="Siyahıdakı dəvətnaməsi olanların şəxsi linklərini kopyalayın">
+                        <i class="fa-solid fa-link me-1"></i> Linkləri kopyala
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="btnZipInvites"
+                        title="Siyahıdakı dəvətnaməsi olanların hər birinə ayrıca şəkil (ZIP)">
+                        <i class="fa-solid fa-images me-1"></i> Şəkillər (ZIP)
+                    </button>
                     <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Bağla</button>
                     <button type="button" class="btn btn-success btn-sm" id="btnPdfInvites"
                         title="PDF yaradıb WhatsApp, Telegram, poçt və s. ilə göndərin (və ya yükləyin)">
@@ -1875,6 +1908,132 @@
                     <button type="button" class="btn btn-primary btn-sm" id="btnPrintInvites">
                         <i class="fa-solid fa-print me-1"></i> Çap Et
                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: what every personal invitation says, and how it looks. -->
+    <div class="modal fade" id="inviteDesignModal" tabindex="-1">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fs-6"><i class="fa-solid fa-wand-magic-sparkles me-1"></i> Dəvətnamə dizaynı</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-4">
+                        <div class="col-lg-7">
+                            <form id="inviteDesignForm" autocomplete="off">
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <label class="form-label small mb-1" for="invName1">Bəyin adı</label>
+                                        <input type="text" class="form-control form-control-sm" id="invName1" data-f="name1" maxlength="40" placeholder="Tural">
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label small mb-1" for="invName2">Gəlinin adı</label>
+                                        <input type="text" class="form-control form-control-sm" id="invName2" data-f="name2" maxlength="40" placeholder="Camalə">
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label small mb-1" for="invDate">Tarix</label>
+                                        <input type="date" class="form-control form-control-sm" id="invDate" data-f="date">
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label small mb-1" for="invTime">Saat</label>
+                                        <input type="time" class="form-control form-control-sm" id="invTime" data-f="time">
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label small mb-1" for="invVenue">Məkan</label>
+                                        <input type="text" class="form-control form-control-sm" id="invVenue" data-f="venue" maxlength="80" placeholder="Bağçalı Saray">
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label small mb-1" for="invAddress">Ünvan <span class="text-muted">(istəyə görə)</span></label>
+                                        <input type="text" class="form-control form-control-sm" id="invAddress" data-f="address" maxlength="120">
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label small mb-1" for="invMapUrl">Xəritə linki <span class="text-muted">(boş qalsa, məkanın adı ilə axtarılır)</span></label>
+                                        <input type="url" class="form-control form-control-sm" id="invMapUrl" data-f="mapUrl" placeholder="https://maps.app.goo.gl/…">
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label small mb-1" for="invMessage">Mətn</label>
+                                        <textarea class="form-control form-control-sm" id="invMessage" data-f="message" rows="3" maxlength="400"></textarea>
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label small mb-1" for="invHost">İmza <span class="text-muted">(istəyə görə; altda "Hörmətlə, …" kimi yazılır)</span></label>
+                                        <input type="text" class="form-control form-control-sm" id="invHost" data-f="host" maxlength="80" placeholder="Vəliyev ailəsi">
+                                    </div>
+                                    <div class="col-12">
+                                        <div class="form-label small mb-1">Dizayn</div>
+                                        <div class="btn-group btn-group-sm d-flex tpl-pick" role="group">
+                                            <input type="radio" class="btn-check" name="invTemplate" id="invTplQapi" value="qapi">
+                                            <label class="btn btn-outline-secondary" for="invTplQapi">Qapı</label>
+                                            <input type="radio" class="btn-check" name="invTemplate" id="invTplZerf" value="zerf">
+                                            <label class="btn btn-outline-secondary" for="invTplZerf">Zərf</label>
+                                            <input type="radio" class="btn-check" name="invTemplate" id="invTplIpek" value="ipek">
+                                            <label class="btn btn-outline-secondary" for="invTplIpek">İpək</label>
+                                            <input type="radio" class="btn-check" name="invTemplate" id="invTplKlassik" value="klassik">
+                                            <label class="btn btn-outline-secondary" for="invTplKlassik">Klassik</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-12 d-flex flex-wrap gap-3 small">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="invAnimate" data-f="animate">
+                                            <label class="form-check-label" for="invAnimate">Animasiya (söndürülsə, sadəcə dəvətnamə açılır)</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="invShowSeats" data-f="showSeats">
+                                            <label class="form-check-label" for="invShowSeats">Nəfər sayını yaz ("Dəvətnamə 4 nəfər üçündür")</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="invShowTable" data-f="showTable">
+                                            <label class="form-check-label" for="invShowTable">Masa nömrəsini yaz</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label small mb-1" for="invShareText">WhatsApp mesajı <span class="text-muted">({salam} → "Hörmətli Əli bəy və ailəsi", {link} → şəxsi link)</span></label>
+                                        <textarea class="form-control form-control-sm" id="invShareText" data-f="shareText" rows="3" maxlength="400"></textarea>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="col-lg-5">
+                            <div class="inv-phone"><iframe id="inviteDesignFrame" title="Önizləmə"></iframe></div>
+                            <div class="text-center mt-3">
+                                <button type="button" class="btn btn-sm btn-outline-secondary" id="btnInvDesignPlay">
+                                    <i class="fa-solid fa-play me-1"></i> Animasiyanı oynat
+                                </button>
+                                <div class="small text-muted mt-1" id="inviteDesignSample"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Bağla</button>
+                    <button type="button" class="btn btn-primary btn-sm" id="btnInvDesignSave">
+                        <i class="fa-solid fa-floppy-disk me-1"></i> Yadda saxla
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: one guest's invitation, as they will see it. -->
+    <div class="modal fade" id="invitePreviewModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header py-2">
+                    <h5 class="modal-title fs-6 text-truncate" id="invitePreviewTitle"></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="inv-phone" style="max-width:330px;"><iframe id="invitePreviewFrame" title="Dəvətnamə"></iframe></div>
+                    <div class="small text-muted text-center mt-2 text-break" id="invitePreviewLink"></div>
+                </div>
+                <div class="modal-footer py-2 justify-content-center">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="btnInvPrevPlay"><i class="fa-solid fa-rotate-right me-1"></i> Yenidən</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="btnInvPrevCopy"><i class="fa-solid fa-link me-1"></i> Linki kopyala</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="btnInvPrevImage"><i class="fa-solid fa-image me-1"></i> Şəkil</button>
+                    <button type="button" class="btn btn-sm btn-success" id="btnInvPrevWhatsapp"><i class="fa-brands fa-whatsapp me-1"></i> WhatsApp</button>
                 </div>
             </div>
         </div>
@@ -2949,7 +3108,9 @@
                     if (!block) return showError($err, 'Blok tapılmadı.');
                 }
                 const guest = table.guests.splice(index, 1)[0];
-                block.items.push({ id: guest.id, name: guest.name, type: guest.type, amount: Number(guest.amount) || 1 });
+                block.items.push(Object.assign(
+                    { id: guest.id, name: guest.name, type: guest.type, amount: Number(guest.amount) || 1 },
+                    invitationFieldsOf(guest)));
                 pendingTransfer = null;
                 hideModal('transferModal');
                 commit('guestToNotes');
@@ -2964,7 +3125,9 @@
                 if (!type) return showError($err, 'Qonaq tipi seçin.');
                 hit.block.items = hit.block.items.filter(r => r.id !== note.id);
                 if (noteEditId === note.id) noteEditId = null;
-                table.guests.push({ id: note.id, name: note.name, type: type, amount: Number(note.amount) || 1, invited: false });
+                table.guests.push(Object.assign(
+                    { id: note.id, name: note.name, type: type, amount: Number(note.amount) || 1, invited: false },
+                    invitationFieldsOf(note)));
                 pendingTransfer = null;
                 hideModal('transferModal');
                 commit('noteToGuest');
@@ -3379,7 +3542,8 @@
                 tables: weddingData.tables.map(t => ({
                     name: t.name,
                     capacity: t.capacity,
-                    guests: t.guests.map(g => ({ name: g.name, type: g.type, amount: g.amount, invited: !!g.invited }))
+                    guests: t.guests.map(g => Object.assign(
+                        { name: g.name, type: g.type, amount: g.amount, invited: !!g.invited }, invitationFieldsOf(g)))
                 }))
             };
         }
@@ -3473,7 +3637,9 @@
                         warnings.push('"' + gName + '": tip boşdur, "' + gType + '" götürüldü.');
                     }
                     // Older exports have no "invited": they read as not invited.
-                    guests.push({ id: ++idSeq, name: gName, type: gType, amount: amount, invited: g.invited === true });
+                    guests.push(Object.assign(
+                        { id: ++idSeq, name: gName, type: gType, amount: amount, invited: g.invited === true },
+                        invitationFieldsOf(g)));
                 });
 
                 return { id: ++idSeq, name: name, capacity: capacity, guests: guests };
@@ -4671,6 +4837,7 @@
                 if (scope === 'yes' && !g.invited) return;
                 if (scope === 'no' && g.invited) return;
                 rows.push({ tableId: table.id, guestId: g.id, invited: !!g.invited,
+                            title: g.title || '', sent: !!g.inviteSent,
                             name: g.name, type: g.type, amount: Number(g.amount) || 0, table: table.name });
             }));
             return rows.sort((a, b) => collator.compare(a.name, b.name));
@@ -4683,16 +4850,28 @@
             const cols = visibleListColumns('inviteList');
             $('#inviteListHead').html(
                 `<th style="width:36px;" class="text-center"><i class="fa-solid fa-envelope"></i></th>` +
-                cols.map(c => `<th class="${c.center ? 'text-center' : ''}" ${c.width ? `style="width:${c.width};"` : ''}>${c.label}</th>`).join(''));
+                cols.map(c => `<th class="${c.center ? 'text-center' : ''}" ${c.width ? `style="width:${c.width};"` : ''}>${c.label}</th>`).join('') +
+                `<th style="width:90px;" title="Dəvətnamədə adın yanında">Hörmət</th>` +
+                `<th style="width:150px;" class="text-center">Dəvətnamə</th>`);
             renderColumnToggles('inviteList');
             $('#inviteListBody').html(rows.length === 0
-                ? `<tr><td colspan="${cols.length + 1}" class="text-center text-muted py-3">Qonaq yoxdur.</td></tr>`
+                ? `<tr><td colspan="${cols.length + 3}" class="text-center text-muted py-3">Qonaq yoxdur.</td></tr>`
                 : rows.map(r => `
-                    <tr>
+                    <tr data-table-id="${r.tableId}" data-guest-id="${r.guestId}">
                         <td class="text-center"><input type="checkbox" class="form-check-input invite-list-check m-0"
                             data-table-id="${r.tableId}" data-guest-id="${r.guestId}" ${r.invited ? 'checked' : ''}
                             aria-label="Dəvətnamə"></td>
                         ${cols.map(c => `<td class="${c.center ? 'text-center' : ''}">${escapeHtml(cellText(r, c.key))}</td>`).join('')}
+                        <td><select class="form-select form-select-sm invite-title" aria-label="bəy / xanım">
+                            ${GUEST_TITLES.map(t => `<option value="${t}" ${t === r.title ? 'selected' : ''}>${t || '—'}</option>`).join('')}
+                        </select></td>
+                        <td class="text-center inv-actions">
+                            <button type="button" class="btn btn-outline-secondary inv-act" data-act="view" title="Dəvətnaməyə bax"><i class="fa-solid fa-eye"></i></button>
+                            <button type="button" class="btn btn-outline-secondary inv-act" data-act="link" title="Şəxsi linki kopyala"><i class="fa-solid fa-link"></i></button>
+                            <button type="button" class="btn btn-outline-secondary inv-act" data-act="wa" title="WhatsApp ilə göndər"><i class="fa-brands fa-whatsapp wa"></i></button>
+                            <button type="button" class="btn btn-outline-secondary inv-act" data-act="img" title="Şəkil kimi göndər / yüklə"><i class="fa-solid fa-image"></i></button>
+                            ${r.sent ? '<i class="fa-solid fa-check-double inv-sent" title="Göndərilib"></i>' : ''}
+                        </td>
                     </tr>`).join(''));
             $('#inviteCount').text(
                 `${invited.length} / ${all.length} qonaq · ` +
@@ -4724,6 +4903,383 @@
             guest.invited = !!invited;
             commit('toggleInvite');
         }
+
+        /* =====================================================================
+           PERSONAL INVITATIONS
+           Every guest can have their own page, /d/<inviteCode>, drawn by
+           invite.html: "Hörmətli Əli bəy və ailəsi", the couple, the date and
+           the place, animated. What it says is settings.invitation (one for
+           everybody); the guest's part is their name, bəy / xanım
+           (guest.title) and their count. The code is made the first time the
+           guest's link is needed and moves with the guest, so a link already
+           sent keeps working after they change masa.
+           ===================================================================== */
+        const INVITE_DEFAULTS = {
+            name1: '', name2: '', date: '', time: '18:00',
+            venue: '', address: '', mapUrl: '',
+            message: 'Böyük məmnuniyyətlə Sizi ailəmizin şad gününün sevincini bizimlə bölüşmək üçün toy mərasiminə dəvət edirik!',
+            host: '', template: 'qapi', animate: true, showSeats: true, showTable: false,
+            shareText: '{salam},\nSizi toyumuza dəvət edirik 💍\n{link}'
+        };
+        const GUEST_TITLES = ['', 'bəy', 'xanım'];
+        const INVITE_CODE_RE = /^[A-Za-z0-9]{8,32}$/;
+        const JSZIP_URL = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+
+        function invitationSettings() {
+            return Object.assign({}, INVITE_DEFAULTS, (weddingData.settings && weddingData.settings.invitation) || {});
+        }
+
+        function inviteOpenMode(inv) {
+            if (inv.animate === false) return 'final';
+            return inv.template === 'qapi' || inv.template === 'zerf' ? 'intro' : 'play';
+        }
+
+        function invitationReady(inv) {
+            return !!(inv.name1 && inv.name2 && inv.date);
+        }
+
+        // The fields that make a guest's invitation theirs. Carried along
+        // when the guest goes to Qeyd Masası and back, and through export.
+        function invitationFieldsOf(src) {
+            const out = {};
+            if (!src) return out;
+            if (GUEST_TITLES.includes(src.title) && src.title) out.title = src.title;
+            if (INVITE_CODE_RE.test(src.inviteCode || '')) out.inviteCode = src.inviteCode;
+            if (src.inviteSent === true) out.inviteSent = true;
+            if (src.invited === true) out.invited = true;
+            return out;
+        }
+
+        // The same rule as greetingOf() in invite.html: the chosen bəy /
+        // xanım, and "və ailəsi" when the invitation is for more than one.
+        function inviteGreeting(guest) {
+            let n = String((guest && guest.name) || '').trim().replace(/^hörmətli\s+/i, '');
+            if (!n) return 'Hörmətli qonağımız';
+            const title = GUEST_TITLES.includes(guest.title) ? guest.title : '';
+            if (title && !n.toLocaleLowerCase('az').endsWith(' ' + title)) n += ' ' + title;
+            if ((Number(guest.amount) || 0) > 1 && !/ailəsi$/i.test(n)) n += ' və ailəsi';
+            return 'Hörmətli ' + n;
+        }
+
+        function locateGuest(tableId, guestId) {
+            const table = findTable(Number(tableId));
+            const guest = table && findGuest(table, Number(guestId));
+            return guest ? { table: table, guest: guest } : null;
+        }
+
+        function usedInviteCodes() {
+            const used = new Set();
+            weddingData.tables.forEach(t => t.guests.forEach(g => { if (g.inviteCode) used.add(g.inviteCode); }));
+            ensureNotes().forEach(b => b.items.forEach(r => { if (r.inviteCode) used.add(r.inviteCode); }));
+            return used;
+        }
+
+        // No 0/O, 1/l/I: the code may be read aloud or typed from a screen.
+        function ensureInviteCode(guest) {
+            if (INVITE_CODE_RE.test(guest.inviteCode || '')) return false;
+            const abc = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+            const used = usedInviteCodes();
+            let code;
+            do {
+                code = Array.from(crypto.getRandomValues(new Uint8Array(12)), b => abc[b % abc.length]).join('');
+            } while (used.has(code));
+            guest.inviteCode = code;
+            return true;
+        }
+
+        function inviteLink(guest) {
+            return location.origin + '/d/' + guest.inviteCode;
+        }
+
+        function inviteDataFor(table, guest, inv) {
+            inv = inv || invitationSettings();
+            return {
+                invitation: inv,
+                guest: { name: guest.name, title: guest.title || '', amount: Number(guest.amount) || 0 },
+                table: inv.showTable && table ? table.name : null
+            };
+        }
+
+        // A link only works where the server can answer it, and only says
+        // something once the couple and the date are filled in.
+        function canLinkInvites() {
+            if (!SERVER.online) {
+                toast('Şəxsi linklər yalnız server ilə işləyir. Şəkil kimi göndərə bilərsiniz.', 'warning');
+                return false;
+            }
+            if (!invitationReady(invitationSettings())) {
+                toast('Əvvəlcə "Dəvətnamə dizaynı"nda bəyin, gəlinin adını və tarixi yazın.', 'warning');
+                openInviteDesign();
+                return false;
+            }
+            return true;
+        }
+
+        // Sending an invitation puts the guest on the list (the tick) and
+        // marks them sent (✓✓ in the list).
+        function markInviteSent(guest) {
+            let changed = false;
+            if (!guest.invited) { guest.invited = true; changed = true; }
+            if (!guest.inviteSent) { guest.inviteSent = true; changed = true; }
+            return changed;
+        }
+
+        function takeInviteLink(hit) {
+            const made = ensureInviteCode(hit.guest);
+            const sent = markInviteSent(hit.guest);
+            if (made || sent) commit('inviteLink');
+            return inviteLink(hit.guest);
+        }
+
+        function inviteShareText(hit, url) {
+            const tpl = invitationSettings().shareText || INVITE_DEFAULTS.shareText;
+            const text = tpl.replace(/\{salam\}/g, inviteGreeting(hit.guest)).replace(/\{link\}/g, url);
+            return tpl.includes('{link}') ? text : text + '\n' + url;
+        }
+
+        async function copyText(text) {
+            try {
+                await navigator.clipboard.writeText(text);
+                return true;
+            } catch {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.cssText = 'position:fixed;left:-9999px;top:0;';
+                document.body.appendChild(ta);
+                ta.select();
+                const ok = document.execCommand('copy');
+                ta.remove();
+                return ok;
+            }
+        }
+
+        function copyInviteLink(hit) {
+            if (!canLinkInvites()) return;
+            const url = takeInviteLink(hit);
+            copyText(url).then(ok => toast(ok ? `Link kopyalandı: ${hit.guest.name}` : url, ok ? undefined : 'warning'));
+        }
+
+        // window.open must run inside the click itself, or it is blocked.
+        function whatsappInvite(hit) {
+            if (!canLinkInvites()) return;
+            const url = takeInviteLink(hit);
+            window.open('https://wa.me/?text=' + encodeURIComponent(inviteShareText(hit, url)), '_blank', 'noopener');
+        }
+
+        /* ---------- the invitation page in a frame ----------
+           invite.html#preview waits for what to draw by postMessage. One
+           frame per place (the design window, the preview window, and a
+           hidden one that makes pictures); each says when it is ready. */
+        const inviteFrameReady = new Map();
+
+        function inviteOrigin() {
+            return location.protocol === 'file:' ? '*' : location.origin;
+        }
+
+        function frameReady(frame) {
+            if (!inviteFrameReady.has(frame)) {
+                inviteFrameReady.set(frame, new Promise(resolve => {
+                    const onMessage = e => {
+                        if (e.source !== frame.contentWindow || !e.data || e.data.type !== 'invite-ready') return;
+                        window.removeEventListener('message', onMessage);
+                        resolve();
+                    };
+                    window.addEventListener('message', onMessage);
+                    frame.src = (location.protocol === 'file:' ? 'invite.html' : '/invite.html') + '#preview';
+                }));
+            }
+            return inviteFrameReady.get(frame);
+        }
+
+        async function showInFrame(frame, data, mode, auto) {
+            await frameReady(frame);
+            frame.contentWindow.postMessage({ type: 'invite-show', data: data, mode: mode, auto: !!auto }, inviteOrigin());
+        }
+
+        let renderFrame = null;
+        let renderSeq = 0;
+        async function inviteImage(data) {
+            if (!renderFrame) {
+                renderFrame = document.createElement('iframe');
+                renderFrame.setAttribute('aria-hidden', 'true');
+                renderFrame.tabIndex = -1;
+                renderFrame.style.cssText = 'position:fixed;left:-10000px;top:0;width:360px;height:640px;border:0;';
+                document.body.appendChild(renderFrame);
+            }
+            await frameReady(renderFrame);
+            const id = ++renderSeq;
+            return new Promise((resolve, reject) => {
+                const onMessage = e => {
+                    if (e.source !== renderFrame.contentWindow || !e.data || e.data.type !== 'invite-image' || e.data.id !== id) return;
+                    window.removeEventListener('message', onMessage);
+                    if (e.data.error || !e.data.blob) reject(new Error(e.data.error || 'şəkil alınmadı'));
+                    else resolve(new File([e.data.blob], e.data.name, { type: 'image/jpeg' }));
+                };
+                window.addEventListener('message', onMessage);
+                renderFrame.contentWindow.postMessage({ type: 'invite-render', id: id, data: data }, inviteOrigin());
+            });
+        }
+
+        async function sendInviteImage($btn, hit) {
+            const label = $btn.html();
+            $btn.prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin"></i>');
+            try {
+                const file = await inviteImage(inviteDataFor(hit.table, hit.guest));
+                const how = await shareOrDownload(file, inviteGreeting(hit.guest));
+                if (how === 'cancelled') return;
+                if (how === 'downloaded') toast(`Şəkil yükləndi: ${file.name}`);
+                if (markInviteSent(hit.guest)) commit('inviteImage');
+            } catch (err) {
+                toast('Şəkil yaradılmadı: ' + err.message, 'danger');
+            } finally {
+                $btn.prop('disabled', false).html(label);
+            }
+        }
+
+        function invitedRowsInScope() {
+            return collectInviteList(currentInviteScope())
+                .filter(r => r.invited)
+                .map(r => locateGuest(r.tableId, r.guestId))
+                .filter(Boolean);
+        }
+
+        function copyAllInviteLinks() {
+            const hits = invitedRowsInScope();
+            if (hits.length === 0) return toast('Siyahıda dəvətnaməsi olan qonaq yoxdur.', 'warning');
+            if (!canLinkInvites()) return;
+            let made = false;
+            const text = hits.map(h => {
+                if (ensureInviteCode(h.guest)) made = true;
+                return `${inviteGreeting(h.guest)} — ${inviteLink(h.guest)}`;
+            }).join('\n');
+            if (made) commit('inviteLinks');
+            copyText(text).then(ok => toast(ok ? `${hits.length} link kopyalandı.` : 'Kopyalanmadı.', ok ? undefined : 'danger'));
+        }
+
+        async function zipInviteImages($btn) {
+            const hits = invitedRowsInScope();
+            if (hits.length === 0) return toast('Siyahıda dəvətnaməsi olan qonaq yoxdur.', 'warning');
+            const label = $btn.html();
+            $btn.prop('disabled', true);
+            try {
+                if (!window.JSZip) await loadScript(JSZIP_URL);
+                const zip = new window.JSZip();
+                const names = new Set();
+                const inv = invitationSettings();
+                for (let i = 0; i < hits.length; i++) {
+                    $btn.html(`<i class="fa-solid fa-spinner fa-spin me-1"></i> ${i + 1}/${hits.length}`);
+                    const file = await inviteImage(inviteDataFor(hits[i].table, hits[i].guest, inv));
+                    let name = file.name, n = 2;
+                    while (names.has(name)) name = file.name.replace(/\.jpg$/, `-${n++}.jpg`);
+                    names.add(name);
+                    zip.file(name, file);
+                }
+                const blob = await zip.generateAsync({ type: 'blob' });
+                const out = new File([blob], `devetnameler-${pdfDateStamp()}.zip`, { type: 'application/zip' });
+                const url = URL.createObjectURL(out);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = out.name;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 10000);
+                toast(`${hits.length} dəvətnamə şəkli yükləndi (${out.name}).`);
+            } catch (err) {
+                toast('Şəkillər yaradılmadı: ' + err.message, 'danger');
+            } finally {
+                $btn.prop('disabled', false).html(label);
+            }
+        }
+
+        /* ---------- design window ---------- */
+        function fillInviteForm(inv) {
+            $('#inviteDesignForm [data-f]').each(function () {
+                if (this.type === 'checkbox') this.checked = !!inv[this.dataset.f];
+                else this.value = inv[this.dataset.f] || '';
+            });
+            $(`input[name="invTemplate"][value="${inv.template}"]`).prop('checked', true);
+        }
+
+        function readInviteForm() {
+            const inv = invitationSettings();
+            $('#inviteDesignForm [data-f]').each(function () {
+                inv[this.dataset.f] = this.type === 'checkbox' ? this.checked : this.value.trim();
+            });
+            inv.template = $('input[name="invTemplate"]:checked').val() || 'qapi';
+            return inv;
+        }
+
+        // Somebody real from the list when there is one, best with a title.
+        function designSample() {
+            const all = weddingData.tables.flatMap(t => t.guests.map(g => ({ table: t, guest: g })));
+            return all.find(h => h.guest.invited && h.guest.title && h.guest.amount > 1) ||
+                all.find(h => h.guest.invited) || all[0] ||
+                { table: { name: 'Masa 1' }, guest: { name: 'Əli Məmmədov', title: 'bəy', amount: 3 } };
+        }
+
+        function previewInviteDesign(mode, auto) {
+            const sample = designSample();
+            const inv = readInviteForm();
+            // Unfilled names still show where they will go.
+            if (!inv.name1) inv.name1 = 'Bəy';
+            if (!inv.name2) inv.name2 = 'Gəlin';
+            $('#inviteDesignSample').text('Nümunə: ' + inviteGreeting(sample.guest));
+            showInFrame(document.getElementById('inviteDesignFrame'), inviteDataFor(sample.table, sample.guest, inv), mode || 'final', auto);
+        }
+
+        function openInviteDesign() {
+            fillInviteForm(invitationSettings());
+            showModal('inviteDesignModal');
+            previewInviteDesign('final');
+        }
+
+        function saveInviteDesign() {
+            const inv = readInviteForm();
+            if (inv.mapUrl && !/^https?:\/\//i.test(inv.mapUrl)) {
+                toast('Xəritə linki http:// və ya https:// ilə başlamalıdır.', 'warning');
+                return;
+            }
+            weddingData.settings = weddingData.settings || { visibility: 'private' };
+            weddingData.settings.invitation = inv;
+            commit('invitation');
+            hideModal('inviteDesignModal');
+            toast(invitationReady(inv)
+                ? 'Dəvətnamə yadda saxlanıldı. Göndərilmiş linklər də yeniləndi.'
+                : 'Yadda saxlanıldı. Link göndərmək üçün bəy, gəlin və tarix lazımdır.');
+        }
+
+        /* ---------- one guest's invitation ---------- */
+        let previewGuest = null;   // { tableId, guestId }
+
+        function previewHit() {
+            return previewGuest && locateGuest(previewGuest.tableId, previewGuest.guestId);
+        }
+
+        function refreshPreviewLink(hit) {
+            $('#invitePreviewLink').text(hit.guest.inviteCode && SERVER.online
+                ? inviteLink(hit.guest)
+                : 'Link ilk dəfə kopyalananda və ya göndəriləndə yaranır.');
+        }
+
+        function openInvitePreview(tableId, guestId) {
+            const hit = locateGuest(tableId, guestId);
+            if (!hit) return;
+            previewGuest = { tableId: Number(tableId), guestId: Number(guestId) };
+            $('#invitePreviewTitle').text(inviteGreeting(hit.guest));
+            refreshPreviewLink(hit);
+            showModal('invitePreviewModal');
+            playInvitePreview();
+        }
+
+        function playInvitePreview() {
+            const hit = previewHit();
+            if (!hit) return;
+            const inv = invitationSettings();
+            showInFrame(document.getElementById('invitePreviewFrame'), inviteDataFor(hit.table, hit.guest, inv),
+                inviteOpenMode(inv), true);
+        }
+
 
         /* =====================================================================
            MOVE / SWITCH MODAL
@@ -5737,6 +6293,64 @@
             $('#btnPrintInvites').on('click', function () {
                 buildInvitePrintArea();
                 window.print();
+            });
+
+            /* ---------- Personal invitations ---------- */
+            $('#inviteListBody').on('change', '.invite-title', function () {
+                const $tr = $(this).closest('tr');
+                const hit = locateGuest($tr.data('table-id'), $tr.data('guest-id'));
+                if (!hit) return;
+                if (this.value) hit.guest.title = this.value;
+                else delete hit.guest.title;
+                commit('guestTitle');
+            });
+
+            $('#inviteListBody').on('click', '.inv-act', function () {
+                const $tr = $(this).closest('tr');
+                const hit = locateGuest($tr.data('table-id'), $tr.data('guest-id'));
+                if (!hit) return;
+                const act = $(this).data('act');
+                if (act === 'view') openInvitePreview($tr.data('table-id'), $tr.data('guest-id'));
+                if (act === 'link') copyInviteLink(hit);
+                if (act === 'wa') whatsappInvite(hit);
+                if (act === 'img') sendInviteImage($(this), hit).then(renderInviteList);
+                if (act === 'link' || act === 'wa') setTimeout(renderInviteList, 0);
+            });
+
+            $('#btnInviteDesign').on('click', openInviteDesign);
+            $('#btnCopyInviteLinks').on('click', copyAllInviteLinks);
+            $('#btnZipInvites').on('click', function () { zipInviteImages($(this)); });
+
+            // Typing in the form redraws the phone (the final card, no replay).
+            let designTimer = null;
+            $('#inviteDesignForm').on('input change', function (e) {
+                clearTimeout(designTimer);
+                const replay = e.target && (e.target.name === 'invTemplate' || e.target.id === 'invAnimate');
+                designTimer = setTimeout(() => previewInviteDesign(replay ? inviteOpenMode(readInviteForm()) : 'final', replay), replay ? 0 : 250);
+            });
+            $('#btnInvDesignPlay').on('click', function () {
+                previewInviteDesign(inviteOpenMode(readInviteForm()), true);
+            });
+            $('#btnInvDesignSave').on('click', saveInviteDesign);
+
+            $('#btnInvPrevPlay').on('click', playInvitePreview);
+            $('#btnInvPrevCopy').on('click', function () {
+                const hit = previewHit();
+                if (!hit) return;
+                copyInviteLink(hit);
+                refreshPreviewLink(hit);
+                renderInviteList();
+            });
+            $('#btnInvPrevWhatsapp').on('click', function () {
+                const hit = previewHit();
+                if (!hit) return;
+                whatsappInvite(hit);
+                refreshPreviewLink(hit);
+                renderInviteList();
+            });
+            $('#btnInvPrevImage').on('click', function () {
+                const hit = previewHit();
+                if (hit) sendInviteImage($(this), hit).then(renderInviteList);
             });
 
             /* ---------- Export ---------- */
