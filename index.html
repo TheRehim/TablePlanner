@@ -1134,11 +1134,161 @@
             to { width: 0; }
         }
 
-        /* Invitation tick, left of the row's edit button. */
-        .invite-check {
-            margin: 0 4px 0 0 !important;
+        /* ---- Invitation status: four colours, soft and modern ----
+           blue: invited on paper, green: invited online, red: will not come,
+           black: a note. "—" (none) stays plain. The same colours are used
+           for the board's dot, its little menu, and the list's dropdowns. */
+        :root {
+            --st-paper-bg: #dbe7ff;    --st-paper-fg: #1d4ed8;    --st-paper-bar: #3b6ff0;
+            --st-online-bg: #d6f3e2;   --st-online-fg: #17663d;   --st-online-bar: #22a35a;
+            --st-declined-bg: #fbdcdc; --st-declined-fg: #b42318; --st-declined-bar: #e5484d;
+            --st-note-bg: #2f343a;     --st-note-fg: #ffffff;     --st-note-bar: #111418;
+            --st-none-bg: #ffffff;     --st-none-fg: #6c757d;     --st-none-bar: #ced4da;
+        }
+
+        .st-paper    { --st-bg: var(--st-paper-bg);    --st-fg: var(--st-paper-fg);    --st-bar: var(--st-paper-bar); }
+        .st-online   { --st-bg: var(--st-online-bg);   --st-fg: var(--st-online-fg);   --st-bar: var(--st-online-bar); }
+        .st-declined { --st-bg: var(--st-declined-bg); --st-fg: var(--st-declined-fg); --st-bar: var(--st-declined-bar); }
+        .st-note     { --st-bg: var(--st-note-bg);     --st-fg: var(--st-note-fg);     --st-bar: var(--st-note-bar); }
+        .st-none     { --st-bg: var(--st-none-bg);     --st-fg: var(--st-none-fg);     --st-bar: var(--st-none-bar); }
+
+        /* Board: four little boxes in the row's actions, one per status, each
+           with its own colour as the background. The chosen one is full colour
+           with a ✓; the others are faded. Click a box to set that status,
+           click the chosen one again to clear it. */
+        .inv-boxes {
+            display: inline-flex;
+            gap: 2px;
+            margin-right: 4px;
             vertical-align: middle;
+        }
+
+        /* Unchecked: fully invisible - no background, no border. Only the
+           checked one shows, filled with its colour. Hovering the guest's row
+           draws faint outlines so the empty spots can still be clicked. */
+        .inv-box {
+            width: 15px;
+            height: 15px;
+            padding: 0;
+            border: 2px solid transparent;
+            border-radius: 3px;
+            background: transparent;
+            color: #fff;
+            line-height: 11px;
+            text-align: center;
             cursor: pointer;
+        }
+
+        .inv-box i {
+            font-size: 9px;
+            vertical-align: top;
+            line-height: 11px;
+        }
+
+        tr.guest-row:hover .inv-box:not(.on) {
+            border-color: var(--st-bar);
+            opacity: .45;
+        }
+
+        tr.guest-row:hover .inv-box:not(.on):hover {
+            background: var(--st-bg);
+            opacity: 1;
+        }
+
+        .inv-box.on,
+        .inv-box.on:hover {
+            background: var(--st-bar);
+            border-color: var(--st-bar);
+        }
+
+        .inv-menu {
+            position: fixed;
+            z-index: 2100;
+            min-width: 170px;
+            padding: 4px;
+            background: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, .15);
+        }
+
+        .inv-opt {
+            display: block;
+            width: 100%;
+            margin: 2px 0;
+            padding: 4px 8px;
+            text-align: left;
+            border: 0;
+            border-left: 6px solid var(--st-bar);
+            border-radius: 4px;
+            background: var(--st-bg);
+            color: var(--st-fg);
+        }
+
+        .inv-opt:hover,
+        .inv-opt.active {
+            filter: brightness(.95);
+            box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .15);
+        }
+
+        /* List: the status dropdown of each guest - a div button and a div
+           menu, not a native select. All the same width; the colour as a bar
+           on the left and as a soft background. */
+        .inv-pick {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 170px;
+            min-width: 170px;
+            padding: 2px 8px;
+            border: 1px solid #dee2e6;
+            border-left: 6px solid var(--st-bar);
+            border-radius: 4px;
+            background: var(--st-bg);
+            color: var(--st-fg);
+            text-align: left;
+        }
+
+        .inv-pick:hover {
+            filter: brightness(.97);
+        }
+
+        .inv-pick i {
+            font-size: 10px;
+            opacity: .7;
+        }
+
+        /* The filter is NOT a status - plain and neutral, so it never reads as
+           "set everyone to ...". */
+        .inv-filter-btn i {
+            font-size: 11px;
+        }
+
+        .inv-opt.st-all {
+            --st-bg: #fff;
+            --st-fg: #212529;
+            --st-bar: #adb5bd;
+        }
+
+        /* Masa groups in the list. */
+        #inviteListBody tr.inv-group td {
+            background: #f1f3f5;
+            font-weight: 700 !important;
+        }
+
+        #inviteListBody tr.inv-group .inv-group-meta {
+            font-weight: 400 !important;
+            color: #6c757d;
+        }
+
+        .inv-count-chip {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--st-bar);
+            margin: 0 3px 0 8px;
+            vertical-align: middle;
         }
 
         /* The drag-and-drop switch in the bottom bar: purple, unlike anything
@@ -1846,14 +1996,11 @@
                 </div>
                 <div class="modal-body">
                     <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
-                        <div class="btn-group btn-group-sm" role="group">
-                            <input type="radio" class="btn-check" name="inviteScope" id="inviteScopeYes" value="yes" checked>
-                            <label class="btn btn-outline-secondary" for="inviteScopeYes">Dəvətnaməsi olanlar</label>
-                            <input type="radio" class="btn-check" name="inviteScope" id="inviteScopeNo" value="no">
-                            <label class="btn btn-outline-secondary" for="inviteScopeNo">Olmayanlar</label>
-                            <input type="radio" class="btn-check" name="inviteScope" id="inviteScopeAll" value="all">
-                            <label class="btn btn-outline-secondary" for="inviteScopeAll">Hamısı</label>
-                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary inv-filter-btn" id="inviteFilterBtn"
+                            data-value="all" aria-haspopup="menu" title="Hansı qonaqlar göstərilsin (statusu dəyişmir)">
+                            <i class="fa-solid fa-filter me-1"></i>Filtr: <span id="inviteFilterLabel">Hamısı</span>
+                            <i class="fa-solid fa-chevron-down ms-1"></i>
+                        </button>
                         <div class="btn-group btn-group-sm col-toggles" data-list="inviteList" role="group" aria-label="Sütunlar"></div>
                         <span class="small text-muted ms-auto" id="inviteCount"></span>
                     </div>
@@ -1868,9 +2015,9 @@
                 </div>
                 <div class="modal-footer py-2">
                     <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Bağla</button>
-                    <button type="button" class="btn btn-success btn-sm" id="btnPdfInvites"
-                        title="PDF yaradıb WhatsApp, Telegram, poçt və s. ilə göndərin (və ya yükləyin)">
-                        <i class="fa-solid fa-file-pdf me-1"></i> PDF göndər
+                    <button type="button" class="btn btn-success btn-sm" id="btnExcelInvites"
+                        title="Ekranda görünən siyahını (filtr, sütunlar, masalar) Excel faylı kimi yüklə">
+                        <i class="fa-solid fa-file-excel me-1"></i> Excel-ə ixrac
                     </button>
                     <button type="button" class="btn btn-primary btn-sm" id="btnPrintInvites">
                         <i class="fa-solid fa-print me-1"></i> Çap Et
@@ -2253,6 +2400,12 @@
         // just a re-render, which is why the file keeps working on its own.
         function commit(action) {
             renderApp();
+            scheduleSave(action);
+        }
+
+        // Save without re-rendering - for changes that already patched the
+        // few DOM nodes they touch (a guest's invitation status).
+        function scheduleSave(action) {
             if (!SERVER.online || !SERVER.canEdit) return;
             SERVER.pending = action || 'update';
             SERVER.failed = false;
@@ -2367,6 +2520,7 @@
             });
             noteIds(weddingData.notes).forEach(id => { idCounter = Math.max(idCounter, id); });
             ensureNotes();   // older note shapes become blocks, with ids above the counter
+            migrateInvites(); // the old yes/no tick becomes a status
 
             SERVER.version = body.version;
             SERVER.reset = false;
@@ -2539,7 +2693,7 @@
 
             // Invitation count on its button: ticked guests / all guests.
             const allGuests = weddingData.tables.flatMap(t => t.guests);
-            $('#inviteCountBadge').text(`${allGuests.filter(g => g.invited).length}/${allGuests.length}`);
+            $('#inviteCountBadge').text(`${allGuests.filter(g => isInvited(inviteOf(g))).length}/${allGuests.length}`);
         }
 
         function updateDropdowns() {
@@ -2718,7 +2872,7 @@
                             <td class="guest-name">${highlightName(guest.name, f.name)}</td>
                             <td class="guest-meta"><span class="badge badge-type" style="background:${color.bg};color:${color.fg}" title="${escapeHtml(guest.type)}">${escapeHtml(guest.type)}</span></td>
                             <td class="guest-meta text-center"><span class="badge amount-badge">${Number(guest.amount) || 0}</span></td>
-                            <td class="guest-actions">${editable ? guestActionsHtml(table.id, guest.id, guest.invited) : ''}</td>
+                            <td class="guest-actions">${editable ? guestActionsHtml(table.id, guest.id, inviteOf(guest)) : ''}</td>
                         </tr>`;
                     }).join('');
                 }
@@ -2778,8 +2932,9 @@
         // from the rows; its modal (openMoveSwitchModal) and
         // switchGuestsBetween() are kept, only unwired - moving is done by
         // dragging now.
-        function guestActionsHtml(tableId, guestId, invited) {
-            return `<input type="checkbox" class="form-check-input invite-check" data-table-id="${tableId}" data-guest-id="${guestId}" ${invited ? 'checked' : ''} title="Dəvətnamə siyahısında" aria-label="Dəvətnamə">` +
+        function guestActionsHtml(tableId, guestId, status) {
+            return `<span class="inv-boxes" role="group" aria-label="Dəvət statusu">${INVITE_STATUSES.map(st =>
+                `<button type="button" class="inv-box st-${st.key} ${status === st.key ? 'on' : ''}" data-key="${st.key}" data-table-id="${tableId}" data-guest-id="${guestId}" title="${escapeHtml(st.label)}" aria-label="${escapeHtml(st.label)}" aria-pressed="${status === st.key}">${status === st.key ? '<i class="fa-solid fa-check"></i>' : ''}</button>`).join('')}</span>` +
                 `<button type="button" class="btn btn-sm btn-outline-secondary to-notes-btn" data-table-id="${tableId}" data-guest-id="${guestId}" title="Qeyd masasına köçür"><i class="fa-solid fa-note-sticky"></i></button>` +
                 ` <button type="button" class="btn btn-sm btn-outline-primary edit-guest-btn" data-table-id="${tableId}" data-guest-id="${guestId}" title="Redaktə et"><i class="fa-solid fa-pen"></i></button>` +
                 ` <button type="button" class="btn btn-sm btn-outline-danger delete-guest-btn" data-table-id="${tableId}" data-guest-id="${guestId}" title="Sil"><i class="fa-solid fa-xmark"></i></button>`;
@@ -2812,7 +2967,7 @@
                 .map(t => `<span class="badge badge-type">${escapeHtml(t)}</span>`).join(''));
             const amt = widest(uniq(guests.map(g => String(Number(g.amount) || 0)))
                 .map(a => `<span class="badge amount-badge">${a}</span>`).join(''));
-            const act = canEdit() ? widest(`<span>${guestActionsHtml(0, 0, true)}</span>`) : 0;
+            const act = canEdit() ? widest(`<span>${guestActionsHtml(0, 0, 'paper')}</span>`) : 0;
             $probe.remove();
 
             const cols = {
@@ -2949,7 +3104,10 @@
                     if (!block) return showError($err, 'Blok tapılmadı.');
                 }
                 const guest = table.guests.splice(index, 1)[0];
-                block.items.push({ id: guest.id, name: guest.name, type: guest.type, amount: Number(guest.amount) || 1 });
+                // The status rides along, so a guest parked in notes and seated
+                // again keeps it.
+                block.items.push(Object.assign({ id: guest.id, name: guest.name, type: guest.type, amount: Number(guest.amount) || 1 },
+                    inviteOf(guest) ? { invite: inviteOf(guest) } : {}));
                 pendingTransfer = null;
                 hideModal('transferModal');
                 commit('guestToNotes');
@@ -2964,7 +3122,8 @@
                 if (!type) return showError($err, 'Qonaq tipi seçin.');
                 hit.block.items = hit.block.items.filter(r => r.id !== note.id);
                 if (noteEditId === note.id) noteEditId = null;
-                table.guests.push({ id: note.id, name: note.name, type: type, amount: Number(note.amount) || 1, invited: false });
+                table.guests.push(Object.assign({ id: note.id, name: note.name, type: type, amount: Number(note.amount) || 1 },
+                    inviteOf(note) ? { invite: inviteOf(note) } : {}));
                 pendingTransfer = null;
                 hideModal('transferModal');
                 commit('noteToGuest');
@@ -3374,12 +3533,14 @@
                 settings: weddingData.settings || { visibility: 'private' },
                 notes: ensureNotes().map(b => ({
                     title: b.title,
-                    items: b.items.map(r => ({ name: r.name, type: r.type, amount: r.amount }))
+                    items: b.items.map(r => Object.assign({ name: r.name, type: r.type, amount: r.amount },
+                        inviteOf(r) ? { invite: inviteOf(r) } : {}))
                 })),
                 tables: weddingData.tables.map(t => ({
                     name: t.name,
                     capacity: t.capacity,
-                    guests: t.guests.map(g => ({ name: g.name, type: g.type, amount: g.amount, invited: !!g.invited }))
+                    guests: t.guests.map(g => Object.assign({ name: g.name, type: g.type, amount: g.amount },
+                        inviteOf(g) ? { invite: inviteOf(g) } : {}))
                 }))
             };
         }
@@ -3472,8 +3633,10 @@
                         gType = types[0] || addType('Dost');
                         warnings.push('"' + gName + '": tip boşdur, "' + gType + '" götürüldü.');
                     }
-                    // Older exports have no "invited": they read as not invited.
-                    guests.push({ id: ++idSeq, name: gName, type: gType, amount: amount, invited: g.invited === true });
+                    // "invite" is the status; an older export's yes/no tick reads as
+                    // invited on paper (online if it was marked as sent).
+                    const invite = statusFromStored(g);
+                    guests.push(Object.assign({ id: ++idSeq, name: gName, type: gType, amount: amount }, invite ? { invite: invite } : {}));
                 });
 
                 return { id: ++idSeq, name: name, capacity: capacity, guests: guests };
@@ -4090,7 +4253,9 @@
             if (!name) return null;
             let amount = parseInt(r.amount, 10);
             if (!Number.isFinite(amount) || amount < 1) amount = 1;
-            return { id: nextId(r.id), name: name, type: cleanType(r.type), amount: amount };
+            const invite = statusFromStored(r);
+            return Object.assign({ id: nextId(r.id), name: name, type: cleanType(r.type), amount: amount },
+                invite ? { invite: invite } : {});
         }
 
         /* Accepts blocks, and the older shapes: flat rows (consecutive ones
@@ -4641,88 +4806,259 @@
             };
         }
 
-        function inviteListPdf() {
-            const scope = currentInviteScope();
-            const rows = collectInviteList(scope);
-            const label = ({ yes: 'Dəvətnaməsi olanlar', no: 'Dəvətnaməsi olmayanlar', all: 'Bütün qonaqlar' })[scope];
-            return {
-                title: 'Dəvətnamə Siyahısı',
-                meta: `${label} · ${rows.length} qonaq · ${rows.reduce((n, r) => n + r.amount, 0)} nəfər · ${new Date().toLocaleString('az-AZ')}`,
-                head: ['#', '✓'].concat(visibleListColumns('inviteList').map(c => c.label)),
-                rows: rows.map((r, i) => [i + 1, r.invited ? '✓' : ''].concat(visibleListColumns('inviteList').map(c => cellText(r, c.key)))),
-                columnStyles: Object.assign({ 1: { cellWidth: 22, halign: 'center' } }, pdfColumnStyles(visibleListColumns('inviteList'), 2)),
-                fileName: `devetname-siyahisi-${pdfDateStamp()}.pdf`
-            };
+        /* =====================================================================
+           INVITATION STATUS
+           Every guest has one of four statuses, or none:
+             paper    - Dəvət (kağız)   blue
+             online   - Dəvət (onlayn)  green
+             declined - Gəlməyəcək      red
+             note     - Qeyd            black
+           Stored as guest.invite. Set from the dot on the board or the
+           dropdown in Dəvətnamə Siyahısı - both through setGuestInvite(), one
+           commit. The old yes/no tick (guest.invited, plus inviteSent from
+           the withdrawn personal invitations) is read once and turned into a
+           status: sent -> online, ticked -> paper.
+           ===================================================================== */
+        const INVITE_STATUSES = [
+            { key: 'paper', label: 'Dəvət (kağız)' },
+            { key: 'online', label: 'Dəvət (onlayn)' },
+            { key: 'declined', label: 'Gəlməyəcək' },
+            { key: 'note', label: 'Qeyd' }
+        ];
+        const INVITE_KEYS = INVITE_STATUSES.map(st => st.key);
+
+        function inviteOf(g) {
+            return g && INVITE_KEYS.includes(g.invite) ? g.invite : '';
         }
+
+        function inviteLabel(key) {
+            const st = INVITE_STATUSES.find(x => x.key === key);
+            return st ? st.label : '—';
+        }
+
+        // "Has an invitation" = on paper or online. Used for the bottom badge.
+        function isInvited(key) {
+            return key === 'paper' || key === 'online';
+        }
+
+        function statusFromStored(g) {
+            if (!g || typeof g !== 'object') return '';
+            if (INVITE_KEYS.includes(g.invite)) return g.invite;
+            if (g.invited === true) return g.inviteSent === true ? 'online' : 'paper';
+            return '';
+        }
+
+        function migrateInvites() {
+            weddingData.tables.forEach(t => t.guests.forEach(g => {
+                const st = statusFromStored(g);
+                if (st) g.invite = st; else delete g.invite;
+                delete g.invited;
+                delete g.inviteSent;
+            }));
+        }
+
+        function setGuestInvite(tableId, guestId, key) {
+            const table = findTable(Number(tableId));
+            const guest = table && findGuest(table, Number(guestId));
+            if (!guest) return;
+            if (INVITE_KEYS.includes(key)) guest.invite = key; else delete guest.invite;
+            // Only this guest's boxes and the counters change, so patch those
+            // instead of rebuilding every card (that took ~300 ms on a big board).
+            paintGuestInvite(table.id, guest.id, inviteOf(guest));
+            scheduleSave('setInvite');
+        }
+
+        function paintGuestInvite(tableId, guestId, status) {
+            const boxes = document.querySelectorAll(
+                `#tablesContainer .inv-box[data-table-id="${tableId}"][data-guest-id="${guestId}"]`);
+            boxes.forEach(box => {
+                const on = box.dataset.key === status;
+                box.classList.toggle('on', on);
+                box.setAttribute('aria-pressed', on);
+                box.innerHTML = on ? '<i class="fa-solid fa-check"></i>' : '';
+            });
+            const allGuests = weddingData.tables.flatMap(t => t.guests);
+            $('#inviteCountBadge').text(`${allGuests.filter(g => isInvited(inviteOf(g))).length}/${allGuests.length}`);
+        }
+
+        // A small div menu under `anchor`: [{ key, label, cls }], the current
+        // key highlighted; onPick(key) when one is chosen. Used for the list's
+        // status dropdowns and its filter. Closes on outside click, Escape,
+        // or any scroll (the list scrolls inside its window).
+        function openPickMenu(anchor, options, current, onPick) {
+            closePickMenu();
+            const $menu = $(`<div class="inv-menu" role="menu">${options.map(o =>
+                `<button type="button" role="menuitem" class="inv-opt ${o.cls} ${o.key === current ? 'active' : ''}" data-key="${o.key}">${escapeHtml(o.label)}</button>`).join('')}</div>`)
+                .appendTo('body');
+            const r = anchor.getBoundingClientRect();
+            const w = Math.max($menu.outerWidth(), r.width);
+            $menu.css('min-width', w + 'px');
+            const h = $menu.outerHeight();
+            const left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8));
+            const below = r.bottom + 4 + h < window.innerHeight - 8;
+            $menu.css({ left: left + 'px', top: (below ? r.bottom + 4 : Math.max(8, r.top - h - 4)) + 'px' });
+            $menu.on('click', '.inv-opt', function () {
+                const key = this.dataset.key;
+                closePickMenu();
+                onPick(key);
+            });
+            setTimeout(() => {
+                $(document).on('mousedown.pickmenu touchstart.pickmenu', e => {
+                    if (!$(e.target).closest('.inv-menu').length) closePickMenu();
+                });
+                $(document).on('keydown.pickmenu', e => { if (e.key === 'Escape') closePickMenu(); });
+                document.addEventListener('scroll', closePickMenu, true);
+                $(window).on('resize.pickmenu', closePickMenu);
+            }, 0);
+        }
+
+        function closePickMenu() {
+            $('.inv-menu').remove();
+            $(document).off('.pickmenu');
+            $(window).off('.pickmenu');
+            document.removeEventListener('scroll', closePickMenu, true);
+        }
+
+        const STATUS_OPTIONS = [{ key: '', label: '—', cls: 'st-none' }]
+            .concat(INVITE_STATUSES.map(st => ({ key: st.key, label: st.label, cls: 'st-' + st.key })));
+        const FILTER_OPTIONS = [{ key: 'all', label: 'Hamısı', cls: 'st-all' }]
+            .concat(INVITE_STATUSES.map(st => ({ key: st.key, label: st.label, cls: 'st-' + st.key })))
+            .concat([{ key: 'none', label: 'Statussuz', cls: 'st-none' }]);
 
         /* =====================================================================
-           INVITATION LIST
-           A guest is on it when the tick in their row is on (guest.invited).
-           The list shows who is on it, who is not, or everyone, and the tick
-           can be changed here too - the same commit('toggleInvite').
+           INVITATION LIST (Dəvətnamə Siyahısı)
+           Grouped by masa - Masa 1, Masa 2 ... in board order - and A→Z by
+           guest name inside each masa. The filter (default Hamısı) picks one
+           status or "Statussuz". What is on screen is exactly what Çap Et and
+           Excel-ə ixrac produce: the same filter, columns and groups.
            ===================================================================== */
-        function currentInviteScope() {
-            return $('input[name="inviteScope"]:checked').val() || 'yes';
+        function currentInviteFilter() {
+            return $('#inviteFilterBtn').attr('data-value') || 'all';
         }
 
-        function collectInviteList(scope) {
-            const rows = [];
-            weddingData.tables.forEach(table => table.guests.forEach(g => {
-                if (scope === 'yes' && !g.invited) return;
-                if (scope === 'no' && g.invited) return;
-                rows.push({ tableId: table.id, guestId: g.id, invited: !!g.invited,
-                            name: g.name, type: g.type, amount: Number(g.amount) || 0, table: table.name });
-            }));
-            return rows.sort((a, b) => collator.compare(a.name, b.name));
+        function setInviteFilter(key) {
+            $('#inviteFilterBtn').attr('data-value', key);
+            $('#inviteFilterLabel').text(inviteFilterLabel(key));
+            renderInviteList();
+        }
+
+        // [{ table, rows: [...] }] - masas with no matching guest are left out.
+        function collectInviteGroups(filter) {
+            const groups = [];
+            weddingData.tables.forEach(table => {
+                const rows = table.guests
+                    .filter(g => {
+                        const st = inviteOf(g);
+                        if (filter === 'all') return true;
+                        if (filter === 'none') return !st;
+                        return st === filter;
+                    })
+                    .map(g => ({ tableId: table.id, guestId: g.id, status: inviteOf(g),
+                                 name: g.name, type: g.type, amount: Number(g.amount) || 0, table: table.name }))
+                    .sort((a, b) => collator.compare(a.name, b.name) || (a.guestId - b.guestId));
+                if (rows.length) groups.push({ table: table, rows: rows });
+            });
+            return groups;
+        }
+
+        function inviteFilterLabel(filter) {
+            return filter === 'all' ? 'Hamısı' : filter === 'none' ? 'Statussuz' : inviteLabel(filter);
         }
 
         function renderInviteList() {
-            const rows = collectInviteList(currentInviteScope());
-            const all = weddingData.tables.flatMap(t => t.guests);
-            const invited = all.filter(g => g.invited);
+            const filter = currentInviteFilter();
+            $('#inviteFilterLabel').text(inviteFilterLabel(filter));
+            const groups = collectInviteGroups(filter);
             const cols = visibleListColumns('inviteList');
+            const span = cols.length + 1;
             $('#inviteListHead').html(
-                `<th style="width:36px;" class="text-center"><i class="fa-solid fa-envelope"></i></th>` +
+                `<th style="width:186px;">Status</th>` +
                 cols.map(c => `<th class="${c.center ? 'text-center' : ''}" ${c.width ? `style="width:${c.width};"` : ''}>${c.label}</th>`).join(''));
             renderColumnToggles('inviteList');
-            $('#inviteListBody').html(rows.length === 0
-                ? `<tr><td colspan="${cols.length + 1}" class="text-center text-muted py-3">Qonaq yoxdur.</td></tr>`
-                : rows.map(r => `
+            $('#inviteListBody').html(groups.length === 0
+                ? `<tr><td colspan="${span}" class="text-center text-muted py-3">Qonaq yoxdur.</td></tr>`
+                : groups.map(gr => `
+                    <tr class="inv-group"><td colspan="${span}">${escapeHtml(gr.table.name)}
+                        <span class="inv-group-meta">· ${occupancyOf(gr.table)}/${gr.table.capacity} · ${gr.rows.length} qonaq</span></td></tr>` +
+                    gr.rows.map(r => `
                     <tr>
-                        <td class="text-center"><input type="checkbox" class="form-check-input invite-list-check m-0"
-                            data-table-id="${r.tableId}" data-guest-id="${r.guestId}" ${r.invited ? 'checked' : ''}
-                            aria-label="Dəvətnamə"></td>
+                        <td><button type="button" class="inv-pick st-${r.status || 'none'}" aria-haspopup="menu"
+                            data-table-id="${r.tableId}" data-guest-id="${r.guestId}" data-value="${r.status}"
+                            aria-label="Dəvət statusu">${escapeHtml(r.status ? inviteLabel(r.status) : '—')}<i class="fa-solid fa-chevron-down"></i></button></td>
                         ${cols.map(c => `<td class="${c.center ? 'text-center' : ''}">${escapeHtml(cellText(r, c.key))}</td>`).join('')}
-                    </tr>`).join(''));
-            $('#inviteCount').text(
-                `${invited.length} / ${all.length} qonaq · ` +
-                `${invited.reduce((n, g) => n + (Number(g.amount) || 0), 0)} nəfər dəvətnamədə`);
+                    </tr>`).join('')).join(''));
+            renderInviteCounts();
+        }
+
+        // Counts for every status, over the whole wedding.
+        function renderInviteCounts() {
+            const all = weddingData.tables.flatMap(t => t.guests);
+            const n = key => all.filter(g => inviteOf(g) === key).length;
+            $('#inviteCount').html(
+                INVITE_STATUSES.map(st => `<span class="inv-count-chip st-${st.key}"></span>${escapeHtml(st.label)}: ${n(st.key)}`).join('') +
+                `<span class="inv-count-chip st-none"></span>Statussuz: ${all.filter(g => !inviteOf(g)).length}`);
+        }
+
+        // Rows exactly as shown: [header, ...] with masa rows in between.
+        function inviteListTable() {
+            const filter = currentInviteFilter();
+            const cols = visibleListColumns('inviteList');
+            const head = ['Status'].concat(cols.map(c => c.label));
+            const body = [];
+            collectInviteGroups(filter).forEach(gr => {
+                body.push({ group: `${gr.table.name} · ${occupancyOf(gr.table)}/${gr.table.capacity} · ${gr.rows.length} qonaq` });
+                gr.rows.forEach(r => body.push({ cells: [r.status ? inviteLabel(r.status) : '—'].concat(cols.map(c => cellText(r, c.key))) }));
+            });
+            return { filter: filter, head: head, body: body };
         }
 
         function buildInvitePrintArea() {
-            const scope = currentInviteScope();
-            const rows = collectInviteList(scope);
-            const label = ({ yes: 'Dəvətnaməsi olanlar', no: 'Dəvətnaməsi olmayanlar', all: 'Bütün qonaqlar' })[scope];
+            const t = inviteListTable();
+            const guests = t.body.filter(b => b.cells).length;
             $('#printArea').html(`
                 <h2>Dəvətnamə Siyahısı</h2>
-                <div class="meta">${escapeHtml(label)} &middot; ${rows.length} qonaq &middot;
-                    ${rows.reduce((n, r) => n + r.amount, 0)} nəfər &middot; ${escapeHtml(new Date().toLocaleString('az-AZ'))}</div>
+                <div class="meta">${escapeHtml(inviteFilterLabel(t.filter))} &middot; ${guests} qonaq &middot;
+                    ${escapeHtml(new Date().toLocaleString('az-AZ'))}</div>
                 <table>
-                    <thead><tr><th>✓</th>${visibleListColumns('inviteList').map(c => `<th>${c.label}</th>`).join('')}</tr></thead>
+                    <thead><tr>${t.head.map(h => `<th>${escapeHtml(h)}</th>`).join('')}</tr></thead>
                     <tbody>
-                        ${rows.map(r => `<tr><td>${r.invited ? '✓' : ''}</td>${visibleListColumns('inviteList').map(c => `<td>${escapeHtml(cellText(r, c.key))}</td>`).join('')}</tr>`).join('')}
+                        ${t.body.map(b => b.group
+                            ? `<tr><td colspan="${t.head.length}" style="font-weight:700;background:#eee">${escapeHtml(b.group)}</td></tr>`
+                            : `<tr>${b.cells.map(c => `<td>${escapeHtml(c)}</td>`).join('')}</tr>`).join('')}
                     </tbody>
                 </table>
             `);
         }
 
-        // One place the tick changes, from the row or from the list.
-        function setGuestInvited(tableId, guestId, invited) {
-            const table = findTable(Number(tableId));
-            const guest = table && findGuest(table, Number(guestId));
-            if (!guest) return;
-            guest.invited = !!invited;
-            commit('toggleInvite');
+        async function exportInviteListExcel($btn) {
+            const label = $btn.html();
+            $btn.prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin me-1"></i> Hazırlanır…');
+            try {
+                const XLSX = await loadSheetJS();
+                const t = inviteListTable();
+                const aoa = [t.head];
+                const merges = [];
+                t.body.forEach(b => {
+                    if (b.group) {
+                        merges.push({ s: { r: aoa.length, c: 0 }, e: { r: aoa.length, c: t.head.length - 1 } });
+                        aoa.push([b.group]);
+                    } else {
+                        aoa.push(b.cells);
+                    }
+                });
+                const ws = XLSX.utils.aoa_to_sheet(aoa);
+                ws['!merges'] = merges;
+                ws['!cols'] = t.head.map((h, i) => ({ wch: i === 0 ? 16 : h === 'Qonaq' ? 32 : h === 'Say' ? 6 : 18 }));
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, 'Dəvətnamə');
+                const name = `devetname-siyahisi-${new Date().toISOString().slice(0, 10)}.xlsx`;
+                XLSX.writeFile(wb, name);
+                toast(`Excel faylı yükləndi: ${name}`);
+            } catch (err) {
+                toast('Excel faylı yaradılmadı: ' + err.message, 'danger');
+            } finally {
+                $btn.prop('disabled', false).html(label);
+            }
         }
 
         /* =====================================================================
@@ -5486,9 +5822,15 @@
             $('#btnDoTransfer').on('click', doTransfer);
             $('#transferForm').on('submit', function (e) { e.preventDefault(); doTransfer(); });
 
-            // Invitation tick in a row.
-            $cards.on('change', '.invite-check', function () {
-                setGuestInvited($(this).data('table-id'), $(this).data('guest-id'), this.checked);
+            // Invitation status on the board: one box per status. Click a box
+            // to set it; click the chosen one again to clear it.
+            $cards.on('click', '.inv-box', function (e) {
+                e.stopPropagation();
+                const table = findTable(Number(this.dataset.tableId));
+                const guest = table && findGuest(table, Number(this.dataset.guestId));
+                if (!guest) return;
+                const key = this.dataset.key;
+                setGuestInvite(table.id, guest.id, inviteOf(guest) === key ? '' : key);
             });
 
             $cards.on('click', '.open-move-modal', function () {
@@ -5720,18 +6062,34 @@
             $('#btnOpenInvites').on('click', function () {
                 renderInviteList();
                 showModal('inviteListModal');
-                preparePdf().catch(() => { /* retried on the PDF click */ });
             });
 
-            $('#btnPdfInvites').on('click', function () {
-                makeAndSendPdf($(this), inviteListPdf());
+            $('#inviteFilterBtn').on('click', function () {
+                openPickMenu(this, FILTER_OPTIONS, currentInviteFilter(), setInviteFilter);
             });
 
-            $('input[name="inviteScope"]').on('change', renderInviteList);
+            $('#inviteListBody').on('click', '.inv-pick', function () {
+                const pick = this;
+                const tableId = $(this).data('table-id');
+                const guestId = $(this).data('guest-id');
+                openPickMenu(this, STATUS_OPTIONS, String($(this).attr('data-value') || ''), key => {
+                    setGuestInvite(tableId, guestId, key);
+                    // Under Hamısı the row stays where it is: repaint just its
+                    // dropdown. A status filter may now hide it: redraw the list.
+                    if (currentInviteFilter() !== 'all') { renderInviteList(); return; }
+                    const st = INVITE_KEYS.includes(key) ? key : '';
+                    pick.className = `inv-pick st-${st || 'none'}`;
+                    pick.setAttribute('data-value', st);
+                    pick.innerHTML = `${escapeHtml(st ? inviteLabel(st) : '—')}<i class="fa-solid fa-chevron-down"></i>`;
+                    renderInviteCounts();
+                });
+            });
 
-            $('#inviteListBody').on('change', '.invite-list-check', function () {
-                setGuestInvited($(this).data('table-id'), $(this).data('guest-id'), this.checked);
-                renderInviteList();
+            // Closing the window closes an open menu with it.
+            $('#inviteListModal').on('hide.bs.modal', closePickMenu);
+
+            $('#btnExcelInvites').on('click', function () {
+                exportInviteListExcel($(this));
             });
 
             $('#btnPrintInvites').on('click', function () {

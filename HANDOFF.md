@@ -6,10 +6,14 @@ As of writing, **nothing had been deployed to the server** — check
 `kubectl get deploy -A | grep tableplanner` before assuming either way; the
 steps differ (see "Do this").
 
-Last updated 2026-10-03, for the card-colour release: the body of every
-masa card is tinted by its state (light blue: free seats, light red: over,
-white: exactly full) under the unchanged solid title bar. Deploy what
-`current-digest.sh` returns now - **not** `2c6ce49`, which still sorts A→Z.
+Last updated 2026-10-08, for the **invitation status** release: the single
+invitation tick becomes four statuses (Dəvət kağız / Dəvət onlayn /
+Gəlməyəcək / Qeyd), the Dəvətnamə Siyahısı is grouped by masa with a filter,
+Excel export and print, and the **personal invitations** release
+(`65d6262` … `f65986f`: `/d/<code>` pages, `invite.html`, designs, pictures)
+is **withdrawn** at the user's request. Deploy what `current-digest.sh`
+returns now - **not** any build from `65d6262` to `f65986f`, and not
+`2c6ce49` (A→Z).
 
 ---
 
@@ -50,13 +54,17 @@ single-document write needs no cross-row transaction.
 ## What is in this version
 
 Everything since the first handoff, newest first. "new" is this release;
-"prev" shipped in the previous images (`2aeb72d` and before; `2c6ce49`'s
-A→Z is withdrawn); "earlier"
+"prev" shipped in the previous images (`4e9a17e` and before; `2c6ce49`'s
+A→Z and `65d6262`…`f65986f`'s personal invitations are withdrawn); "earlier"
 before that.
 
 | | What | Where |
 |---|---|---|
-| **new** | **Card body tinted by state.** The title bar is unchanged (solid blue / dark / red, white text). Below it, the whole card body - rows and the empty space under them - is **light blue `#d3e2ff`** when there are free seats, **light red `#f9d3d3`** when over capacity, and **plain white** when exactly full, so state shows at a glance across the board. Rows are transparent on the tint with a light hairline; hover and search highlights still show on top; the colour follows live as guests move (checked 8/10 blue → 10/10 white → 11/10 red). | CSS `.table-card.cap-* .card-body` |
+| **new** | **Four invitation statuses instead of one tick.** Each guest has at most one: **Dəvət (kağız)** blue, **Dəvət (onlayn)** green, **Gəlməyəcək** red, **Qeyd** black - or none. Stored as `guest.invite` = `paper` / `online` / `declined` / `note`; no status = the field is absent. Old data converts on load: `invited: true` → `paper`, and `inviteSent: true` (left by the withdrawn release) → `online`; `invited` / `inviteSent` are then dropped, and the converted document is written with the next save. The bottom-bar badge counts the two "Dəvət" statuses: `invited/all`. | `INVITE_STATUSES`, `inviteOf()`, `migrateInvites()` |
+| **new** | **Board: four boxes per guest row**, left of 📝 / edit / delete, one per status in its colour. Unchecked boxes are invisible (no fill, no border); hovering the row shows faint outlines; the chosen one is filled with a white ✓. Click a box to set it, click the chosen one again to clear it. **Fast**: a click repaints just that guest's boxes and the badge and saves in the background (~3-5 ms, was ~290 ms when every click redrew all ~480 rows). | `guestActionsHtml()`, `setGuestInvite()`, `paintGuestInvite()`, `scheduleSave()` |
+| **new** | **Dəvətnamə Siyahısı reworked.** Grouped by masa in board order (a header row `Masa 3 · 16/18 · 12 qonaq`), guests A→Z inside each masa. Each guest's status is a div dropdown (not a native select), all 170 px, with the status colour as a left bar and soft background. **"Filtr: Hamısı"** (neutral button, default Hamısı; also each status and "Statussuz") only chooses what is shown - it never changes anyone. Counts per status at the top right. Footer: **Bağla**, **Excel-ə ixrac** (SheetJS, masa headers as merged rows) and **Çap Et**, both producing exactly what is on screen - same filter, columns and groups. "PDF göndər" is no longer in this list (still in Siyahı). | `renderInviteList()`, `inviteListTable()`, `exportInviteListExcel()`, `openPickMenu()` |
+| **new** | **Personal invitations withdrawn** (the user asked for invitation creation and sharing removed). Gone: `invite.html`, `GET /d/:code`, the ✨ Dəvətnamə dizaynı editor, Hörmət, per-guest links / WhatsApp / pictures, ZIP. **If that release was ever deployed and links were sent, they stop working** (`/d/…` is no longer a route). Its leftovers in the data - `settings.invitation`, `guest.title`, `guest.inviteCode` - are left in place and ignored; nothing reads them. | `server.js`, `Dockerfile` |
+| prev | **Card body tinted by state.** The title bar is unchanged (solid blue / dark / red, white text). Below it, the whole card body - rows and the empty space under them - is **light blue `#d3e2ff`** when there are free seats, **light red `#f9d3d3`** when over capacity, and **plain white** when exactly full, so state shows at a glance across the board. Rows are transparent on the tint with a light hairline; hover and search highlights still show on top; the colour follows live as guests move (checked 8/10 blue → 10/10 white → 11/10 red). | CSS `.table-card.cap-* .card-body` |
 | prev | **Order by hand, by dragging the row.** One drag does both jobs: drop a guest inside their own masa and they are **reordered**; drop them on another masa and they **move** there. Either way they land where a **green line** shows (above / below a row), not at the bottom. The target masa turns green only when it is a different masa. Hovering a draggable row lights it light-blue with a grab cursor. Buttons and the invite tick inside a row still just click. Undo (5 s "Geri al") covers reorders too. Dropping a row back on its own place does nothing. | `reorderGuest()`, `paintDropSlot()`, `moveGuestTo(…, beforeId)` |
 | prev | **Qeyd Masası rows reorder the same way** (whole row, inside its block, with undo) while the block is shown in its saved order ("Əlavə sırası", now the default again). With a sorted view chosen in the dropdown, reordering is off. | `initNoteSorting()` |
 | prev | **Automatic A→Z withdrawn.** It was display-only, so reverting it changed no data: every masa shows its saved order again, which is now the order arranged by hand. No timestamps exist or were needed. | `renderTables()` |
@@ -71,16 +79,38 @@ before that.
 | prev | Fix: the hovered masa's 3px capacity-coloured top border turns green with the rest (a red/blue strip stayed above the green header). | CSS `.drop-move` |
 | prev | **Fix: the ⋮ menu (export / import / Excel import) opened hidden behind the board at phone width.** The phone button row had `overflow: auto`, which clips anything that pops out of it; removed — the buttons share the row and shrink to fit (26 px min, all 10 fit a 320 px phone). | CSS `.bb-actions` |
 | prev | **Phone layout**: bottom bar = one stats line with a ▼ toggle that folds the buttons away (remembered), plus one row of icon-only buttons (65 px open, 29 px folded). **Filters start collapsed at phone size**; **drag starts off at phone size**. Phone and desktop sizes keep separate settings and switch live when the window crosses 768 px. | `index.html` |
-| prev | Invitation tick + "Dəvətnamə siyahısı", Arial, coloured masa title bars, quieter bottom bar. | `setGuestInvited()` |
+| prev | Invitation tick (now the four statuses) + "Dəvətnamə siyahısı", Arial, coloured masa title bars, quieter bottom bar. | |
 | prev | Drag on/off switch, move-only drag, ⇄ removed from rows, dense board, data-driven card widths, smoke/utf8check overwrite guard. | `initDragDrop()`, `sizeTableColumns()` |
 | earlier | Favicon; **live updates** over Server-Sent Events. | `server.js`, `src/live.js` |
 
-No server behaviour, schema, migration, env var or manifest changed in this
-release. It is a front-end release; deploying is an image swap.
+**Server changes this release** - only the withdrawal, back to exactly what
+`4e9a17e` served: no `/d/:code`, no `invite.html` (the Dockerfile no longer
+copies it), and `GET /api/state` no longer strips `inviteCode` (no route uses
+codes any more). No schema, migration, env var or manifest change - deploying
+is an image swap.
 
 ---
 
 ## State
+
+**Verified for this release (2026-10-08):**
+
+- On a dev server with a 34-masa / 415-guest board: a box click takes 3-5 ms
+  and causes no full redraw; the status is saved (`setInvite`, several quick
+  clicks coalesce into one save); the list dropdown repaints in place under
+  Hamısı and the row drops out under a status filter; a change from another
+  device still shows up live. Old `invited` / `inviteSent` data converted to
+  paper / online. Excel export and print match the screen. No console errors.
+- On the real image + Postgres 16 via compose (empty database): **32/32 smoke
+  checks** and `utf8check` pass; with masas on the board smoke skips its
+  writes and utf8check exits 2. `/invite.html` and `/d/abc` return 404; the
+  image's `/app/public` holds only `index.html` and `favicon.ico`. In the
+  browser: a board seeded with old `invited` / `inviteSent` ticks showed
+  paper / online, and the next save wrote `invite` to Postgres with the old
+  fields gone; a box click took 2 ms and saved `setInvite`; the list grouped
+  by masa (`Masa 1 · 15/14 · 12 qonaq`); clearing a status in the list
+  cleared the board box and saved. JSON export → import keeps statuses on
+  guests and on Qeyd Masası rows. No console errors.
 
 **Verified locally (2026-09-27, the real image + Postgres 16 via compose):**
 
@@ -104,7 +134,7 @@ release. It is a front-end release; deploying is an image swap.
   the guest moved meanwhile; column toggles drive screen, print and PDF;
   desktop → phone size without reload switched to drag off + filters
   collapsed, and each size kept its own choice after that.
-- From earlier releases, still true: invite ticks and list, live updates,
+- From earlier releases, still true: invitation list, live updates,
   move-only drops, row buttons click rather than drag, viewers see no edit
   controls.
 - Auth: one shared password (scrypt), signed httpOnly cookie.
@@ -125,9 +155,9 @@ release. It is a front-end release; deploying is an image swap.
   with stand-ins only. It needs **HTTPS** (or localhost): over plain http from
   another device the button downloads the PDF instead — correct, but not the
   share sheet. Once the domain has TLS, try it from a phone.
-- **Open choice — 3 or 4 masas per row at 1440 px.** Arial is wider, so the
-  narrowest card grew to ~367 px and a 1440 px window now fits 3 per row
-  (was 4). The cause is one long guest name. The user was offered lowering the
+- **Open choice — 3 or 4 masas per row at 1440 px.** Arial is wider and the
+  rows now carry four status boxes, so the narrowest card is ~388 px and a
+  1440 px window fits 3 per row (was 4). The cause is one long guest name. The user was offered lowering the
   name cap from 170 to 150 px, or names back to 14px; no answer yet — ask
   before changing either.
 - Excel import is still wrong on real files — see "Known broken".
@@ -180,8 +210,9 @@ Then verify **without touching the data**:
 - By hand: log in, check the board looks dense and cards fill the width, the
   purple "Sürüklə" button and "Dəvətnamə siyahısı" are in the bottom bar, then
   drag a guest onto another masa and back again (two revisions, net no
-  change). Tick one guest, open the list, untick it there (again net no
-  change).
+  change). On one guest click the blue box, then click it again (net no
+  change); open Dəvətnamə Siyahısı - grouped by masa, "Filtr: Hamısı".
+  The counts at its top right must add up to the guest total.
 - Take a JSON export from the ⋮ menu before and after if in doubt — it is the
   cheapest backup there is.
 
@@ -227,7 +258,8 @@ restarting the pod also clears it, but that is not a reason to restart it.
 
 **The page loads its libraries from CDNs**: jQuery and jQuery UI from
 `code.jquery.com`; Bootstrap, Select2, Touch Punch, **jsPDF, jspdf-autotable
-and the DejaVu Sans font files** from `cdn.jsdelivr.net`; Font Awesome from
+and the DejaVu Sans font files** from `cdn.jsdelivr.net`; Font Awesome and
+SheetJS (Excel import and "Excel-ə ixrac", loaded on first use) from
 `cdnjs.cloudflare.com`. The PDF pieces load only when a list is opened. If
 jQuery UI fails to load, drag-and-drop is simply off; if the PDF pieces fail,
 "PDF göndər" shows an error and "Çap Et" still works. Browsers need those
@@ -270,25 +302,35 @@ When changing the image, change it in **both** containers.
 `settings` keeps the current value; anything not exactly `"public"` is private.
 
 **Guests and note rows trade places.** A guest moved to notes becomes
-`{ id, name, type, amount }` in the block (same id; `invited` is dropped); a
-note seated at a masa becomes a guest with the same id and `invited: false`.
+`{ id, name, type, amount }` in the block, plus `invite` if they have a
+status; a note seated at a masa becomes a guest with the same id, keeping its
+`invite`.
 Guest and note ids come from the same counter, so they never collide. Both
 moves go through `doTransfer()` and one `commit()` each (`guestToNotes`,
 `noteToGuest`). Seated totals count masas only - people parked in notes are
 in the notes totals, not "seated".
 
-**Guests now carry `invited`.** Anything that builds guest objects must keep
-it: the JSON export writes it and the JSON import reads it (`g.invited ===
-true`), editing a guest changes the object in place so it survives, and
+**Guests carry `invite`** (`paper` / `online` / `declined` / `note`, or
+absent). Anything that builds guest objects must keep it: the JSON export
+writes it and the JSON import reads it (also the old `invited` /
+`inviteSent`), editing a guest changes the object in place so it survives, and
 moving keeps the same object. The Excel import creates guests without it,
-which correctly means "not invited". A new code path that rebuilds guests
-from name / type / amount only will silently untick everyone.
+which correctly means "no status". A new code path that rebuilds guests from
+name / type / amount only will silently clear everyone's status.
+
+**Old releases' pages and this data.** An older image's page would read
+`invite` as "not invited" (it knows only `invited`); it keeps the field, so
+nothing is lost, but its ticks look empty. Don't roll back further than
+`4e9a17e` without telling the user.
 
 **Front-end seams — keep them single:**
 
 - `commit(action)` is the only write path. Every mutation is
   `<mutate weddingData>; commit(action)`. `renderApp()` only re-renders — live
-  updates call it too — so it must never be used as a write hook.
+  updates call it too — so it must never be used as a write hook. The one
+  exception is `scheduleSave(action)`: the same save without the redraw, for a
+  change that repaints its own few DOM nodes. Only `setGuestInvite()` uses it;
+  anything that changes a count, a masa or a row's place must use `commit()`.
 - `reorderGuest()` is the only place a guest changes position inside a masa
   (one commit, `reorderGuest`); `moveGuestTo(..., beforeId)` lands a moved
   guest at a given spot. The board shows `table.guests` in saved order -
@@ -301,8 +343,11 @@ from name / type / amount only will silently untick everyone.
   both masas, never two.
 - The drag switch lives in `dragEnabled` / `setDragEnabled()`; `initDragDrop()`
   does nothing while it is off, for viewers, or if jQuery UI did not load.
-- `setGuestInvited()` is the only place the tick changes — the row checkbox
-  and the invitation list both call it, and it writes through `commit()`.
+- `setGuestInvite()` is the only place a status changes — the board boxes
+  and the list dropdowns both call it. It patches the boxes and the badge
+  (`paintGuestInvite()`) and saves via `scheduleSave('setInvite')`; the list
+  repaints its own dropdown and counts, or redraws itself under a status
+  filter.
 - `undoMove()` writes through `commit('undoMove')` like any other change and
   only acts if the guest is still where the drop left them.
 - Per-device settings live in `localStorage`: `tp.dragEnabled.phone` /
@@ -319,7 +364,9 @@ and titles, 13px badges capped at 80px; nothing bold except the masa title
 bar, which is solid capacity colour, with the card body below it a lighter
 tint of the same state (blue / red, white when full); one-line headers, no
 column headers, 4px
-gaps; move-only drag, no switch button on rows, phones start with drag off and
+gaps; four status boxes per row, invisible until checked (faint outlines on
+row hover); the invitation list grouped by masa with a neutral filter
+defaulting to Hamısı; move-only drag, no switch button on rows, phones start with drag off and
 filters collapsed; a quiet bottom bar with "|" separators and no
 "Saxlanıldı"; lists default to Qonaq + Masa; the order inside masas and
 notes blocks is the user's own, set by dragging (no automatic sort, no grip

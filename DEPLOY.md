@@ -235,11 +235,18 @@ Then confirm by hand, from a **logged-out** browser:
   phone it starts off. Needs `code.jquery.com` and `cdn.jsdelivr.net`
   reachable from the browser; without them, editing a guest can still change
   their masa.
-- **invitation list** (logged in): tick the box left of a guest's edit
-  button; the "Dəvətnamə siyahısı" badge counts it (e.g. `1/113`) and the list
-  shows that guest. Untick it in the list — the row's box clears too. Export
-  JSON and check the guest has `"invited": true`. A logged-out viewer of a
-  public list sees no ticks and no list button.
+- **invitation status** (logged in): hover a guest row - four faint boxes
+  appear left of 📝 (blue, green, red, black). Click blue: it fills with a ✓
+  at once (no lag) and the "Dəvətnamə siyahısı" badge counts it (e.g.
+  `1/113`; green counts too, red and black do not). Open the list: grouped by
+  masa (Masa 1, Masa 2 … in board order, A→Z inside), "Filtr: Hamısı";
+  the guest's dropdown says "Dəvət (kağız)" with a blue bar. Change it there
+  to "—" - the board box clears too. Filter "Gəlməyəcək" shows only those.
+  "Excel-ə ixrac" downloads an .xlsx and "Çap Et" prints, both exactly what
+  is shown. Export JSON and check the guest has `"invite": "paper"`. A
+  logged-out viewer of a public list sees no boxes and no list button.
+- **personal invitations are gone**: `curl -s -o /dev/null -w '%{http_code}'
+  http://localhost:3000/invite.html` is not 200, and there is no ✨ button.
 - **undo + auto-scroll** (logged in, desktop): drag a guest onto another
   masa — a notice appears bottom-right for 5 s; "Geri al" puts the guest back
   in the same row. Drag towards the bottom bar and hold: the page scrolls,
