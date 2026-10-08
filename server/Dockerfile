@@ -25,7 +25,6 @@ COPY server/migrations ./migrations
 COPY server/scripts ./scripts
 COPY index.html ./public/index.html
 COPY favicon.ico ./public/favicon.ico
-COPY invite.html ./public/invite.html
 
 # node:alpine ships an unprivileged `node` user; never run as root.
 USER node

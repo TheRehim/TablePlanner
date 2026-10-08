@@ -6,12 +6,10 @@ As of writing, **nothing had been deployed to the server** — check
 `kubectl get deploy -A | grep tableplanner` before assuming either way; the
 steps differ (see "Do this").
 
-Last updated 2026-10-05, for the **personal invitations** release: every
-guest can be sent their own invitation - a link to an animated (or plain)
-page that greets them by name, or a picture of it. Deploy what
-`current-digest.sh` returns now; it should be the build of `a7d9019` or
-later (`65d6262` lacks the bottom-bar button and the bar fix, `606cd4d`
-pushes Bağlı / Çıxış / ⋮ off screen at ~1000-1200 px).
+Last updated 2026-10-03, for the card-colour release: the body of every
+masa card is tinted by its state (light blue: free seats, light red: over,
+white: exactly full) under the unchanged solid title bar. Deploy what
+`current-digest.sh` returns now - **not** `2c6ce49`, which still sorts A→Z.
 
 ---
 
@@ -27,9 +25,8 @@ pushes Bağlı / Çıxış / ⋮ off screen at ~1000-1200 px).
 ## What this is
 
 A wedding seating planner. One page (`index.html`, Azerbaijani UI, with its
-icon `favicon.ico` beside it), the guests' invitation page (`invite.html`),
-plus a small Express API in `server/`. Those three files are all the server
-serves; the repo is not exposed. The whole
+icon `favicon.ico` beside it) plus a small Express API in `server/`. Those two
+files are all the server serves statically; the repo is not exposed. The whole
 dataset is a **single JSONB document** — deliberately, because there is one
 editor and moving or switching a guest touches two masas at once, which as a
 single-document write needs no cross-row transaction.
@@ -59,8 +56,7 @@ before that.
 
 | | What | Where |
 |---|---|---|
-| **new** | **Personal invitations.** Each guest can have their own page at **`/d/<inviteCode>`**: "Hörmətli {ad} {bəy/xanım}" + **"və ailəsi" only when the guest's count is over 1**, the couple, message, date (`OKTYABR · 16 · 18:00`, year below), place, address, optional "Dəvətnamə N nəfər üçündür" / masa, optional "Hörmətlə, …" signature, then a countdown chip and buttons: map, add to calendar (.ics), save as picture. **Four designs**: Qapı (doors with a satin bow swing open into an arched hall), Zərf (wax seal breaks, flap opens, lace card rises), İpək (drifting silk, gold script wipes in, typewriter text), Klassik (still floral card). **"Animasiya" switch**: off = every design opens straight to the plain card. **Editing**: ✨ **Dəvətnamə dizaynı** in the bottom bar (and in the invitation list) - groom, bride, date, time, place, address, map link, text, signature, design, animation, seat count, masa, WhatsApp text - with a live phone preview; saved as `settings.invitation`. **Per guest** in Dəvətnamə Siyahısı: Hörmət (— / bəy / xanım → `guest.title`), 👁 preview, 🔗 copy link, WhatsApp (`wa.me/?text=`), 🖼 picture (1080×1920 JPEG, share sheet or download); ✓✓ once sent. **Bulk**: "Linkləri kopyala", "Şəkillər (ZIP)". Bottom bar: ✨ is icon-only at 768-1399 px, and the "|" separators hide at 768-1199 px so the row still fits. | `invite.html`; `PERSONAL INVITATIONS` in `index.html`; `/d/:code`, `findInvitation()`, `withoutInviteCodes()` in `server.js` |
-| prev | **Card body tinted by state.** The title bar is unchanged (solid blue / dark / red, white text). Below it, the whole card body - rows and the empty space under them - is **light blue `#d3e2ff`** when there are free seats, **light red `#f9d3d3`** when over capacity, and **plain white** when exactly full, so state shows at a glance across the board. Rows are transparent on the tint with a light hairline; hover and search highlights still show on top; the colour follows live as guests move (checked 8/10 blue → 10/10 white → 11/10 red). | CSS `.table-card.cap-* .card-body` |
+| **new** | **Card body tinted by state.** The title bar is unchanged (solid blue / dark / red, white text). Below it, the whole card body - rows and the empty space under them - is **light blue `#d3e2ff`** when there are free seats, **light red `#f9d3d3`** when over capacity, and **plain white** when exactly full, so state shows at a glance across the board. Rows are transparent on the tint with a light hairline; hover and search highlights still show on top; the colour follows live as guests move (checked 8/10 blue → 10/10 white → 11/10 red). | CSS `.table-card.cap-* .card-body` |
 | prev | **Order by hand, by dragging the row.** One drag does both jobs: drop a guest inside their own masa and they are **reordered**; drop them on another masa and they **move** there. Either way they land where a **green line** shows (above / below a row), not at the bottom. The target masa turns green only when it is a different masa. Hovering a draggable row lights it light-blue with a grab cursor. Buttons and the invite tick inside a row still just click. Undo (5 s "Geri al") covers reorders too. Dropping a row back on its own place does nothing. | `reorderGuest()`, `paintDropSlot()`, `moveGuestTo(…, beforeId)` |
 | prev | **Qeyd Masası rows reorder the same way** (whole row, inside its block, with undo) while the block is shown in its saved order ("Əlavə sırası", now the default again). With a sorted view chosen in the dropdown, reordering is off. | `initNoteSorting()` |
 | prev | **Automatic A→Z withdrawn.** It was display-only, so reverting it changed no data: every masa shows its saved order again, which is now the order arranged by hand. No timestamps exist or were needed. | `renderTables()` |
@@ -79,58 +75,12 @@ before that.
 | prev | Drag on/off switch, move-only drag, ⇄ removed from rows, dense board, data-driven card widths, smoke/utf8check overwrite guard. | `initDragDrop()`, `sizeTableColumns()` |
 | earlier | Favicon; **live updates** over Server-Sent Events. | `server.js`, `src/live.js` |
 
-**Server changes this release** (no schema, migration, env var or manifest
-change - deploying is still an image swap):
-
-- `GET /d/:code` — the guest's invitation. Looks the code up in the state
-  document, injects `{invitation, guest:{name,title,amount}, table}` as
-  `<script id="invite-data">` (with `<` escaped) and fills `<title>`,
-  `og:title`, `og:description` for the WhatsApp/Telegram link preview.
-  **Open to anyone holding the link, whatever the list's visibility** - that
-  is the point - and it returns only those fields (`INVITE_FIELDS`
-  whitelist). Unknown code → the same page with `null`, status 404, shows
-  "Bu dəvətnamə tapılmadı". `Cache-Control: no-store`, `X-Robots-Tag: noindex`.
-- `GET /invite.html` — the bare page. With no data it shows a sample
-  (`?t=qapi|zerf|ipek|klassik`, `&still` for no animation); with `#preview`
-  inside an iframe it waits for the planner's postMessage.
-- `GET /api/state` strips `inviteCode` from every guest for non-editors, so
-  a public reader cannot open other guests' invitations.
-- The Dockerfile copies `invite.html` to `/app/public/`.
+No server behaviour, schema, migration, env var or manifest changed in this
+release. It is a front-end release; deploying is an image swap.
 
 ---
 
 ## State
-
-**Verified locally for the invitations release (2026-10-05, `npm start`
-in memory mode - not the image, not Postgres; CI built and published the image
-for every push):**
-
-- Server smoke: every check passes except "readyz reports db down without a
-  database", which fails in memory mode **before this release too**
-  (`db.js:63`, `if (MEMORY_MODE) return true`, unchanged).
-- Old features after the change, each read back from the server: drag-move
-  landing above a given guest, switch, reorder, invitation tick, guest →
-  Qeyd Masası → masa (title and code survive), JSON export → import (16
-  guests, 0 warnings, codes survive), Siyahı PDF (110 KB), board totals and
-  card colours. No console errors.
-- Invitations: design form edits redraw the phone preview live; save writes
-  `settings.invitation`; a guest's preview, copy link (creates a 12-char code,
-  ticks the guest, marks sent), `/d/<code>` signed out (200, right greeting
-  and og tags), a bogus code (404 page), ZIP of 4 pictures (880 KB, one per
-  guest, ASCII file names), pictures of all four designs at 1080×1920,
-  "və ailəsi" only for count > 1, bəy/xanım, animation off on Qapı and
-  Klassik (no doors, no sparkles, no replay button).
-- Bottom bar measured at 375, 900, 1024, 1280, 1440 px: every button visible.
-- GitHub Pages copy: ✨ button present, preview renders
-  (`invite.html#preview` is relative on purpose - `/invite.html` is a 404
-  under `/TablePlanner/`).
-
-**Not verified (invitations):** the link opened on a real phone; the
-WhatsApp preview card (needs the public HTTPS domain - WhatsApp fetches it
-itself); the picture's share sheet on a phone (Web Share needs HTTPS and a
-recent click - after rendering it may fall back to download); Safari/iOS
-rendering of the SVG art and the 3D door/flap animation; the page against
-Postgres and through Traefik.
 
 **Verified locally (2026-09-27, the real image + Postgres 16 via compose):**
 
@@ -232,12 +182,6 @@ Then verify **without touching the data**:
   drag a guest onto another masa and back again (two revisions, net no
   change). Tick one guest, open the list, untick it there (again net no
   change).
-- Invitations, read-only: open ✨ Dəvətnamə dizaynı and close it without
-  saving; in Dəvətnamə Siyahısı press 👁 on one guest (preview only, writes
-  nothing); `curl -s -o /dev/null -w '%{http_code}' $BASE/d/NOPE12345` → `404`;
-  `$BASE/invite.html?t=klassik&still` shows the sample card. Copying a link,
-  WhatsApp and 🖼 **do write** (code, tick, sent mark) - do that only on a
-  guest the user agrees to, or not at all.
 - Take a JSON export from the ⋮ menu before and after if in doubt — it is the
   cheapest backup there is.
 
@@ -326,66 +270,19 @@ When changing the image, change it in **both** containers.
 `settings` keeps the current value; anything not exactly `"public"` is private.
 
 **Guests and note rows trade places.** A guest moved to notes becomes
-`{ id, name, type, amount }` in the block (same id), plus whatever of
-`invited`, `title`, `inviteCode`, `inviteSent` it had (`invitationFieldsOf()`);
-a note seated at a masa becomes a guest with the same id, `invited: false`
-unless the note carried those fields back.
+`{ id, name, type, amount }` in the block (same id; `invited` is dropped); a
+note seated at a masa becomes a guest with the same id and `invited: false`.
 Guest and note ids come from the same counter, so they never collide. Both
 moves go through `doTransfer()` and one `commit()` each (`guestToNotes`,
 `noteToGuest`). Seated totals count masas only - people parked in notes are
 in the notes totals, not "seated".
 
-**Guests now carry `invited`, `title`, `inviteCode`, `inviteSent`.** Anything
-that builds guest objects must keep them: the JSON export writes them and the
-JSON import reads them (`invitationFieldsOf()`), editing a guest changes the
-object in place so they survive, and moving keeps the same object. The Excel
-import creates guests without them, which correctly means "not invited, no
-link". A new code path that rebuilds guests from name / type / amount only
-will silently untick everyone **and break every link already sent** (the
-code is the only key `/d/` has).
-
-**Invitation links are capabilities.** Whoever has `/d/<code>` sees that
-guest's name, title, count (and masa if shown) plus the event - nothing
-else, and there is no login. The code is 12 random chars from a 57-letter
-alphabet without 0/O/1/l/I (`crypto.getRandomValues`), so guessing is not
-practical, but a forwarded link works for whoever it reaches. **Unticking a
-guest does not revoke the link**; deleting the guest (or giving them a new
-code) does. Codes are made only when a link is first copied / sent, never in
-bulk except by "Linkləri kopyala".
-
-**Links follow the data; pictures do not.** A changed time, place or masa
-shows on the next open of every link already sent (the page is `no-store`).
-A picture is a snapshot from when it was made.
-
-**The greeting rule exists three times**: `greetingOf()` in `invite.html`
-(the card), `inviteGreeting()` in `index.html` (lists, WhatsApp `{salam}`,
-sample line) and `linkPreview()` in `server.js` (og:description). Change one,
-change all three.
-
-**`/d/` relies on exact strings in `invite.html`**: `<!--INVITE_DATA-->`,
-`<title>Toy dəvətnaməsi</title>`, and the two `og:` meta lines are replaced
-verbatim. Edit those lines and the link preview silently falls back to the
-generic text (or the page loses its data). In production `invite.html` is
-read once and cached (`NODE_ENV=production`) - a new page needs a new pod,
-which an image swap gives anyway.
-
-**The planner talks to `invite.html` by postMessage**, origin-checked both
-ways: the frame sends `invite-ready`; the planner sends `invite-show
-{data, mode: intro|play|final, auto}` and `invite-render {id, data}`; the
-frame answers `invite-image {id, blob, name}` or `{id, error}`. Pictures are
-made in a hidden off-screen iframe. Keep the canvas renderer
-(`renderImage()`) and the DOM layout reading the same `THEMES` table, or the
-picture and the page drift apart.
-
-**Invitations on GitHub Pages**: design, preview and pictures work; links do
-not (no server) and the app says so. Nothing typed there is saved.
-
-**More CDNs for invitations**: `invite.html` loads Great Vibes, Pinyon
-Script, Imperial Script, Cormorant Garamond and Montserrat from Google Fonts
-(`fonts.googleapis.com` + `fonts.gstatic.com`) - all checked to have ə/Ə, ş,
-ğ, ı, İ (Parisienne, Italianno, Cinzel, Marcellus and Tangerine do **not**;
-do not swap one in). "Şəkillər (ZIP)" loads JSZip from `cdnjs.cloudflare.com`
-on first use. A future CSP needs `style-src`/`font-src` for Google Fonts.
+**Guests now carry `invited`.** Anything that builds guest objects must keep
+it: the JSON export writes it and the JSON import reads it (`g.invited ===
+true`), editing a guest changes the object in place so it survives, and
+moving keeps the same object. The Excel import creates guests without it,
+which correctly means "not invited". A new code path that rebuilds guests
+from name / type / amount only will silently untick everyone.
 
 **Front-end seams — keep them single:**
 
@@ -406,13 +303,6 @@ on first use. A future CSP needs `style-src`/`font-src` for Google Fonts.
   does nothing while it is off, for viewers, or if jQuery UI did not load.
 - `setGuestInvited()` is the only place the tick changes — the row checkbox
   and the invitation list both call it, and it writes through `commit()`.
-  The one exception, on purpose: sending an invitation (copy link, WhatsApp,
-  picture) ticks the guest in `markInviteSent()`.
-- Invitations: `invitationSettings()` = saved `settings.invitation` over
-  `INVITE_DEFAULTS`; `ensureInviteCode()` is the only place a code is made;
-  `takeInviteLink()` makes it, ticks, marks sent and commits once;
-  `inviteOpenMode()` (and `modeOf()` in `invite.html`) decide intro / play /
-  final from the design and the animation switch.
 - `undoMove()` writes through `commit('undoMove')` like any other change and
   only acts if the guest is still where the drop left them.
 - Per-device settings live in `localStorage`: `tp.dragEnabled.phone` /
@@ -433,23 +323,8 @@ gaps; move-only drag, no switch button on rows, phones start with drag off and
 filters collapsed; a quiet bottom bar with "|" separators and no
 "Saxlanıldı"; lists default to Qonaq + Masa; the order inside masas and
 notes blocks is the user's own, set by dragging (no automatic sort, no grip
-icon - the whole row drags). Invitations: greeting "Hörmətli {ad} {bəy/xanım}"
-with "və ailəsi" only for more than one person, bəy/xanım chosen per guest
-(never guessed from the name), animation switchable off, everything on the
-card editable. Do not "restore" defaults or bring removed things back
-without asking.
-
-**Offered to the user, not asked for yet** (ask before building): guests
-answering "Gələcəyəm / Gələ bilməyəcəyəm" on their page into the list (needs
-an anonymous write endpoint keyed by code); invitations for names that are
-not at a masa (Qeyd Masası rows, or a free name); background music; an
-`og:image` so the WhatsApp preview shows the card.
-
-The three animated designs were modelled on sample invitation videos the
-user shared (doors with bows, lace card in an envelope with calla lilies,
-gold script on silk) and Klassik on a floral JPEG. All art is drawn in SVG
-in `invite.html`; nothing from those files is copied, and the files are not
-in the repo (it is public).
+icon - the whole row drags). Do not "restore" defaults or bring removed
+things back without asking.
 
 ---
 
@@ -505,14 +380,6 @@ cd server && docker compose up --build
 
 # local, no Postgres at all (state dies with the process)
 DATABASE_URL=memory: SESSION_SECRET=... EDITOR_PASSWORD_HASH=... node server/src/server.js
-
-# memory mode via the Claude desktop launcher: .claude/launch.json
-# ("tableplanner-memory", port 3999, password in server/.env.memory)
-# smoke there: EXPECT_DB=false; its readyz check fails in memory mode - expected
-
-# a guest's invitation, as a guest sees it
-curl -s $BASE/d/<inviteCode> | grep -o '<meta property="og:[a-z]*" content="[^"]*">'
-open "$BASE/invite.html?t=zerf"            # sample, any of qapi|zerf|ipek|klassik, &still
 
 # tests — full suite only on an EMPTY board
 BASE=http://localhost:3000 PASSWORD='...' npm run smoke
